@@ -1,9 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { execSync } from 'child_process';
 import { AppModule } from './app.module';
+import { AuthService } from './modules/auth/auth.service';
 
 async function bootstrap() {
+  try {
+    execSync('npx prisma db push --skip-generate --accept-data-loss', {
+      stdio: 'inherit',
+      env: process.env,
+    });
+  } catch (e) {
+    console.error('prisma db push failed:', e);
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
@@ -28,6 +39,9 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
+
+  const authService = app.get(AuthService);
+  await authService.ensureSuperAdmin();
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
