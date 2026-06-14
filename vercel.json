@@ -1,12 +1,16 @@
 {
-  "buildCommand": "npm install && npm run build --workspace=packages/shared && npm run build --workspace=apps/frontend",
+  "buildCommand": "npm install && npx prisma generate --schema=apps/backend/prisma/schema.prisma && npm run build --workspace=packages/shared && npm run build --workspace=apps/frontend",
   "outputDirectory": "apps/frontend/dist",
   "installCommand": "npm install",
   "framework": null,
-  "env": {
-    "VITE_DEMO_MODE": "true"
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

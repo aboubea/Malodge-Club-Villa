@@ -10,40 +10,22 @@ import { Input } from '../../components/ui/Input';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { LoginResponseDto } from '@malodge/shared';
-import { DEMO_USER } from '../../lib/mockAuth';
 
 function useRegister() {
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       email: string;
       password: string;
       firstName: string;
       lastName: string;
       phone?: string;
-    }): Promise<LoginResponseDto> => {
-      try {
-        const r = await apiClient.post<{ data: LoginResponseDto }>('/auth/register', data);
-        return r.data.data ?? (r.data as any);
-      } catch (err: unknown) {
-        const axiosError = err as { response?: { status?: number } };
-        // Backend unreachable → create a demo session with the entered name
-        if (!axiosError.response) {
-          return {
-            ...DEMO_USER,
-            user: {
-              ...DEMO_USER.user,
-              email: data.email,
-              firstName: data.firstName,
-              lastName: data.lastName,
-            },
-          };
-        }
-        throw err;
-      }
-    },
+    }) =>
+      apiClient
+        .post<{ data: LoginResponseDto }>('/auth/register', data)
+        .then((r) => r.data.data ?? (r.data as any)),
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken, data.refreshToken);
       toast.success('Compte créé avec succès !');
