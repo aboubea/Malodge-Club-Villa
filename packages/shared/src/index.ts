@@ -41,29 +41,29 @@ export enum PaymentStatus {
 }
 
 // ============================================================
-// API RESPONSE TYPES
+// API RESPONSE WRAPPERS
 // ============================================================
 
 export interface ApiResponse<T> {
   data: T;
   message?: string;
-  success: boolean;
+  statusCode: number;
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
-export interface PaginationQuery {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+export interface ApiError {
+  message: string;
+  statusCode: number;
+  error?: string;
 }
 
 // ============================================================
@@ -122,14 +122,6 @@ export interface RefreshTokenDto {
   refreshToken: string;
 }
 
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  role: Role;
-  iat?: number;
-  exp?: number;
-}
-
 // ============================================================
 // VILLA DTOs
 // ============================================================
@@ -155,7 +147,6 @@ export interface VillaDto {
   logifyId?: string | null;
   createdAt: string;
   updatedAt: string;
-  managers?: UserDto[];
 }
 
 export interface CreateVillaDto {
@@ -173,10 +164,23 @@ export interface CreateVillaDto {
   maxGuests?: number;
   bedrooms?: number;
   bathrooms?: number;
-  logifyId?: string;
 }
 
-export interface UpdateVillaDto extends Partial<CreateVillaDto> {
+export interface UpdateVillaDto {
+  name?: string;
+  description?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  coverImage?: string;
+  images?: string[];
+  amenities?: string[];
+  rules?: string[];
+  maxGuests?: number;
+  bedrooms?: number;
+  bathrooms?: number;
   isActive?: boolean;
 }
 
@@ -232,33 +236,15 @@ export interface CreateServiceDto {
   categoryId: string;
 }
 
-export interface UpdateServiceDto extends Partial<CreateServiceDto> {
-  isActive?: boolean;
-}
-
-// ============================================================
-// PROVIDER DTOs
-// ============================================================
-
-export interface ProviderDto {
-  id: string;
-  userId: string;
-  companyName?: string | null;
-  siret?: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  user?: UserDto;
-}
-
-export interface CreateProviderDto {
-  userId: string;
-  companyName?: string;
-  siret?: string;
-  iban?: string;
-}
-
-export interface UpdateProviderDto extends Partial<CreateProviderDto> {
+export interface UpdateServiceDto {
+  name?: string;
+  description?: string;
+  images?: string[];
+  basePrice?: number;
+  duration?: number;
+  requiresDate?: boolean;
+  requiresTime?: boolean;
+  categoryId?: string;
   isActive?: boolean;
 }
 
@@ -278,10 +264,10 @@ export interface ReservationDto {
   status: ReservationStatus;
   notes?: string | null;
   source?: string | null;
-  createdAt: string;
-  updatedAt: string;
   villa?: VillaDto;
   client?: UserDto;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateReservationDto {
@@ -295,8 +281,43 @@ export interface CreateReservationDto {
   source?: string;
 }
 
-export interface UpdateReservationDto extends Partial<CreateReservationDto> {
+export interface UpdateReservationDto {
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  totalAmount?: number;
   status?: ReservationStatus;
+  notes?: string;
+}
+
+// ============================================================
+// PROVIDER DTOs
+// ============================================================
+
+export interface ProviderDto {
+  id: string;
+  userId: string;
+  companyName?: string | null;
+  siret?: string | null;
+  iban?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user?: UserDto;
+}
+
+export interface CreateProviderDto {
+  userId: string;
+  companyName?: string;
+  siret?: string;
+  iban?: string;
+}
+
+export interface UpdateProviderDto {
+  companyName?: string;
+  siret?: string;
+  iban?: string;
+  isActive?: boolean;
 }
 
 // ============================================================
@@ -333,100 +354,34 @@ export interface OrderDto {
   provider?: ProviderDto;
 }
 
-export interface CreateOrderDto {
-  reservationId?: string;
-  clientId: string;
-  providerId?: string;
+// ============================================================
+// PAGINATION / QUERY DTOs
+// ============================================================
+
+export interface PaginationQueryDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface UserQueryDto extends PaginationQueryDto {
+  role?: Role;
+  isActive?: boolean;
+}
+
+export interface VillaQueryDto extends PaginationQueryDto {
+  city?: string;
+  isActive?: boolean;
+}
+
+export interface ReservationQueryDto extends PaginationQueryDto {
   villaId?: string;
-  notes?: string;
-  scheduledAt?: string;
-  items: {
-    serviceId: string;
-    quantity: number;
-    unitPrice: number;
-    notes?: string;
-  }[];
+  clientId?: string;
+  status?: ReservationStatus;
 }
 
 // ============================================================
-// PAYMENT DTOs
-// ============================================================
-
-export interface PaymentDto {
-  id: string;
-  orderId: string;
-  amount: number;
-  method: PaymentMethod;
-  status: PaymentStatus;
-  stripePaymentId?: string | null;
-  paidAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ============================================================
-// DOCUMENT DTOs
-// ============================================================
-
-export interface DocumentDto {
-  id: string;
-  villaId?: string | null;
-  name: string;
-  type: string;
-  fileUrl: string;
-  fileSize?: number | null;
-  version: number;
-  category: string;
-  uploadedBy?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ============================================================
-// MESSAGE & CONVERSATION DTOs
-// ============================================================
-
-export interface MessageDto {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  content: string;
-  type: string;
-  fileUrl?: string | null;
-  readAt?: string | null;
-  createdAt: string;
-  sender?: UserDto;
-}
-
-export interface ConversationDto {
-  id: string;
-  reservationId?: string | null;
-  topic?: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  messages?: MessageDto[];
-}
-
-// ============================================================
-// AUDIT LOG DTOs
-// ============================================================
-
-export interface AuditLogDto {
-  id: string;
-  userId?: string | null;
-  action: string;
-  entity: string;
-  entityId?: string | null;
-  changes?: Record<string, unknown> | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-  createdAt: string;
-  user?: UserDto;
-}
-
-// ============================================================
-// DASHBOARD DTOs
+// DASHBOARD KPI DTOs
 // ============================================================
 
 export interface DashboardKpiDto {
@@ -436,16 +391,6 @@ export interface DashboardKpiDto {
   activeStays: number;
   pendingOrders: number;
   satisfactionScore: number;
-  revenueGrowth: number;
-  occupancyGrowth: number;
-}
-
-export interface TopVillaDto {
-  id: string;
-  name: string;
-  city: string;
-  coverImage?: string | null;
-  revenue: number;
-  occupancyRate: number;
-  reservationCount: number;
+  revenueChange: number;
+  occupancyChange: number;
 }
