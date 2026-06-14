@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Crown,
+  ShoppingBag,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore } from '../../store/uiStore';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { path: '/villas', label: 'Villas', icon: Building2 },
   { path: '/reservations', label: 'Réservations', icon: CalendarDays },
+  { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/services', label: 'Services', icon: Sparkles },
   { path: '/clients', label: 'Clients', icon: Users },
   { path: '/prestataires', label: 'Prestataires', icon: Briefcase },

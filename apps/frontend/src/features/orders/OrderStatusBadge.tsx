@@ -1,0 +1,27 @@
+import { Badge } from '../../components/ui/Badge';
+import { OrderStatus } from '@mahodge/shared';
+
+const STATUS_CONFIG: Record<
+  OrderStatus,
+  { label: string; variant: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' | 'default' }
+> = {
+  [OrderStatus.PENDING]: { label: 'En attente', variant: 'pending' },
+  [OrderStatus.CONFIRMED]: { label: 'Confirmée', variant: 'confirmed' },
+  [OrderStatus.IN_PROGRESS]: { label: 'En cours', variant: 'active' },
+  [OrderStatus.COMPLETED]: { label: 'Terminée', variant: 'completed' },
+  [OrderStatus.CANCELLED]: { label: 'Annulée', variant: 'cancelled' },
+};
+
+interface OrderStatusBadgeProps {
+  status: OrderStatus | string;
+  size?: 'sm' | 'md';
+}
+
+export function OrderStatusBadge({ status, size = 'sm' }: OrderStatusBadgeProps) {
+  const config = STATUS_CONFIG[status as OrderStatus] ?? { label: status, variant: 'default' as const };
+  return (
+    <Badge variant={config.variant} size={size}>
+      {config.label}
+    </Badge>
+  );
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Crown, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -186,12 +186,12 @@ export function LoginPage() {
             />
 
             <div className="flex items-center justify-end">
-              <button
-                type="button"
+              <Link
+                to="/mot-de-passe-oublie"
                 className="text-xs text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
               >
                 Mot de passe oublié ?
-              </button>
+              </Link>
             </div>
 
             <Button

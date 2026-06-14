@@ -8,6 +8,10 @@ import { VillasModule } from './modules/villas/villas.module';
 import { ServicesModule } from './modules/services/services.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { MailModule } from './modules/mail/mail.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -22,6 +26,10 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     ServicesModule,
     ReservationsModule,
     ProvidersModule,
+    MailModule,
+    OrdersModule,
+    PaymentsModule,
+    FinanceModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

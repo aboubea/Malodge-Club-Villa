@@ -64,7 +64,8 @@ model User {
   orders        Order[]
   sentMessages  Message[]     @relation("SentMessages")
   auditLogs     AuditLog[]
-  provider      Provider?
+  provider           Provider?
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Villa {
@@ -320,6 +321,17 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   user       User?    @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AppSetting {
