@@ -3,11 +3,11 @@ import { OrderStatus } from '@mahodge/shared';
 
 const STATUS_CONFIG: Record<
   OrderStatus,
-  { label: string; variant: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' | 'default' }
+  { label: string; variant: 'pending' | 'confirmed' | 'manager' | 'completed' | 'cancelled' | 'default' }
 > = {
   [OrderStatus.PENDING]: { label: 'En attente', variant: 'pending' },
   [OrderStatus.CONFIRMED]: { label: 'Confirmée', variant: 'confirmed' },
-  [OrderStatus.IN_PROGRESS]: { label: 'En cours', variant: 'active' },
+  [OrderStatus.IN_PROGRESS]: { label: 'En cours', variant: 'manager' },
   [OrderStatus.COMPLETED]: { label: 'Terminée', variant: 'completed' },
   [OrderStatus.CANCELLED]: { label: 'Annulée', variant: 'cancelled' },
 };
@@ -18,7 +18,7 @@ interface OrderStatusBadgeProps {
 }
 
 export function OrderStatusBadge({ status, size = 'sm' }: OrderStatusBadgeProps) {
-  const config = STATUS_CONFIG[status as OrderStatus] ?? { label: status, variant: 'default' as const };
+  const config = STATUS_CONFIG[status as OrderStatus] ?? { label: status, variant: 'default' as 'default' };
   return (
     <Badge variant={config.variant} size={size}>
       {config.label}
