@@ -1,4 +1,4 @@
-export const APP_NAME = 'Mahodge Club Villa';
+export const APP_NAME = 'Malodge Club Villa';
 export const APP_TAGLINE = 'Excellence en Conciergerie de Luxe';
 
 export const ROLES_LABELS: Record<string, string> = {

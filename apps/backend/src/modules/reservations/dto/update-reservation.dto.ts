@@ -1,6 +1,6 @@
 import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsInt, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ReservationStatus } from '@mahodge/shared';
+import { ReservationStatus } from '@malodge/shared';
 
 export class UpdateReservationDto {
   @ApiPropertyOptional()

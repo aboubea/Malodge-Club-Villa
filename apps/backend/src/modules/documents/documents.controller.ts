@@ -4,7 +4,7 @@ import { DocumentsService } from './documents.service';
 import { CreateDocumentDto, UpdateDocumentDto } from './dto/create-document.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Documents')
 @ApiBearerAuth()

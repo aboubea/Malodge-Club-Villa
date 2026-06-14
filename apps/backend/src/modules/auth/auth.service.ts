@@ -184,7 +184,7 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash('SuperAdmin2024!', 12);
       await this.prisma.user.create({
         data: {
-          email: 'superadmin@mahodge.com',
+          email: 'superadmin@malodge.com',
           password: hashedPassword,
           firstName: 'Super',
           lastName: 'Admin',
@@ -192,7 +192,7 @@ export class AuthService {
           isActive: true,
         },
       });
-      console.log('Super admin created: superadmin@mahodge.com / SuperAdmin2024!');
+      console.log('Super admin created: superadmin@malodge.com / SuperAdmin2024!');
     }
   }
 }

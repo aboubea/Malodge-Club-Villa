@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
-import { LoginResponseDto, LoginDto } from '@mahodge/shared';
+import { LoginResponseDto, LoginDto } from '@malodge/shared';
 
 export function useLogin() {
   const { setAuth } = useAuthStore();

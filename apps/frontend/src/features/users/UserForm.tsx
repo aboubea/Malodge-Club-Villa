@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../lib/apiClient';
-import { UserDto, Role } from '@mahodge/shared';
+import { UserDto, Role } from '@malodge/shared';
 import { ROLES_LABELS } from '../../lib/constants';
 
 interface UserFormProps {

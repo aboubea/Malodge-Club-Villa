@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { FinanceService } from './finance.service';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Finance')
 @ApiBearerAuth()

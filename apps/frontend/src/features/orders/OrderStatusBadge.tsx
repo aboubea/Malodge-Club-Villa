@@ -1,5 +1,5 @@
 import { Badge } from '../../components/ui/Badge';
-import { OrderStatus } from '@mahodge/shared';
+import { OrderStatus } from '@malodge/shared';
 
 const STATUS_CONFIG: Record<
   OrderStatus,

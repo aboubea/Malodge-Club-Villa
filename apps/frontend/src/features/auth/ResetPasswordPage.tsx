@@ -117,7 +117,7 @@ export function ResetPasswordPage() {
           <div className="w-8 h-8 rounded-lg bg-[#C9A96E] flex items-center justify-center">
             <Crown size={16} className="text-[#0A0A0B]" />
           </div>
-          <p className="text-sm font-medium text-[#F5F0EB]">Mahodge Club Villa</p>
+          <p className="text-sm font-medium text-[#F5F0EB]">Malodge Club Villa</p>
         </div>
 
         <div className="mb-8">

@@ -109,7 +109,7 @@ export function Sidebar() {
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.15 }}
             >
-              <p className="text-[13px] font-medium text-[#F5F0EB] leading-none">Mahodge</p>
+              <p className="text-[13px] font-medium text-[#F5F0EB] leading-none">Malodge</p>
               <p className="text-[10px] text-[#6B6B6F] leading-none mt-0.5">Club Villa</p>
             </motion.div>
           )}

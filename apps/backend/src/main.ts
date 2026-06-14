@@ -20,7 +20,7 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Mahodge Club Villa API')
+    .setTitle('Malodge Club Villa API')
     .setDescription('Premium villa concierge management platform')
     .setVersion('1.0')
     .addBearerAuth()
@@ -31,7 +31,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`Mahodge API running on port ${port}`);
+  console.log(`Malodge API running on port ${port}`);
 }
 
 bootstrap();

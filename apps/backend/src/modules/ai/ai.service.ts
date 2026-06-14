@@ -81,7 +81,7 @@ export class AiService {
       .map((doc, i) => `[Document ${i + 1}: ${doc.name}]\n${(doc.textContent as string).substring(0, 1000)}`)
       .join('\n\n---\n\n');
 
-    const systemPrompt = `Tu es le concierge IA de Mahodge Club Villa. Réponds UNIQUEMENT à partir des documents fournis. Si l'information n'est pas dans les documents, réponds: "Je ne dispose pas de cette information dans ma base de connaissances." Ne jamais inventer. Ne jamais chercher sur internet. Cite toujours les sources en indiquant le nom du document.`;
+    const systemPrompt = `Tu es le concierge IA de Malodge Club Villa. Réponds UNIQUEMENT à partir des documents fournis. Si l'information n'est pas dans les documents, réponds: "Je ne dispose pas de cette information dans ma base de connaissances." Ne jamais inventer. Ne jamais chercher sur internet. Cite toujours les sources en indiquant le nom du document.`;
 
     let answer: string;
     try {

@@ -15,7 +15,7 @@ export const useUIStore = create<UIState>()(
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
     }),
     {
-      name: 'mahodge-ui',
+      name: 'malodge-ui',
     },
   ),
 );

@@ -41,7 +41,7 @@ export function ForgotPasswordPage() {
             <Crown size={16} className="text-[#0A0A0B]" />
           </div>
           <div>
-            <p className="text-sm font-medium text-[#F5F0EB]">Mahodge Club Villa</p>
+            <p className="text-sm font-medium text-[#F5F0EB]">Malodge Club Villa</p>
           </div>
         </div>
 

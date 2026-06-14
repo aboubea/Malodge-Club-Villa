@@ -4,7 +4,7 @@ import { ProvidersService } from './providers.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Providers')
 @ApiBearerAuth()

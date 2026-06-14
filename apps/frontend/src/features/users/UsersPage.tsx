@@ -11,7 +11,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { SlideOver } from '../../components/ui/SlideOver';
 import { apiClient } from '../../lib/apiClient';
 import { formatDate } from '../../lib/utils';
-import { UserDto, Role } from '@mahodge/shared';
+import { UserDto, Role } from '@malodge/shared';
 import { ROLES_LABELS } from '../../lib/constants';
 import { UserForm } from './UserForm';
 

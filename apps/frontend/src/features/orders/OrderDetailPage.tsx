@@ -13,7 +13,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate, formatDateLong } from '../../lib/utils';
-import { OrderStatus, PaymentStatus, PaymentMethod } from '@mahodge/shared';
+import { OrderStatus, PaymentStatus, PaymentMethod } from '@malodge/shared';
 
 async function fetchOrder(id: string) {
   const res = await apiClient.get(`/orders/${id}`);

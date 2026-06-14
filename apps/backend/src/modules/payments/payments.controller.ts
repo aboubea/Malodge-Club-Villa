@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Payments')
 @ApiBearerAuth()

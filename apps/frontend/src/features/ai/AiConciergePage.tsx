@@ -84,7 +84,7 @@ export function AiConciergePage() {
             <div>
               <p className="text-lg font-light text-[#F5F0EB]">Bonjour, comment puis-je vous aider ?</p>
               <p className="text-sm text-[#6B6B6F] mt-1.5">
-                Je suis votre concierge IA. Posez-moi une question sur les documents de Mahodge Club
+                Je suis votre concierge IA. Posez-moi une question sur les documents de Malodge Club
                 Villa.
               </p>
             </div>

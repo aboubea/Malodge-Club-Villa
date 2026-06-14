@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { UserDto } from '@mahodge/shared';
+import { UserDto } from '@malodge/shared';
 
 interface AuthState {
   user: UserDto | null;
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
     }),
     {
-      name: 'mahodge-auth',
+      name: 'malodge-auth',
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,

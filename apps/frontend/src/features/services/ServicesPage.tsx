@@ -12,7 +12,7 @@ import { SlideOver } from '../../components/ui/SlideOver';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency } from '../../lib/utils';
-import { ServiceDto } from '@mahodge/shared';
+import { ServiceDto } from '@malodge/shared';
 import { ServiceForm } from './ServiceForm';
 
 function ServiceCard({ service, onEdit, onDelete }: {

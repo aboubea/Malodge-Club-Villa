@@ -1,6 +1,6 @@
 import { IsString, IsNumber, IsEnum, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { PaymentMethod } from '@mahodge/shared';
+import { PaymentMethod } from '@malodge/shared';
 
 export class CreatePaymentDto {
   @ApiProperty()

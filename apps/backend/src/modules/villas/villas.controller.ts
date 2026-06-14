@@ -4,7 +4,7 @@ import { VillasService } from './villas.service';
 import { CreateVillaDto } from './dto/create-villa.dto';
 import { UpdateVillaDto } from './dto/update-villa.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Villas')
 @ApiBearerAuth()

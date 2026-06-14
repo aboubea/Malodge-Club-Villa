@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ServicesService } from './services.service';
 import { CreateServiceCategoryDto } from './dto/create-service.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 
 @ApiTags('Service Categories')
 @ApiBearerAuth()

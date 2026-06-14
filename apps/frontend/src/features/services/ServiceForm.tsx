@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../lib/apiClient';
-import { ServiceDto, ServiceCategoryDto } from '@mahodge/shared';
+import { ServiceDto, ServiceCategoryDto } from '@malodge/shared';
 
 interface ServiceFormProps {
   service?: ServiceDto | null;

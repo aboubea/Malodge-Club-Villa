@@ -62,7 +62,7 @@ export function LoginPage() {
             <Crown size={20} className="text-[#0A0A0B]" />
           </div>
           <div>
-            <p className="text-lg font-medium text-[#F5F0EB]">Mahodge</p>
+            <p className="text-lg font-medium text-[#F5F0EB]">Malodge</p>
             <p className="text-xs text-[#C9A96E]">Club Villa</p>
           </div>
         </div>
@@ -114,7 +114,7 @@ export function LoginPage() {
         {/* Footer */}
         <div className="relative z-10">
           <p className="text-xs text-[#6B6B6F]">
-            © 2024 Mahodge Club Villa. Tous droits réservés.
+            © 2024 Malodge Club Villa. Tous droits réservés.
           </p>
         </div>
       </motion.div>
@@ -133,7 +133,7 @@ export function LoginPage() {
               <Crown size={16} className="text-[#0A0A0B]" />
             </div>
             <div>
-              <p className="text-base font-medium text-[#F5F0EB]">Mahodge Club Villa</p>
+              <p className="text-base font-medium text-[#F5F0EB]">Malodge Club Villa</p>
             </div>
           </div>
 
@@ -152,7 +152,7 @@ export function LoginPage() {
             <Input
               label="Adresse email"
               type="email"
-              placeholder="admin@mahodge.com"
+              placeholder="admin@malodge.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -208,7 +208,7 @@ export function LoginPage() {
           {/* Demo hint */}
           <div className="mt-6 p-3 rounded-lg border border-[#242428] bg-[#111113]">
             <p className="text-xs text-[#6B6B6F] text-center">
-              Demo: <span className="text-[#C9A96E]">superadmin@mahodge.com</span>
+              Demo: <span className="text-[#C9A96E]">superadmin@malodge.com</span>
               {' / '}
               <span className="text-[#C9A96E]">SuperAdmin2024!</span>
             </p>

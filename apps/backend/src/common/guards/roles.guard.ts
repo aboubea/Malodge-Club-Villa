@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Role } from '@mahodge/shared';
+import { Role } from '@malodge/shared';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 const roleHierarchy: Record<Role, number> = {

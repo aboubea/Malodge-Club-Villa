@@ -322,7 +322,7 @@ export class FinanceService {
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
 
-    workbook.creator = 'Mahodge Club Villa';
+    workbook.creator = 'Malodge Club Villa';
     workbook.created = new Date();
 
     // Summary sheet
@@ -373,7 +373,7 @@ export class FinanceService {
       doc.on('error', reject);
 
       // Header
-      doc.fontSize(22).fillColor('#C9A96E').text('Mahodge Club Villa', { align: 'center' });
+      doc.fontSize(22).fillColor('#C9A96E').text('Malodge Club Villa', { align: 'center' });
       doc.fontSize(14).fillColor('#333').text(`Rapport Finances — ${period}`, { align: 'center' });
       doc.fontSize(10).fillColor('#666').text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'center' });
       doc.moveDown(2);

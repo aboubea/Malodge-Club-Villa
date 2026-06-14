@@ -1,5 +1,5 @@
 {
-  "name": "@mahodge/frontend",
+  "name": "@malodge/frontend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
-    "@mahodge/shared": "^1.0.0",
+    "@malodge/shared": "^1.0.0",
     "@tanstack/react-query": "^5.28.0",
     "@tanstack/react-query-devtools": "^5.28.0",
     "axios": "^1.6.8",

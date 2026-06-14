@@ -12,7 +12,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
-import { OrderStatus } from '@mahodge/shared';
+import { OrderStatus } from '@malodge/shared';
 
 type StatusFilter = 'ALL' | OrderStatus;
 

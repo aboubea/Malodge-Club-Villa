@@ -11,7 +11,7 @@ export class MailService {
 
   constructor(private config: ConfigService) {
     this.resend = new Resend(config.get('RESEND_API_KEY', ''));
-    this.from = config.get('MAIL_FROM', 'Mahodge Club Villa <noreply@mahodge.com>');
+    this.from = config.get('MAIL_FROM', 'Malodge Club Villa <noreply@malodge.com>');
     this.appUrl = config.get('APP_URL', 'http://localhost:5173');
   }
 
@@ -22,7 +22,7 @@ export class MailService {
       await this.resend.emails.send({
         from: this.from,
         to,
-        subject: 'Réinitialisation de votre mot de passe — Mahodge Club Villa',
+        subject: 'Réinitialisation de votre mot de passe — Malodge Club Villa',
         html: this.buildPasswordResetHtml(firstName, resetUrl),
       });
     } catch (err) {
@@ -36,7 +36,7 @@ export class MailService {
       await this.resend.emails.send({
         from: this.from,
         to,
-        subject: 'Votre mot de passe a été modifié — Mahodge Club Villa',
+        subject: 'Votre mot de passe a été modifié — Malodge Club Villa',
         html: this.buildPasswordChangedHtml(firstName),
       });
     } catch (err) {
@@ -49,7 +49,7 @@ export class MailService {
       await this.resend.emails.send({
         from: this.from,
         to,
-        subject: 'Bienvenue sur Mahodge Club Villa',
+        subject: 'Bienvenue sur Malodge Club Villa',
         html: this.buildWelcomeHtml(firstName, tempPassword),
       });
     } catch (err) {
@@ -82,7 +82,7 @@ export class MailService {
                     <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
                   </td>
                   <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Mahodge</span>
+                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
                     <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
                   </td>
                 </tr>
@@ -137,7 +137,7 @@ export class MailService {
           <tr>
             <td style="padding-top:24px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Mahodge Club Villa. Tous droits réservés.
+                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
               </p>
             </td>
           </tr>
@@ -167,7 +167,7 @@ export class MailService {
                     <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
                   </td>
                   <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Mahodge</span>
+                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
                     <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
                   </td>
                 </tr>
@@ -195,7 +195,7 @@ export class MailService {
           <tr>
             <td style="padding-top:24px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Mahodge Club Villa. Tous droits réservés.
+                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
               </p>
             </td>
           </tr>
@@ -224,7 +224,7 @@ export class MailService {
                     <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
                   </td>
                   <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Mahodge</span>
+                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
                     <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
                   </td>
                 </tr>
@@ -237,7 +237,7 @@ export class MailService {
                 Bienvenue, ${firstName} !
               </h1>
               <p style="margin:0 0 20px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Votre compte Mahodge Club Villa a été créé. Vous pouvez dès maintenant
+                Votre compte Malodge Club Villa a été créé. Vous pouvez dès maintenant
                 vous connecter à la plateforme.
               </p>
               ${tempPassword ? `
@@ -261,7 +261,7 @@ export class MailService {
           <tr>
             <td style="padding-top:24px;text-align:center;">
               <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Mahodge Club Villa. Tous droits réservés.
+                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
               </p>
             </td>
           </tr>

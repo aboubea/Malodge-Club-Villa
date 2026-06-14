@@ -33,8 +33,8 @@ const INTEGRATIONS = [
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
-  const [companyName, setCompanyName] = useState('Mahodge Club Villa');
-  const [supportEmail, setSupportEmail] = useState('support@mahodge.com');
+  const [companyName, setCompanyName] = useState('Malodge Club Villa');
+  const [supportEmail, setSupportEmail] = useState('support@malodge.com');
   const [notifications, setNotifications] = useState({
     newReservation: true,
     reservationStatusChange: true,
@@ -95,7 +95,7 @@ export function SettingsPage() {
                       onChange={(e) => setSupportEmail(e.target.value)}
                     />
                     <Input label="Téléphone" placeholder="+33 1 00 00 00 00" />
-                    <Input label="Site web" placeholder="https://mahodge.com" />
+                    <Input label="Site web" placeholder="https://malodge.com" />
                     <Button variant="primary" size="sm" icon={<Save size={13} />}>Sauvegarder</Button>
                   </CardContent>
                 </Card>
@@ -118,7 +118,7 @@ export function SettingsPage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { name: 'Mahodge Dark', colors: ['#0A0A0B', '#111113', '#C9A96E', '#F5F0EB'], active: true },
+                      { name: 'Malodge Dark', colors: ['#0A0A0B', '#111113', '#C9A96E', '#F5F0EB'], active: true },
                       { name: 'Classic Light', colors: ['#FFFFFF', '#F8F9FA', '#1A1A2E', '#1A1A2E'], active: false },
                     ].map((theme) => (
                       <div

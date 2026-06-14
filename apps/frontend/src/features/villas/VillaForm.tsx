@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../lib/apiClient';
-import { VillaDto, CreateVillaDto } from '@mahodge/shared';
+import { VillaDto, CreateVillaDto } from '@malodge/shared';
 
 interface VillaFormProps {
   villa?: VillaDto | null;

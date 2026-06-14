@@ -22,7 +22,7 @@ import { Card, CardHeader, CardContent, CardTitle } from '../../components/ui/Ca
 import { SlideOver } from '../../components/ui/SlideOver';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
-import { VillaDto } from '@mahodge/shared';
+import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 
 export function VillaDetailPage() {

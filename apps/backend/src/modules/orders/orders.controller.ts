@@ -13,7 +13,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto, AssignProviderDto } from './dto/update-order.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role, OrderStatus } from '@mahodge/shared';
+import { Role, OrderStatus } from '@malodge/shared';
 
 @ApiTags('Orders')
 @ApiBearerAuth()

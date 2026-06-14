@@ -12,7 +12,7 @@ import { SlideOver } from '../../components/ui/SlideOver';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency } from '../../lib/utils';
-import { VillaDto } from '@mahodge/shared';
+import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 
 function VillaCard({ villa, onEdit, onDelete, onClick }: {
