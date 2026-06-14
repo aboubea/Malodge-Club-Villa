@@ -21,8 +21,13 @@ export function useLogin() {
       toast.success('Connexion réussie');
       navigate(from, { replace: true });
     },
-    onError: () => {
-      toast.error('Email ou mot de passe incorrect');
+    onError: (error: unknown) => {
+      const axiosError = error as { response?: { status?: number } };
+      if (!axiosError.response) {
+        toast.error('Impossible de contacter le serveur. Vérifiez que le backend est démarré.');
+      } else {
+        toast.error('Email ou mot de passe incorrect');
+      }
     },
   });
 }
