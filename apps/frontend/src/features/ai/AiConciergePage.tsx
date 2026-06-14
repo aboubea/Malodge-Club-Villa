@@ -7,11 +7,14 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { AiMessage } from './AiMessage';
 import { apiClient } from '../../lib/apiClient';
 
-interface QA {
-  question: string;
+interface AiApiResponse {
   answer: string;
   sources: { documentId: string; documentName: string; excerpt: string }[];
   hasAnswer: boolean;
+}
+
+interface QA extends AiApiResponse {
+  question: string;
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -20,7 +23,7 @@ const EXAMPLE_QUESTIONS = [
   'Quelle est la procédure en cas de problème technique ?',
 ];
 
-async function queryAI(question: string): Promise<QA> {
+async function queryAI(question: string): Promise<AiApiResponse> {
   const res = await apiClient.post('/ai/query', { question });
   return res.data?.data ?? res.data;
 }
