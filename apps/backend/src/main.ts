@@ -56,11 +56,15 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // Health check endpoint for Railway/Render
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req: unknown, res: any) => res.json({ status: 'ok' }));
+
   const authService = app.get(AuthService);
   await authService.ensureSuperAdmin();
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Malodge API running on port ${port}`);
 }
 
