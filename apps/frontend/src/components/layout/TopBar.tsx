@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Bell, Search, LogOut, User, Settings, ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../../lib/apiClient';
+import { apiClient } from '../../lib/apiClient';
 import { formatDistanceToNow } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';

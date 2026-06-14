@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import apiClient from '../../lib/apiClient';
+import { apiClient } from '../../lib/apiClient';
 
 function useResetPassword() {
   return useMutation({

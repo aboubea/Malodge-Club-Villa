@@ -5,7 +5,7 @@ import { Crown, ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import apiClient from '../../lib/apiClient';
+import { apiClient } from '../../lib/apiClient';
 
 function useForgotPassword() {
   return useMutation({

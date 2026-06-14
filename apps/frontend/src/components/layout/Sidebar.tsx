@@ -36,10 +36,10 @@ const NAV_ITEMS = [
   { path: '/documents', label: 'Documents', icon: FolderOpen },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
+  { path: '/notifications', label: 'Notifications', icon: Bell },
 ];
 
 const BOTTOM_NAV = [
-  { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog },
   { path: '/parametres', label: 'Paramètres', icon: Settings },
 ];
