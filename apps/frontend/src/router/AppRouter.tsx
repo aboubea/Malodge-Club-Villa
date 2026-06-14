@@ -13,6 +13,10 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { OrdersPage } from '../features/orders/OrdersPage';
 import { OrderDetailPage } from '../features/orders/OrderDetailPage';
 import { FinancePage } from '../features/finance/FinancePage';
+import { ChatPage } from '../features/chat/ChatPage';
+import { AiConciergePage } from '../features/ai/AiConciergePage';
+import { DocumentsPage } from '../features/documents/DocumentsPage';
+import { NotificationsPage } from '../features/notifications/NotificationsPage';
 
 export function AppRouter() {
   return (
@@ -35,6 +39,10 @@ export function AppRouter() {
                 <Route path="/commandes" element={<OrdersPage />} />
                 <Route path="/commandes/:id" element={<OrderDetailPage />} />
                 <Route path="/finances" element={<FinancePage />} />
+                <Route path="/messages" element={<ChatPage />} />
+                <Route path="/concierge-ia" element={<AiConciergePage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

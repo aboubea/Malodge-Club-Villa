@@ -15,6 +15,9 @@ import {
   ChevronRight,
   Crown,
   ShoppingBag,
+  MessageSquare,
+  BrainCircuit,
+  Bell,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore } from '../../store/uiStore';
@@ -31,9 +34,12 @@ const NAV_ITEMS = [
   { path: '/prestataires', label: 'Prestataires', icon: Briefcase },
   { path: '/finances', label: 'Finances', icon: TrendingUp },
   { path: '/documents', label: 'Documents', icon: FolderOpen },
+  { path: '/messages', label: 'Messages', icon: MessageSquare },
+  { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
 ];
 
 const BOTTOM_NAV = [
+  { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog },
   { path: '/parametres', label: 'Paramètres', icon: Settings },
 ];

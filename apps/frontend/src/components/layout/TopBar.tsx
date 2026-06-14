@@ -1,18 +1,52 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Bell, Search, LogOut, User, Settings, ChevronDown } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../../lib/apiClient';
+import { formatDistanceToNow } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
 
+interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export function TopBar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  const { data: notifData } = useQuery({
+    queryKey: ['notifications-topbar'],
+    queryFn: () =>
+      apiClient.get('/notifications', { params: { limit: 10 } })
+        .then((r) => (r.data?.data ?? r.data) as Notification[]),
+    refetchInterval: 30000,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => apiClient.patch(`/notifications/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications-topbar'] }),
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => apiClient.patch('/notifications/read-all'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications-topbar'] }),
+  });
+
+  const notifications = Array.isArray(notifData) ? notifData : [];
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   // Close menus on outside click
   useEffect(() => {
@@ -68,7 +102,11 @@ export function TopBar() {
             )}
           >
             <Bell size={15} />
-            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#C9A96E]" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
 
           <AnimatePresence>
@@ -84,26 +122,60 @@ export function TopBar() {
                   'shadow-xl shadow-black/40 z-50',
                 )}
               >
-                <div className="px-4 py-3 border-b border-[#242428]">
+                <div className="px-4 py-3 border-b border-[#242428] flex items-center justify-between">
                   <p className="text-sm font-light text-[#F5F0EB]">Notifications</p>
-                </div>
-                <div className="py-2">
-                  {[
-                    { title: 'Nouvelle réservation', time: 'il y a 5 min', color: 'bg-[#C9A96E]' },
-                    { title: 'Service confirmé', time: 'il y a 1h', color: 'bg-green-500' },
-                    { title: 'Paiement reçu', time: 'il y a 3h', color: 'bg-blue-500' },
-                  ].map((n, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-[#1A1A1D] transition-colors cursor-pointer"
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={() => markAllReadMutation.mutate()}
+                      className="text-xs text-[#C9A96E] hover:text-[#E8C98A] transition-colors"
                     >
-                      <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5 shrink-0', n.color)} />
-                      <div>
-                        <p className="text-sm text-[#F5F0EB]">{n.title}</p>
-                        <p className="text-xs text-[#6B6B6F] mt-0.5">{n.time}</p>
+                      Tout lire
+                    </button>
+                  )}
+                </div>
+                <div className="py-1 max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="text-xs text-[#6B6B6F] text-center py-6">Aucune notification</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => { if (!n.isRead) markReadMutation.mutate(n.id); }}
+                        className={cn(
+                          'flex items-start gap-3 px-4 py-3 hover:bg-[#1A1A1D] transition-colors cursor-pointer relative',
+                          !n.isRead && 'bg-[#1A1A1D]/50',
+                        )}
+                      >
+                        {!n.isRead && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-[#C9A96E] rounded-r-full" />
+                        )}
+                        <span className={cn(
+                          'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
+                          n.type === 'success' ? 'bg-green-500' :
+                          n.type === 'warning' ? 'bg-yellow-500' :
+                          n.type === 'error' ? 'bg-red-500' : 'bg-[#C9A96E]'
+                        )} />
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('text-sm', n.isRead ? 'text-[#6B6B6F]' : 'text-[#F5F0EB]')}>
+                            {n.title}
+                          </p>
+                          <p className="text-xs text-[#6B6B6F] mt-0.5 line-clamp-1">{n.body}</p>
+                          <p className="text-[10px] text-[#6B6B6F] mt-0.5">
+                            {formatDistanceToNow(n.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
+                </div>
+                <div className="px-4 py-2.5 border-t border-[#242428]">
+                  <Link
+                    to="/notifications"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="text-xs text-[#C9A96E] hover:text-[#E8C98A] transition-colors"
+                  >
+                    Voir toutes les notifications →
+                  </Link>
                 </div>
               </motion.div>
             )}
