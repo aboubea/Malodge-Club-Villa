@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { LoginResponseDto, LoginDto } from '@malodge/shared';
-import { DEMO_CREDENTIALS, DEMO_USER } from '../../lib/mockAuth';
 
 export function useLogin() {
   const { setAuth } = useAuthStore();
@@ -14,19 +13,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (dto: LoginDto): Promise<LoginResponseDto> => {
-      try {
-        const response = await apiClient.post<{ data: LoginResponseDto }>('/auth/login', dto);
-        return response.data.data || (response.data as any);
-      } catch (err: unknown) {
-        const axiosError = err as { response?: { status?: number } };
-        // Backend unreachable + demo credentials → auto demo login
-        if (!axiosError.response &&
-            dto.email === DEMO_CREDENTIALS.email &&
-            dto.password === DEMO_CREDENTIALS.password) {
-          return DEMO_USER;
-        }
-        throw err;
-      }
+      const response = await apiClient.post<{ data: LoginResponseDto }>('/auth/login', dto);
+      return response.data.data || (response.data as any);
     },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken, data.refreshToken);

@@ -2,7 +2,9 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// In production (Vercel): /api routes to the serverless NestJS function on the same domain.
+// Locally: proxy in vite.config.ts strips /api and forwards to localhost:3001.
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
