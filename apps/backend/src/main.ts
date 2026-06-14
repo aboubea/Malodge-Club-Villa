@@ -7,8 +7,24 @@ import { AuthService } from './modules/auth/auth.service';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // allow requests with no origin (mobile, curl, Postman)
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.some((o) => origin.startsWith(o)) ||
+        /\.vercel\.app$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 
