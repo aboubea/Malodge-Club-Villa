@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { LoginResponseDto, LoginDto } from '@malodge/shared';
-import { isDemoMode, DEMO_CREDENTIALS, DEMO_USER } from '../../lib/mockAuth';
+import { DEMO_CREDENTIALS, DEMO_USER } from '../../lib/mockAuth';
 
 export function useLogin() {
   const { setAuth } = useAuthStore();
@@ -14,15 +14,19 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (dto: LoginDto): Promise<LoginResponseDto> => {
-      // Demo mode: bypass backend when VITE_DEMO_MODE=true
-      if (isDemoMode) {
-        if (dto.email === DEMO_CREDENTIALS.email && dto.password === DEMO_CREDENTIALS.password) {
+      try {
+        const response = await apiClient.post<{ data: LoginResponseDto }>('/auth/login', dto);
+        return response.data.data || (response.data as any);
+      } catch (err: unknown) {
+        const axiosError = err as { response?: { status?: number } };
+        // Backend unreachable + demo credentials → auto demo login
+        if (!axiosError.response &&
+            dto.email === DEMO_CREDENTIALS.email &&
+            dto.password === DEMO_CREDENTIALS.password) {
           return DEMO_USER;
         }
-        throw { response: { status: 401 } };
+        throw err;
       }
-      const response = await apiClient.post<{ data: LoginResponseDto }>('/auth/login', dto);
-      return response.data.data || (response.data as any);
     },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken, data.refreshToken);
