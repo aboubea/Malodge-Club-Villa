@@ -1,89 +1,54 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BrainCircuit, Send, Sparkles } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
+import { Brain, Send, Loader2, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Button } from '../../components/ui/Button';
 import { AiMessage } from './AiMessage';
-import apiClient from '../../lib/apiClient';
-
-interface Source {
-  documentId: string;
-  documentName: string;
-  excerpt: string;
-}
-
-interface AiResponse {
-  answer: string;
-  sources: Source[];
-  hasAnswer: boolean;
-}
+import { apiClient } from '../../lib/apiClient';
 
 interface QA {
-  id: string;
   question: string;
   answer: string;
-  sources: Source[];
+  sources: { documentId: string; documentName: string; excerpt: string }[];
   hasAnswer: boolean;
 }
 
 const EXAMPLE_QUESTIONS = [
-  'Comment préparer la villa avant l\'arrivée des clients ?',
-  'Quels sont les services disponibles pour un transfert aéroport ?',
-  'Quelles sont les règles de la maison pour Villa Émeraude ?',
+  "Comment préparer la villa pour l'arrivée d'un client ?",
+  'Quels sont les services disponibles pour les prestataires ?',
+  'Quelle est la procédure en cas de problème technique ?',
 ];
 
-function useAiQuery() {
-  return useMutation({
-    mutationFn: (question: string): Promise<AiResponse> =>
-      apiClient.post('/ai/query', { question }).then((r) => r.data?.data ?? r.data),
-  });
+async function queryAI(question: string): Promise<QA> {
+  const res = await apiClient.post('/ai/query', { question });
+  return res.data?.data ?? res.data;
 }
 
 export function AiConciergePage() {
-  const [history, setHistory] = useState<QA[]>([]);
   const [input, setInput] = useState('');
+  const [history, setHistory] = useState<QA[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mutation = useAiQuery();
+
+  const mutation = useMutation({
+    mutationFn: (q: string) => queryAI(q),
+    onSuccess: (result, question) => {
+      setHistory((prev) => [...prev, { question, ...result }]);
+    },
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history, mutation.isPending]);
 
   const handleSubmit = () => {
-    const question = input.trim();
-    if (!question || mutation.isPending) return;
+    if (!input.trim() || mutation.isPending) return;
+    const q = input.trim();
     setInput('');
-    mutation.mutate(question, {
-      onSuccess: (data) => {
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            question,
-            answer: data.answer,
-            sources: data.sources ?? [],
-            hasAnswer: data.hasAnswer,
-          },
-        ]);
-      },
-      onError: () => {
-        setHistory((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            question,
-            answer: 'Une erreur est survenue. Veuillez réessayer.',
-            sources: [],
-            hasAnswer: false,
-          },
-        ]);
-      },
-    });
+    mutation.mutate(q);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -92,125 +57,109 @@ export function AiConciergePage() {
 
   const handleExample = (q: string) => {
     setInput(q);
-    textareaRef.current?.focus();
   };
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-56px)]">
-      <div className="shrink-0">
-        <PageHeader
-          title="Concierge IA"
-          description="Posez vos questions sur les villas, services, procédures et guides internes."
-        />
-      </div>
+    <div className="flex flex-col h-full">
+      <PageHeader
+        title="Concierge IA"
+        description="Posez vos questions sur les villas, services, procédures et guides internes."
+      />
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-0 py-4 space-y-6 min-h-0">
+      <div className="flex-1 overflow-y-auto px-5 pb-4">
         {history.length === 0 && !mutation.isPending ? (
           /* Empty state */
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col items-center justify-center h-full text-center py-16"
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center min-h-[400px] text-center gap-6"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[#C9A96E]/10 border border-[#C9A96E]/20 flex items-center justify-center mb-5">
-              <BrainCircuit size={28} className="text-[#C9A96E]" />
+            <div className="w-16 h-16 rounded-2xl bg-[#1A1A1D] border border-[#242428] flex items-center justify-center">
+              <Brain size={28} className="text-[#C9A96E]" />
             </div>
-            <h3 className="text-lg font-light text-[#F5F0EB] mb-2">
-              Bonjour, comment puis-je vous aider ?
-            </h3>
-            <p className="text-sm text-[#6B6B6F] mb-8 max-w-sm leading-relaxed">
-              Je réponds uniquement à partir de vos documents internes.
-              Je n'invente jamais et n'accède pas à internet.
-            </p>
-            <div className="flex flex-col gap-2 w-full max-w-sm">
+            <div>
+              <p className="text-lg font-light text-[#F5F0EB]">Bonjour, comment puis-je vous aider ?</p>
+              <p className="text-sm text-[#6B6B6F] mt-1.5">
+                Je suis votre concierge IA. Posez-moi une question sur les documents de Mahodge Club
+                Villa.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center max-w-lg">
               {EXAMPLE_QUESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleExample(q)}
-                  className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-[#242428] bg-[#111113] hover:border-[#C9A96E]/30 hover:bg-[#1A1A1D] transition-all duration-150 text-left group"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#242428] bg-[#111113] text-xs text-[#6B6B6F] hover:text-[#F5F0EB] hover:border-[#C9A96E]/30 transition-all duration-150"
                 >
-                  <Sparkles size={13} className="text-[#C9A96E] shrink-0" />
-                  <span className="text-sm text-[#6B6B6F] group-hover:text-[#F5F0EB] transition-colors leading-relaxed">
-                    {q}
-                  </span>
+                  <Sparkles size={11} className="text-[#C9A96E]" />
+                  {q}
                 </button>
               ))}
             </div>
           </motion.div>
         ) : (
-          <div className="space-y-6 max-w-3xl mx-auto w-full">
-            {history.map((item, i) => (
-              <AiMessage
-                key={item.id}
-                question={item.question}
-                answer={item.answer}
-                sources={item.sources}
-                hasAnswer={item.hasAnswer}
-                index={i}
-              />
+          <div className="max-w-3xl mx-auto space-y-6 py-4">
+            {history.map((qa, i) => (
+              <AiMessage key={i} {...qa} index={i} />
             ))}
 
-            {/* Loading state */}
-            <AnimatePresence>
-              {mutation.isPending && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-start gap-3"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-[#1A1A1D] border border-[#242428] flex items-center justify-center shrink-0">
-                    <BrainCircuit size={14} className="text-[#C9A96E]" />
+            {mutation.isPending && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-[#1A1A1D] border border-[#242428] flex items-center justify-center shrink-0">
+                  <Brain size={14} className="text-[#C9A96E]" />
+                </div>
+                <div className="bg-[#1A1A1D] border border-[#242428] rounded-2xl rounded-tl-sm px-4 py-3">
+                  <div className="flex gap-1 items-center">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="w-1.5 h-1.5 rounded-full bg-[#6B6B6F]"
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                      />
+                    ))}
                   </div>
-                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[#111113] border border-[#242428]">
-                    <div className="flex items-center gap-1.5">
-                      {[0, 1, 2].map((i) => (
-                        <motion.span
-                          key={i}
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                          className="w-1.5 h-1.5 rounded-full bg-[#C9A96E]"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
         )}
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 pt-3 pb-2">
-        <div className="max-w-3xl mx-auto w-full">
-          <div className="flex items-end gap-3 p-3 rounded-xl border border-[#242428] bg-[#111113] focus-within:border-[#C9A96E]/40 transition-colors">
+      <div className="border-t border-[#242428] px-5 py-4 shrink-0">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-end gap-3 bg-[#111113] border border-[#242428] rounded-2xl px-4 py-3 focus-within:border-[#C9A96E]/40 transition-all duration-150">
             <textarea
-              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Posez votre question… (Entrée pour envoyer, Maj+Entrée pour un saut de ligne)"
+              placeholder="Posez votre question... (Entrée pour envoyer)"
               rows={1}
-              className="flex-1 bg-transparent text-sm text-[#F5F0EB] placeholder:text-[#6B6B6F] resize-none focus:outline-none leading-relaxed min-h-[24px] max-h-40 overflow-y-auto"
-              style={{ fieldSizing: 'content' } as React.CSSProperties}
+              className="flex-1 resize-none bg-transparent text-sm text-[#F5F0EB] placeholder:text-[#6B6B6F] focus:outline-none max-h-32"
+              style={{ minHeight: '24px' }}
             />
-            <Button
-              variant="primary"
-              size="sm"
+            <button
               onClick={handleSubmit}
-              loading={mutation.isPending}
-              disabled={!input.trim()}
-              className="shrink-0"
+              disabled={!input.trim() || mutation.isPending}
+              className={cn(
+                'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
+                input.trim() && !mutation.isPending
+                  ? 'bg-[#C9A96E] text-[#0A0A0B] hover:bg-[#E8C98A]'
+                  : 'bg-[#1A1A1D] text-[#6B6B6F] cursor-not-allowed',
+              )}
             >
-              <Send size={13} />
-            </Button>
+              {mutation.isPending ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Send size={13} />
+              )}
+            </button>
           </div>
-          <p className="text-[10px] text-[#6B6B6F] text-center mt-2">
-            Réponses basées exclusivement sur vos documents internes · Sources toujours citées
+          <p className="text-[10px] text-[#6B6B6F] mt-2 text-center">
+            Répond uniquement à partir des documents indexés. Ne jamais inventer d'information.
           </p>
         </div>
       </div>
