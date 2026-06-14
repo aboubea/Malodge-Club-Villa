@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  PROVIDER
+  CLIENT
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  CASH
+  TRANSFER
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  role          Role      @default(CLIENT)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  managedVillas VillaManager[]
+  reservations  Reservation[]
+  orders        Order[]
+  sentMessages  Message[]     @relation("SentMessages")
+  auditLogs     AuditLog[]
+  provider           Provider?
+  passwordResetTokens PasswordResetToken[]
+  aiQueries     AiQuery[]
+  notifications Notification[]
+  conversationParticipations ConversationParticipant[]
+}
+
+model Villa {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  address       String
+  city          String
+  country       String    @default("France")
+  latitude      Float?
+  longitude     Float?
+  coverImage    String?
+  images        String[]
+  amenities     Json      @default("[]")
+  rules         Json      @default("[]")
+  maxGuests     Int       @default(1)
+  bedrooms      Int       @default(1)
+  bathrooms     Int       @default(1)
+  isActive      Boolean   @default(true)
+  logifyId      String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  managers      VillaManager[]
+  reservations  Reservation[]
+  villaServices VillaService[]
+  documents     Document[]
+}
+
+model VillaManager {
+  villaId   String
+  userId    String
+  villa     Villa  @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([villaId, userId])
+}
+
+model Provider {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  companyName String?
+  siret       String?
+  iban        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories  ProviderCategory[]
+  orders      Order[]
+  services    ServiceProvider[]
+}
+
+model ServiceCategory {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  icon        String?
+  color       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  services    Service[]
+  providers   ProviderCategory[]
+}
+
+model Service {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  description     String?
+  images          String[]
+  basePrice       Float
+  duration        Int?
+  isActive        Boolean   @default(true)
+  requiresDate    Boolean   @default(false)
+  requiresTime    Boolean   @default(false)
+  categoryId      String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  category        ServiceCategory  @relation(fields: [categoryId], references: [id])
+  villaServices   VillaService[]
+  providers       ServiceProvider[]
+  orderItems      OrderItem[]
+}
+
+model VillaService {
+  villaId     String
+  serviceId   String
+  customPrice Float?
+  commission  Float?    @default(15)
+  isActive    Boolean   @default(true)
+
+  villa       Villa     @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([villaId, serviceId])
+}
+
+model ServiceProvider {
+  serviceId   String
+  providerId  String
+  isPreferred Boolean  @default(false)
+
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, providerId])
+}
+
+model ProviderCategory {
+  providerId  String
+  categoryId  String
+  provider    Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category    ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([providerId, categoryId])
+}
+
+model Reservation {
+  id            String             @id @default(cuid())
+  logifyId      String?            @unique
+  villaId       String
+  clientId      String
+  checkIn       DateTime
+  checkOut      DateTime
+  guests        Int                @default(1)
+  totalAmount   Float
+  status        ReservationStatus  @default(PENDING)
+  notes         String?
+  source        String?            @default("manual")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  villa         Villa       @relation(fields: [villaId], references: [id])
+  client        User        @relation(fields: [clientId], references: [id])
+  orders        Order[]
+  conversations Conversation[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  reservationId String?
+  clientId      String
+  providerId    String?
+  villaId       String?
+  status        OrderStatus @default(PENDING)
+  totalAmount   Float
+  commission    Float       @default(0)
+  notes         String?
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id])
+  client        User          @relation(fields: [clientId], references: [id])
+  provider      Provider?     @relation(fields: [providerId], references: [id])
+  items         OrderItem[]
+  payment       Payment?
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  serviceId   String
+  quantity    Int      @default(1)
+  unitPrice   Float
+  total       Float
+  notes       String?
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service     Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  amount          Float
+  method          PaymentMethod @default(CASH)
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order           Order         @relation(fields: [orderId], references: [id])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  reservationId String?
+  topic         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  participants  ConversationParticipant[]
+  messages      Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  type           String    @default("text")
+  fileUrl        String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  villaId     String?
+  name        String
+  type        String
+  fileUrl     String
+  fileSize    Int?
+  version     Int      @default(1)
+  category    String   @default("general")
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  villa       Villa?   @relation(fields: [villaId], references: [id])
+  textContent String?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entity     String
+  entityId   String?
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AiQuery {
+  id        String   @id @default(cuid())
+  userId    String
+  question  String
+  answer    String
+  sources   Json     @default("[]")
+  hasAnswer Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  title      String
+  body       String
+  type       String    @default("info")
+  channel    String    @default("in_app")
+  isRead     Boolean   @default(false)
+  entityId   String?
+  entityType String?
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

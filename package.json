@@ -1,0 +1,20 @@
+{
+  "name": "malodge-club-villa",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm -w apps/frontend run dev",
+    "dev:backend": "npm -w apps/backend run start:dev",
+    "build": "npm run build:shared && npm run build:backend && npm run build:frontend",
+    "build:shared": "npm -w packages/shared run build",
+    "build:backend": "npm -w apps/backend run build",
+    "build:frontend": "npm -w apps/frontend run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
