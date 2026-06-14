@@ -213,6 +213,13 @@ export function LoginPage() {
               <span className="text-[#C9A96E]">SuperAdmin2024!</span>
             </p>
           </div>
+
+          <div className="mt-4 text-center">
+            <span className="text-sm text-[#6B6B6F]">Pas encore de compte ?{' '}</span>
+            <Link to="/inscription" className="text-sm text-[#C9A96E] hover:text-[#E8C98A] transition-colors">
+              Créer un compte
+            </Link>
+          </div>
         </motion.div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -109,6 +110,46 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('User not found');
     return user;
+  }
+
+  async register(dto: RegisterDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Un compte existe déjà avec cet email.');
+
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        password: hashedPassword,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone,
+        role: 'CLIENT',
+        isActive: true,
+      },
+    });
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.config.get('JWT_SECRET', 'default-secret'),
+      expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.config.get('JWT_REFRESH_SECRET', 'default-refresh-secret'),
+      expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
+    });
+
+    const { password: _, ...userWithoutPassword } = user;
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        ...userWithoutPassword,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        lastLoginAt: null,
+      },
+    };
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
