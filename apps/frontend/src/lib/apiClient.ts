@@ -34,6 +34,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       const refreshToken = useAuthStore.getState().refreshToken;
 
+      // Only attempt refresh if we actually have a refresh token (= user was logged in)
       if (refreshToken) {
         try {
           const response = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
@@ -44,15 +45,16 @@ apiClient.interceptors.response.use(
         } catch {
           useAuthStore.getState().logout();
           window.location.href = '/login';
+          return Promise.reject(error);
         }
-      } else {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
       }
+      // No refresh token = not logged in, just reject — let the component handle it
+      return Promise.reject(error);
     }
 
-    const message = error.response?.data?.message || 'Une erreur est survenue';
-    if (error.response?.status !== 401) {
+    // Only show global toast for server errors with a response (not 401, not network errors)
+    if (error.response && error.response.status !== 401) {
+      const message = error.response.data?.message || 'Une erreur est survenue';
       toast.error(message);
     }
 
