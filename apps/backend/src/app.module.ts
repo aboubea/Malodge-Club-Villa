@@ -12,6 +12,10 @@ import { MailModule } from './modules/mail/mail.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { AiModule } from './modules/ai/ai.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -30,6 +34,10 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     OrdersModule,
     PaymentsModule,
     FinanceModule,
+    ChatModule,
+    AiModule,
+    DocumentsModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
