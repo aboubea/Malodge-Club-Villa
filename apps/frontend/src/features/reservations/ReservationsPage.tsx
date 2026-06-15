@@ -146,16 +146,18 @@ export function ReservationsPage() {
   });
   const lodgifyConfigured = !!lodgifyStatusData?.configured;
 
-  const { data: lodgifyResData, isLoading: lodgifyLoading, refetch: refetchLodgify } = useQuery({
+  const { data: lodgifyResData, isLoading: lodgifyLoading, isError: lodgifyIsError, error: lodgifyError, refetch: refetchLodgify } = useQuery({
     queryKey: ['lodgify-reservations'],
     queryFn: async () => {
       const res = await apiClient.get('/lodgify/reservations');
-      return res.data?.data ?? res.data ?? [];
+      const raw = res.data?.data ?? res.data;
+      return Array.isArray(raw) ? raw : (Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.data) ? raw.data : []));
     },
     enabled: source === 'lodgify' && lodgifyConfigured,
     staleTime: 2 * 60_000,
+    retry: false,
   });
-  const lodgifyReservations: any[] = lodgifyResData ?? [];
+  const lodgifyReservations: any[] = Array.isArray(lodgifyResData) ? lodgifyResData : [];
 
   const createClientMutation = useMutation({
     mutationFn: (data: { firstName: string; lastName: string; email: string; phone?: string }) =>
@@ -289,7 +291,7 @@ export function ReservationsPage() {
           </button>
         )}
         {source === 'lodgify' && (
-          <button onClick={() => refetchLodgify()} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
+          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
             <RefreshCw size={14} />
           </button>
         )}
@@ -310,6 +312,17 @@ export function ReservationsPage() {
               <tbody>
                 {lodgifyLoading
                   ? Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)
+                  : lodgifyIsError
+                  ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-16 text-center">
+                        <p className="text-sm text-red-400 mb-1">Erreur Lodgify</p>
+                        <p className="text-xs text-[#6B6B6F] max-w-md mx-auto break-words">
+                          {(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}
+                        </p>
+                      </td>
+                    </tr>
+                  )
                   : lodgifyReservations.length === 0
                   ? (
                     <tr>
