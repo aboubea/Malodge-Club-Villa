@@ -41,16 +41,20 @@ const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
 const CLIENT: RoleKey[] = ['CLIENT'];
 
 const NAV_ITEMS: NavDef[] = [
+  // Staff
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: STAFF },
-  { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
-  { path: '/villas', label: 'Villas', icon: Building2 },
+  { path: '/villas', label: 'Villas', icon: Building2, roles: STAFF },
   { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
-  { path: '/agenda', label: 'Agenda', icon: CalendarRange },
-  { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/services', label: 'Catalogue', icon: Sparkles, roles: STAFF },
   { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
   { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
   { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },
+  // Client-specific
+  { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
+  { path: '/mes-sejours', label: 'Mes séjours', icon: Building2, roles: CLIENT },
+  // All
+  { path: '/agenda', label: 'Agenda', icon: CalendarRange },
+  { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
   { path: '/notifications', label: 'Notifications', icon: Bell },

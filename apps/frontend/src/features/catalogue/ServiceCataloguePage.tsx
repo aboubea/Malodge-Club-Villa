@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, X, Plus, Minus, Clock, CheckCircle } from 'lucide-react';
+import { Search, ShoppingCart, X, Plus, Minus, Clock, CheckCircle, Building2, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -47,7 +47,6 @@ export function ServiceCataloguePage() {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedVillaId, setSelectedVillaId] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
@@ -62,24 +61,36 @@ export function ServiceCataloguePage() {
   });
   const categories = categoriesData ?? [];
 
-  // Load client's reserved villas for villa selector
-  const { data: villasData } = useQuery({
-    queryKey: ['client-villas'],
+  // Load client's reservations to get active stay and villa for pricing
+  const { data: staysData } = useQuery({
+    queryKey: ['client-stays-catalogue'],
     queryFn: async () => {
-      const res = await apiClient.get('/villas?limit=50&isActive=true');
-      return (res.data.data ?? res.data)?.data ?? res.data?.data ?? [];
+      const res = await apiClient.get('/reservations?limit=20');
+      return (res.data.data ?? res.data)?.data ?? [];
     },
-    enabled: isClient,
   });
-  const clientVillas: any[] = villasData ?? [];
+  const clientStays: any[] = staysData ?? [];
+  const now = new Date();
+  const activeStay = clientStays.find(
+    (r) => r.status === 'ACTIVE' || (r.status === 'CONFIRMED' && new Date(r.checkIn) <= now && new Date(r.checkOut) >= now),
+  ) ?? clientStays.find((r) => r.status === 'CONFIRMED' && new Date(r.checkIn) > now);
+  const clientVillas = clientStays
+    .map((r: any) => r.villa)
+    .filter(Boolean)
+    .filter((v: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === v.id) === i);
+
+  // Auto-select the active stay's villa
+  const [selectedVillaId, setSelectedVillaId] = useState('');
+
+  const effectiveVillaId = selectedVillaId || activeStay?.villa?.id || '';
 
   const { data, isLoading } = useQuery({
-    queryKey: ['services-catalogue', search, selectedCategory, selectedVillaId],
+    queryKey: ['services-catalogue', search, selectedCategory, effectiveVillaId],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: '100', activeOnly: 'true' });
       if (search) params.set('search', search);
       if (selectedCategory) params.set('categoryId', selectedCategory);
-      if (selectedVillaId) params.set('villaId', selectedVillaId);
+      if (effectiveVillaId) params.set('villaId', effectiveVillaId);
       const res = await apiClient.get(`/services?${params}`);
       return res.data.data ?? res.data;
     },
@@ -98,6 +109,8 @@ export function ServiceCataloguePage() {
         items,
         notes: orderNotes || undefined,
         scheduledAt: scheduledAt || undefined,
+        reservationId: activeStay?.id || undefined,
+        villaId: (selectedVillaId || activeStay?.villa?.id) || undefined,
       });
     },
     onSuccess: () => {
@@ -156,6 +169,30 @@ export function ServiceCataloguePage() {
           </Button>
         )}
       </PageHeader>
+
+      {/* Active stay context banner */}
+      {isClient && activeStay && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5">
+          <div className="w-10 h-10 rounded-lg bg-[#1A1A1D] overflow-hidden shrink-0">
+            {activeStay.villa?.coverImage ? (
+              <img src={activeStay.villa.coverImage} alt={activeStay.villa.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Building2 size={16} className="text-[#242428]" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-[#C9A96E] font-medium">Votre séjour actuel</p>
+            <p className="text-sm text-[#F5F0EB] truncate">{activeStay.villa?.name} — {activeStay.villa?.city}</p>
+            <p className="text-[11px] text-[#6B6B6F] flex items-center gap-1 mt-0.5">
+              <CalendarDays size={9} />
+              {new Date(activeStay.checkIn).toLocaleDateString('fr-FR')} → {new Date(activeStay.checkOut).toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+          <p className="text-[10px] text-[#6B6B6F]">Prix adaptés à votre villa</p>
+        </div>
+      )}
 
       {/* Search + category filters */}
       <div className="space-y-3">
