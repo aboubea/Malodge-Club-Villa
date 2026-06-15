@@ -72,25 +72,14 @@ export class LodgifyService {
     const to = new Date();
     to.setDate(to.getDate() + 365);
 
-    // Try v2 first; fall back to v1 if v2 fails
-    let items: any[] = [];
-    try {
-      const fromStr = from.toISOString().split('T')[0];
-      const toStr = to.toISOString().split('T')[0];
-      const data = await this.lodgifyGet(
-        `/v2/reservations?includeRecords=true&dateFrom=${fromStr}&dateTo=${toStr}`,
-        apiKey,
-      );
-      items = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
-    } catch (e: any) {
-      // v2 failed — try v1
-      try {
-        const data = await this.lodgifyGet('/v1/booking/reservation', apiKey);
-        items = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
-      } catch {
-        throw e; // re-throw original error
-      }
-    }
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr = to.toISOString().split('T')[0];
+
+    const data = await this.lodgifyGet(
+      `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
+      apiKey,
+    );
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
     return items.map((r) => ({
       id: String(r.id),
@@ -177,14 +166,16 @@ export class LodgifyService {
     const errors: string[] = [];
 
     try {
-      // Fetch reservations from last 90 days to next 365 days
       const from = new Date();
       from.setDate(from.getDate() - 90);
       const to = new Date();
       to.setDate(to.getDate() + 365);
 
+      const fromStr = from.toISOString().split('T')[0];
+      const toStr = to.toISOString().split('T')[0];
+
       const data = await this.lodgifyGet(
-        `/v2/reservations?includeRecords=true&dateFrom=${from.toISOString().split('T')[0]}&dateTo=${to.toISOString().split('T')[0]}`,
+        `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
         apiKey,
       );
       const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
@@ -193,7 +184,6 @@ export class LodgifyService {
         try {
           const lodgifyId = String(res.id);
 
-          // Find the villa by lodgify property_id
           const villa = await this.prisma.villa.findFirst({
             where: { logifyId: String(res.property_id) },
           });
@@ -202,12 +192,11 @@ export class LodgifyService {
             continue;
           }
 
-          // Find or create a guest user
           const guestEmail = res.guest?.email || `lodgify-guest-${res.id}@malodge.local`;
           let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
           if (!client) {
             const [firstName = 'Guest', ...lastParts] = (res.guest?.name || 'Guest Lodgify').split(' ');
-            const hashedPw = '$2b$12$placeholder'; // not a real login
+            const hashedPw = '$2b$12$placeholder';
             client = await this.prisma.user.create({
               data: {
                 email: guestEmail,
