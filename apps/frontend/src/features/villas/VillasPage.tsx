@@ -397,6 +397,17 @@ export function VillasPage() {
     onError: () => toast.error('Erreur lors de la sauvegarde'),
   });
 
+  const saveAllMutation = useMutation({
+    mutationFn: () => apiClient.post('/lodgify/properties/save-all', { properties: lodgifyProperties }),
+    onSuccess: (res) => {
+      const d = res.data?.data ?? res.data;
+      toast.success(`Synchronisation : ${d.created} créé(s), ${d.updated} mis à jour`);
+      refetchSyncedIds();
+      qc.invalidateQueries({ queryKey: ['villas'] });
+    },
+    onError: () => toast.error('Erreur lors de la synchronisation'),
+  });
+
   const filteredLodgifyProperties = lodgifyProperties.filter((p) => {
     if (lodgifyCountryFilter && p.country !== lodgifyCountryFilter) return false;
     if (lodgifySyncFilter === 'new') return !syncedIds.has(p.id);
@@ -495,28 +506,44 @@ export function VillasPage() {
           </div>
         ) : (
           <>
-            <div className="flex gap-2 flex-wrap items-center">
-              {/* Sync filter */}
-              {(['all', 'new', 'saved'] as const).map((f) => (
-                <button key={f} onClick={() => setLodgifySyncFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifySyncFilter === f ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
-                  {f === 'all' ? 'Tous' : f === 'new' ? 'Non pushés' : 'En base'}
-                </button>
-              ))}
-              {/* Country filter */}
-              {lodgifyCountries.length > 1 && (<>
-                <span className="w-px h-4 bg-[#242428]" />
-                <button onClick={() => setLodgifyCountryFilter('')}
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
-                  Tous les pays
-                </button>
-                {lodgifyCountries.map((c) => (
-                  <button key={c} onClick={() => setLodgifyCountryFilter(c)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
-                    {c}
+            <div className="flex gap-2 flex-wrap items-center justify-between">
+              <div className="flex gap-2 flex-wrap items-center">
+                {/* Sync filter */}
+                {(['all', 'new', 'saved'] as const).map((f) => (
+                  <button key={f} onClick={() => setLodgifySyncFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifySyncFilter === f ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                    {f === 'all' ? 'Tous' : f === 'new' ? 'Non pushés' : 'En base'}
                   </button>
                 ))}
-              </>)}
+                {/* Country filter */}
+                {lodgifyCountries.length > 1 && (<>
+                  <span className="w-px h-4 bg-[#242428]" />
+                  <button onClick={() => setLodgifyCountryFilter('')}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                    Tous les pays
+                  </button>
+                  {lodgifyCountries.map((c) => (
+                    <button key={c} onClick={() => setLodgifyCountryFilter(c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                      {c}
+                    </button>
+                  ))}
+                </>)}
+              </div>
+
+              {/* Sync all button */}
+              {lodgifyProperties.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={saveAllMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+                  onClick={() => saveAllMutation.mutate()}
+                  loading={saveAllMutation.isPending}
+                  disabled={saveAllMutation.isPending}
+                >
+                  Tout synchroniser ({lodgifyProperties.length})
+                </Button>
+              )}
             </div>
 
             {filteredLodgifyProperties.length === 0 ? (

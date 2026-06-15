@@ -45,6 +45,13 @@ export class LodgifyController {
     return this.lodgifyService.saveProperty(body);
   }
 
+  @Post('properties/save-all')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Save/sync all Lodgify properties to DB (upsert by logifyId)' })
+  saveAllProperties(@Body() body: { properties: any[] }) {
+    return this.lodgifyService.saveAllProperties(body.properties ?? []);
+  }
+
   @Get('reservations')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'List reservations directly from Lodgify (no DB write)' })

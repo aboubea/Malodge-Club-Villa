@@ -235,6 +235,22 @@ export class LodgifyService {
     return { villaId: villa.id, created: true };
   }
 
+  async saveAllProperties(props: any[]): Promise<{ synced: number; created: number; updated: number; errors: string[] }> {
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
+    for (const prop of props) {
+      try {
+        const result = await this.saveProperty(prop);
+        if (result.created) created++;
+        else updated++;
+      } catch (e: any) {
+        errors.push(`${prop.id ?? prop.name}: ${e?.message}`);
+      }
+    }
+    return { synced: created + updated, created, updated, errors };
+  }
+
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
