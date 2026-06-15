@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -108,11 +108,48 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
   );
 }
 
+function LodgifyVillaCard({ p }: { p: any }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-xl border border-[#242428] bg-[#111113] overflow-hidden flex flex-col h-full"
+    >
+      <div className="aspect-video bg-[#1A1A1D] relative overflow-hidden">
+        {p.coverImage ? (
+          <img src={p.coverImage} alt={p.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Building2 size={32} className="text-[#242428]" />
+          </div>
+        )}
+        <div className="absolute top-3 left-3">
+          <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#C9A96E]/30 bg-[#C9A96E]/10 text-[#C9A96E]">Lodgify</span>
+        </div>
+      </div>
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="text-sm font-medium text-[#F5F0EB] truncate">{p.name}</h3>
+        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F] flex-1">
+          <MapPin size={11} />
+          <span>{[p.city, p.country].filter(Boolean).join(', ')}</span>
+        </div>
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#242428]">
+          {p.maxGuests && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><Users size={11} /><span>{p.maxGuests}</span></div>}
+          {p.bedrooms && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><BedDouble size={11} /><span>{p.bedrooms}</span></div>}
+          {p.bathrooms && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><Bath size={11} /><span>{p.bathrooms}</span></div>}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 type ActiveFilter = '' | 'true' | 'false';
 
 export function VillasPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [source, setSource] = useState<'local' | 'lodgify'>('local');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('');
@@ -135,6 +172,26 @@ export function VillasPage() {
     },
     staleTime: 30000,
   });
+
+  const { data: lodgifyStatusData } = useQuery({
+    queryKey: ['lodgify-status'],
+    queryFn: async () => { const res = await apiClient.get('/lodgify/status'); return res.data?.data ?? res.data; },
+    staleTime: 60_000,
+  });
+  const lodgifyConfigured = !!lodgifyStatusData?.configured;
+
+  const { data: lodgifyPropsData, isLoading: lodgifyLoading, isError: lodgifyIsError, error: lodgifyError, refetch: refetchLodgify } = useQuery({
+    queryKey: ['lodgify-properties'],
+    queryFn: async () => {
+      const res = await apiClient.get('/lodgify/properties');
+      const raw = res.data?.data ?? res.data;
+      return Array.isArray(raw) ? raw : (Array.isArray(raw?.items) ? raw.items : (Array.isArray(raw?.data) ? raw.data : []));
+    },
+    enabled: source === 'lodgify' && lodgifyConfigured,
+    staleTime: 2 * 60_000,
+    retry: false,
+  });
+  const lodgifyProperties: any[] = Array.isArray(lodgifyPropsData) ? lodgifyPropsData : [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/villas/${id}`),
@@ -178,16 +235,67 @@ export function VillasPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader title="Villas" description={`${meta?.total ?? villas.length} villas au total`}>
-        <Button
-          variant="primary"
-          icon={<Plus size={14} />}
-          onClick={() => { setEditingVilla(null); setModalOpen(true); }}
-        >
-          Ajouter une villa
-        </Button>
+      <PageHeader title="Villas" description={source === 'lodgify' ? `${lodgifyProperties.length} logements Lodgify` : `${meta?.total ?? villas.length} villas au total`}>
+        {source === 'local' && (
+          <Button
+            variant="primary"
+            icon={<Plus size={14} />}
+            onClick={() => { setEditingVilla(null); setModalOpen(true); }}
+          >
+            Ajouter une villa
+          </Button>
+        )}
       </PageHeader>
 
+      {/* Source tabs */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setSource('local')}
+          className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'local' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+        >
+          Logements internes
+        </button>
+        {lodgifyConfigured && (
+          <button
+            onClick={() => setSource('lodgify')}
+            className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'lodgify' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+          >
+            🔗 Lodgify
+          </button>
+        )}
+        {source === 'lodgify' && (
+          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
+            <RefreshCw size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Lodgify grid */}
+      {source === 'lodgify' && (
+        lodgifyLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : lodgifyIsError ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Building2 size={40} className="text-[#242428] mb-4" />
+            <p className="text-sm text-red-400 mb-1">Erreur Lodgify</p>
+            <p className="text-xs text-[#6B6B6F] max-w-md">{(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}</p>
+          </div>
+        ) : lodgifyProperties.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Building2 size={40} className="text-[#242428] mb-4" />
+            <p className="text-[#6B6B6F]">Aucun logement Lodgify</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {lodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} />)}
+          </div>
+        )
+      )}
+
+      {/* Filters (local only) */}
+      {source === 'local' && (<>
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="max-w-xs w-full">
@@ -263,6 +371,8 @@ export function VillasPage() {
           </Button>
         </div>
       )}
+
+      </>)}
 
       {/* Modal Form */}
       <Modal
