@@ -128,6 +128,11 @@ export function CalendarPage() {
     return new Date(year, month, dayNum);
   });
 
+  const localKey = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     events.forEach((e) => {
@@ -136,7 +141,7 @@ export function CalendarPage() {
       let cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
       const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       while (cur <= endDay) {
-        const key = cur.toISOString().slice(0, 10);
+        const key = localKey(cur);
         if (!map[key]) map[key] = [];
         map[key].push(e);
         cur = new Date(cur.getTime() + 24 * 60 * 60 * 1000);
@@ -145,18 +150,23 @@ export function CalendarPage() {
     return map;
   }, [events]);
 
-  const selectedDayKey = selectedDay ? selectedDay.toISOString().slice(0, 10) : null;
+  const selectedDayKey = selectedDay ? localKey(selectedDay) : null;
   const selectedDayEvents = selectedDayKey ? (eventsByDay[selectedDayKey] || []) : [];
 
   const today = new Date();
-  const todayKey = today.toISOString().slice(0, 10);
+  const todayKey = localKey(today);
 
   function prevMonth() { setCurrentDate(new Date(year, month - 1, 1)); }
   function nextMonth() { setCurrentDate(new Date(year, month + 1, 1)); }
   function openNewEvent(day?: Date) {
     const d = day || new Date();
-    const iso = d.toISOString().slice(0, 16);
-    setForm({ ...DEFAULT_FORM, startAt: iso, endAt: iso });
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0); // 09:00
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 10:00
+    const toLocal = (dt: Date) => {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    };
+    setForm({ ...DEFAULT_FORM, startAt: toLocal(start), endAt: toLocal(end) });
     setNewEventOpen(true);
   }
 
@@ -322,9 +332,13 @@ export function CalendarPage() {
                               {e.villa && <p className="text-[11px] text-[#6B6B6F] mt-1">📍 {e.villa.name}</p>}
                               <div className="flex items-center gap-2 mt-1">
                                 <span className="text-[10px] text-[#6B6B6F]">
-                                  {new Date(e.startAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                  {' → '}
-                                  {new Date(e.endAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                  {e.allDay ? 'Toute la journée' : (
+                                    <>
+                                      {new Date(e.startAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                      {' → '}
+                                      {new Date(e.endAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                  )}
                                 </span>
                               </div>
                             </div>

@@ -163,14 +163,16 @@ model Service {
 }
 
 model VillaService {
-  villaId     String
-  serviceId   String
-  customPrice Float?
-  commission  Float?    @default(15)
-  isActive    Boolean   @default(true)
+  villaId      String
+  serviceId    String
+  customPrice  Float?
+  commission   Float?    @default(15)
+  isActive     Boolean   @default(true)
+  commissionTo String    @default("manager")   // "manager" | "owner" | "shared"
+  ownerShare   Float     @default(50)           // % going to owner when mode = "shared"
 
-  villa       Villa     @relation(fields: [villaId], references: [id], onDelete: Cascade)
-  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  villa        Villa     @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  service      Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@id([villaId, serviceId])
 }

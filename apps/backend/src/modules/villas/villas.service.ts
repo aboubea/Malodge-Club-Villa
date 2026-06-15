@@ -152,7 +152,7 @@ export class VillasService {
   async assignService(
     villaId: string,
     serviceId: string,
-    data: { customPrice?: number; commission?: number; isActive?: boolean },
+    data: { customPrice?: number; commission?: number; isActive?: boolean; commissionTo?: string; ownerShare?: number },
   ) {
     await this.findOne(villaId);
     return this.prisma.villaService.upsert({
@@ -166,7 +166,7 @@ export class VillasService {
   async updateVillaService(
     villaId: string,
     serviceId: string,
-    data: { customPrice?: number | null; commission?: number; isActive?: boolean },
+    data: { customPrice?: number | null; commission?: number; isActive?: boolean; commissionTo?: string; ownerShare?: number },
   ) {
     return this.prisma.villaService.update({
       where: { villaId_serviceId: { villaId, serviceId } },

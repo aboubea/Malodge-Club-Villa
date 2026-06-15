@@ -42,6 +42,8 @@ export function VillaDetailPage() {
   const [editServiceId, setEditServiceId] = useState<string | null>(null);
   const [customPrice, setCustomPrice] = useState('');
   const [commission, setCommission] = useState('15');
+  const [commissionTo, setCommissionTo] = useState<'manager' | 'owner' | 'shared'>('manager');
+  const [ownerShare, setOwnerShare] = useState('50');
   const [serviceSearch, setServiceSearch] = useState('');
 
   const { data: villa, isLoading } = useQuery<VillaDto>({
@@ -97,10 +99,12 @@ export function VillaDetailPage() {
   const linkedServiceIds = new Set(villaServices.map((vs: any) => vs.serviceId));
 
   const assignServiceMutation = useMutation({
-    mutationFn: ({ serviceId, cp, cm }: { serviceId: string; cp?: number; cm?: number }) =>
+    mutationFn: ({ serviceId, cp, cm, cto, os }: { serviceId: string; cp?: number; cm?: number; cto?: string; os?: number }) =>
       apiClient.post(`/villas/${id}/services/${serviceId}`, {
         customPrice: cp,
         commission: cm,
+        commissionTo: cto ?? 'manager',
+        ownerShare: os,
       }),
     onSuccess: () => {
       toast.success('Service ajouté à la villa');
@@ -113,10 +117,12 @@ export function VillaDetailPage() {
   });
 
   const updateServiceMutation = useMutation({
-    mutationFn: ({ serviceId, cp, cm }: { serviceId: string; cp?: number | null; cm?: number }) =>
+    mutationFn: ({ serviceId, cp, cm, cto, os }: { serviceId: string; cp?: number | null; cm?: number; cto?: string; os?: number }) =>
       apiClient.patch(`/villas/${id}/services/${serviceId}`, {
         customPrice: cp,
         commission: cm,
+        commissionTo: cto,
+        ownerShare: os,
       }),
     onSuccess: () => {
       toast.success('Prix mis à jour');
@@ -401,6 +407,24 @@ export function VillaDetailPage() {
                               value={commission}
                               onChange={(e) => setCommission(e.target.value)}
                             />
+                            <select
+                              value={commissionTo}
+                              onChange={(e) => setCommissionTo(e.target.value as any)}
+                              className="h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                            >
+                              <option value="manager">→ Manager</option>
+                              <option value="owner">→ Proprio</option>
+                              <option value="shared">Partagé</option>
+                            </select>
+                            {commissionTo === 'shared' && (
+                              <input
+                                type="number"
+                                placeholder="% proprio"
+                                className="w-20 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                                value={ownerShare}
+                                onChange={(e) => setOwnerShare(e.target.value)}
+                              />
+                            )}
                             <Button
                               size="sm"
                               variant="primary"
@@ -408,6 +432,8 @@ export function VillaDetailPage() {
                                 serviceId: vs.serviceId,
                                 cp: customPrice ? Number(customPrice) : null,
                                 cm: commission ? Number(commission) : 15,
+                                cto: commissionTo,
+                                os: commissionTo === 'shared' ? Number(ownerShare) : undefined,
                               })}
                               loading={updateServiceMutation.isPending}
                             >
@@ -422,13 +448,19 @@ export function VillaDetailPage() {
                               {vs.customPrice && (
                                 <p className="text-[10px] text-[#6B6B6F]">défaut: {formatCurrency(vs.service.basePrice)}</p>
                               )}
-                              <p className="text-[10px] text-[#6B6B6F]">Comm. {vs.commission ?? 15}%</p>
+                              <p className="text-[10px] text-[#6B6B6F]">Comm. {vs.commission ?? 15}% → {
+                                vs.commissionTo === 'owner' ? 'Proprio' :
+                                vs.commissionTo === 'shared' ? `${100 - (vs.ownerShare ?? 50)}% Mgr / ${vs.ownerShare ?? 50}% Proprio` :
+                                'Manager'
+                              }</p>
                             </div>
                             <button
                               onClick={() => {
                                 setEditServiceId(vs.serviceId);
                                 setCustomPrice(vs.customPrice?.toString() || '');
                                 setCommission((vs.commission ?? 15).toString());
+                                setCommissionTo(vs.commissionTo ?? 'manager');
+                                setOwnerShare((vs.ownerShare ?? 50).toString());
                               }}
                               className="p-1.5 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
                             >
@@ -477,6 +509,8 @@ export function VillaDetailPage() {
                       serviceId: s.id,
                       cp: customPrice ? Number(customPrice) : undefined,
                       cm: commission ? Number(commission) : 15,
+                      cto: 'manager',
+                      os: 50,
                     })}
                     loading={assignServiceMutation.isPending}
                   >

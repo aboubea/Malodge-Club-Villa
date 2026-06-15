@@ -104,6 +104,8 @@ export function ReservationsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [errors, setErrors] = useState<Partial<FormState>>({});
+  const [clientMode, setClientMode] = useState<'existing' | 'new'>('existing');
+  const [newClientForm, setNewClientForm] = useState({ firstName: '', lastName: '', email: '', phone: '' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['reservations', { page, status: statusFilter, country: countryFilter }],
@@ -155,6 +157,20 @@ export function ReservationsPage() {
   });
   const lodgifyReservations: any[] = lodgifyResData ?? [];
 
+  const createClientMutation = useMutation({
+    mutationFn: (data: { firstName: string; lastName: string; email: string; phone?: string }) =>
+      apiClient.post('/users', { ...data, role: 'CLIENT', password: Math.random().toString(36).slice(-10) }),
+    onSuccess: (res) => {
+      const newUser = res.data?.data ?? res.data;
+      setForm((p) => ({ ...p, clientId: newUser.id }));
+      setClientMode('existing');
+      setNewClientForm({ firstName: '', lastName: '', email: '', phone: '' });
+      toast.success(`${newUser.firstName} ${newUser.lastName} créé(e)`);
+      qc.invalidateQueries({ queryKey: ['clients-select'] });
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erreur création voyageur'),
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (payload: object) => {
       if (mode === 'edit' && editingId) return apiClient.patch(`/reservations/${editingId}`, payload);
@@ -180,6 +196,8 @@ export function ReservationsPage() {
     setEditingId(null);
     setForm(emptyForm());
     setErrors({});
+    setClientMode('existing');
+    setNewClientForm({ firstName: '', lastName: '', email: '', phone: '' });
     setModalOpen(true);
   }
 
@@ -195,6 +213,8 @@ export function ReservationsPage() {
     setModalOpen(false);
     setEditingId(null);
     setErrors({});
+    setClientMode('existing');
+    setNewClientForm({ firstName: '', lastName: '', email: '', phone: '' });
   }
 
   function set(field: keyof FormState) {
@@ -507,14 +527,60 @@ export function ReservationsPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Client *</label>
-                  <select value={form.clientId} onChange={set('clientId')} className={SELECT_CLS}>
-                    <option value="">Sélectionner un client</option>
-                    {clients.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>
-                    ))}
-                  </select>
-                  {errors.clientId && <p className="text-xs text-red-400">{errors.clientId}</p>}
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Client *</label>
+                    <div className="flex gap-1">
+                      <button type="button"
+                        onClick={() => setClientMode('existing')}
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'existing' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F]'}`}>
+                        Existant
+                      </button>
+                      <button type="button"
+                        onClick={() => setClientMode('new')}
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'new' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F]'}`}>
+                        + Nouveau
+                      </button>
+                    </div>
+                  </div>
+                  {clientMode === 'existing' ? (
+                    <>
+                      <select value={form.clientId} onChange={set('clientId')} className={SELECT_CLS}>
+                        <option value="">Sélectionner un client</option>
+                        {clients.map((c: any) => (
+                          <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>
+                        ))}
+                      </select>
+                      {errors.clientId && <p className="text-xs text-red-400">{errors.clientId}</p>}
+                    </>
+                  ) : (
+                    <div className="space-y-2 p-3 rounded-lg border border-[#242428] bg-[#111113]">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input placeholder="Prénom *" value={newClientForm.firstName}
+                          onChange={(e) => setNewClientForm((p) => ({ ...p, firstName: e.target.value }))}
+                          className="h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                        <input placeholder="Nom *" value={newClientForm.lastName}
+                          onChange={(e) => setNewClientForm((p) => ({ ...p, lastName: e.target.value }))}
+                          className="h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                      </div>
+                      <input placeholder="Email *" type="email" value={newClientForm.email}
+                        onChange={(e) => setNewClientForm((p) => ({ ...p, email: e.target.value }))}
+                        className="w-full h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                      <input placeholder="Téléphone" type="tel" value={newClientForm.phone}
+                        onChange={(e) => setNewClientForm((p) => ({ ...p, phone: e.target.value }))}
+                        className="w-full h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                      <Button size="sm" variant="secondary" type="button"
+                        loading={createClientMutation.isPending}
+                        disabled={!newClientForm.firstName || !newClientForm.lastName || !newClientForm.email}
+                        onClick={() => createClientMutation.mutate({
+                          firstName: newClientForm.firstName,
+                          lastName: newClientForm.lastName,
+                          email: newClientForm.email,
+                          phone: newClientForm.phone || undefined,
+                        })}>
+                        Créer et sélectionner
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="border-t border-[#242428]" />
