@@ -166,13 +166,22 @@ export class LodgifyService {
         .map((i: any) => i.url ?? i.src ?? i.large_url ?? i.thumb_url)
         .filter(Boolean);
 
+      const country =
+        p.location?.country ??
+        p.location?.country_name ??
+        p.address?.country ??
+        p.address?.country_name ??
+        p.country ??
+        p.country_name ??
+        null;
+
       return {
         id: String(p.id),
         name: p.name ?? `Property ${p.id}`,
         description: p.description ?? p.about ?? null,
-        city: p.location?.city ?? p.address?.city ?? '',
-        country: p.location?.country ?? p.address?.country ?? 'France',
-        address: p.address?.street ?? p.address?.full ?? null,
+        city: p.location?.city ?? p.address?.city ?? p.city ?? '',
+        country,
+        address: p.address?.street ?? p.address?.full ?? p.address?.line1 ?? null,
         maxGuests: p.people_capacity ?? p.max_people ?? null,
         bedrooms: p.bedrooms_number ?? p.rooms_count ?? null,
         bathrooms: p.bathrooms_number ?? null,

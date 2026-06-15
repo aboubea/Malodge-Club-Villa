@@ -276,6 +276,11 @@ export function VillasPage() {
     retry: false,
   });
   const lodgifyProperties: any[] = Array.isArray(lodgifyPropsData) ? lodgifyPropsData : [];
+  const [lodgifyCountryFilter, setLodgifyCountryFilter] = useState('');
+  const lodgifyCountries = [...new Set(lodgifyProperties.map((p) => p.country).filter(Boolean))].sort();
+  const filteredLodgifyProperties = lodgifyCountryFilter
+    ? lodgifyProperties.filter((p) => p.country === lodgifyCountryFilter)
+    : lodgifyProperties;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/villas/${id}`),
@@ -366,15 +371,38 @@ export function VillasPage() {
             <p className="text-sm text-red-400 mb-1">Erreur Lodgify</p>
             <p className="text-xs text-[#6B6B6F] max-w-md">{(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}</p>
           </div>
-        ) : lodgifyProperties.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Building2 size={40} className="text-[#242428] mb-4" />
-            <p className="text-[#6B6B6F]">Aucun logement Lodgify</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {lodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} onClick={() => setSelectedLodgify(p)} />)}
-          </div>
+          <>
+            {lodgifyCountries.length > 1 && (
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setLodgifyCountryFilter('')}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                >
+                  Tous les pays
+                </button>
+                {lodgifyCountries.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setLodgifyCountryFilter(c)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filteredLodgifyProperties.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Building2 size={40} className="text-[#242428] mb-4" />
+                <p className="text-[#6B6B6F]">Aucun logement Lodgify</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredLodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} onClick={() => setSelectedLodgify(p)} />)}
+              </div>
+            )}
+          </>
         )
       )}
 
