@@ -14,6 +14,7 @@ export class ReservationsService {
     villaId?: string;
     clientId?: string;
     status?: ReservationStatus;
+    country?: string;
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -23,6 +24,7 @@ export class ReservationsService {
     if (params.villaId) where.villaId = params.villaId;
     if (params.clientId) where.clientId = params.clientId;
     if (params.status) where.status = params.status;
+    if (params.country) where.villa = { ...(where.villa || {}), country: params.country };
 
     const [reservations, total] = await Promise.all([
       this.prisma.reservation.findMany({

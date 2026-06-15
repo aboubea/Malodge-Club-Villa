@@ -19,6 +19,7 @@ export class VillasService {
     limit?: number;
     search?: string;
     city?: string;
+    country?: string;
     isActive?: boolean;
     clientId?: string;
   }) {
@@ -38,6 +39,7 @@ export class VillasService {
       ];
     }
     if (params.city) where.city = { contains: params.city, mode: 'insensitive' };
+    if (params.country) where.country = params.country;
     if (params.isActive !== undefined) where.isActive = params.isActive;
 
     const [villas, total] = await Promise.all([

@@ -22,6 +22,7 @@ export class ReservationsController {
     @Query('villaId') villaId?: string,
     @Query('clientId') clientId?: string,
     @Query('status') status?: ReservationStatus,
+    @Query('country') country?: string,
   ) {
     return this.reservationsService.findAll({
       page: page ? parseInt(page) : undefined,
@@ -29,6 +30,7 @@ export class ReservationsController {
       villaId,
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       status,
+      country,
     });
   }
 

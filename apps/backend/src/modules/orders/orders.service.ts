@@ -14,6 +14,7 @@ export class OrdersService {
     villaId?: string;
     clientId?: string;
     search?: string;
+    country?: string;
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -29,6 +30,9 @@ export class OrdersService {
     }
     if (params.clientId) {
       where.clientId = params.clientId;
+    }
+    if (params.country) {
+      where.reservation = { ...(where.reservation || {}), villa: { country: params.country } };
     }
     if (params.search) {
       where.OR = [

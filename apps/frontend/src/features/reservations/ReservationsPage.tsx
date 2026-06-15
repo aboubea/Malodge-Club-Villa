@@ -13,6 +13,7 @@ import { Input } from '../../components/ui/Input';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
+import { useCountries } from '../../hooks/useCountries';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled' }> = {
   PENDING:   { label: 'En attente', variant: 'pending' },
@@ -92,18 +93,23 @@ export function ReservationsPage() {
   const canEdit = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role ?? '');
 
   const [statusFilter, setStatusFilter] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const { data: countriesData } = useCountries();
+  const countries = countriesData ?? [];
   const [mode, setMode] = useState<FormMode>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [errors, setErrors] = useState<Partial<FormState>>({});
 
   const { data, isLoading } = useQuery({
-    queryKey: ['reservations', { page, status: statusFilter }],
+    queryKey: ['reservations', { page, status: statusFilter, country: countryFilter }],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '15' });
       if (statusFilter) params.set('status', statusFilter);
+      if (countryFilter) params.set('country', countryFilter);
       const res = await apiClient.get(`/reservations?${params}`);
       return res.data.data ?? res.data;
     },
@@ -227,21 +233,42 @@ export function ReservationsPage() {
         )}
       </PageHeader>
 
-      {/* Status filter tabs */}
-      <div className="flex gap-1.5 flex-wrap">
-        {STATUS_TABS.map((s) => (
-          <button
-            key={s}
-            onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
-              statusFilter === s
-                ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
-                : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
-            }`}
-          >
-            {STATUS_LABELS[s]}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 flex-wrap">
+          {STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              onClick={() => { setStatusFilter(s); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                statusFilter === s
+                  ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
+                  : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+              }`}
+            >
+              {STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        {countries.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => { setCountryFilter(''); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            >
+              Tous les pays
+            </button>
+            {countries.map((c) => (
+              <button
+                key={c.code}
+                onClick={() => { setCountryFilter(c.name); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              >
+                {c.flag} {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Table */}

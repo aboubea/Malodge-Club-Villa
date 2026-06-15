@@ -13,6 +13,7 @@ import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
+import { useCountries } from '../../hooks/useCountries';
 
 function VillaCard({ villa, onEdit, onDelete, onClick }: {
   villa: VillaDto;
@@ -115,15 +116,20 @@ export function VillasPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('');
+  const [countryFilter, setCountryFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVilla, setEditingVilla] = useState<VillaDto | null>(null);
 
+  const { data: countriesData } = useCountries();
+  const countries = countriesData ?? [];
+
   const { data, isLoading } = useQuery({
-    queryKey: ['villas', { page, search, activeFilter }],
+    queryKey: ['villas', { page, search, activeFilter, countryFilter }],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '12' });
       if (search) params.set('search', search);
       if (activeFilter !== '') params.set('isActive', activeFilter);
+      if (countryFilter) params.set('country', countryFilter);
       const res = await apiClient.get(`/villas?${params}`);
       return res.data.data || res.data;
     },
@@ -192,11 +198,30 @@ export function VillasPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {filterBtn('Toutes', '')}
           {filterBtn('Actives', 'true')}
           {filterBtn('Inactives', 'false')}
         </div>
+        {countries.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => { setCountryFilter(''); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            >
+              Tous les pays
+            </button>
+            {countries.map((c) => (
+              <button
+                key={c.code}
+                onClick={() => { setCountryFilter(c.name); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              >
+                {c.flag} {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Grid */}

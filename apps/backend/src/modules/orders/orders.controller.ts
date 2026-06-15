@@ -39,6 +39,7 @@ export class OrdersController {
     @Query('villaId') villaId?: string,
     @Query('clientId') clientId?: string,
     @Query('search') search?: string,
+    @Query('country') country?: string,
   ) {
     return this.ordersService.findAll({
       page: page ? parseInt(page) : undefined,
@@ -47,6 +48,7 @@ export class OrdersController {
       villaId,
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       search,
+      country,
     });
   }
 

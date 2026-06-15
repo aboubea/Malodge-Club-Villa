@@ -14,6 +14,7 @@ import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { OrderStatus } from '@malodge/shared';
 import { useAuthStore } from '../../store/authStore';
+import { useCountries } from '../../hooks/useCountries';
 
 type StatusFilter = 'ALL' | OrderStatus;
 
@@ -31,12 +32,14 @@ async function fetchOrders(params: {
   limit: number;
   status?: OrderStatus;
   search?: string;
+  country?: string;
 }) {
   const query = new URLSearchParams({
     page: String(params.page),
     limit: String(params.limit),
     ...(params.status ? { status: params.status } : {}),
     ...(params.search ? { search: params.search } : {}),
+    ...(params.country ? { country: params.country } : {}),
   });
   const res = await apiClient.get(`/orders?${query}`);
   return res.data?.data ?? res.data;
@@ -47,18 +50,23 @@ export function OrdersPage() {
   const { user } = useAuthStore();
   const isClient = user?.role === 'CLIENT';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [countryFilter, setCountryFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  const { data: countriesData } = useCountries();
+  const countries = countriesData ?? [];
+
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, statusFilter, search],
+    queryKey: ['orders', page, statusFilter, search, countryFilter],
     queryFn: () =>
       fetchOrders({
         page,
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
         search: search || undefined,
+        country: countryFilter || undefined,
       }),
   });
 
@@ -100,10 +108,10 @@ export function OrdersPage() {
         ))}
       </div>
 
-      {/* Search — staff only */}
+      {/* Search + country filter — staff only */}
       {!isClient && (
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="space-y-2">
+          <div className="relative max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
             <Input
               placeholder="Rechercher client, villa, service…"
@@ -112,6 +120,25 @@ export function OrdersPage() {
               className="pl-9"
             />
           </div>
+          {countries.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => { setCountryFilter(''); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              >
+                Tous les pays
+              </button>
+              {countries.map((c) => (
+                <button
+                  key={c.code}
+                  onClick={() => { setCountryFilter(c.name); setPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                >
+                  {c.flag} {c.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

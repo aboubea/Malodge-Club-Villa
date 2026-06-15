@@ -21,6 +21,7 @@ export class VillasController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('city') city?: string,
+    @Query('country') country?: string,
     @Query('isActive') isActive?: string,
   ) {
     return this.villasService.findAll({
@@ -28,6 +29,7 @@ export class VillasController {
       limit: limit ? parseInt(limit) : undefined,
       search,
       city,
+      country,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
       clientId: user.role === Role.CLIENT ? user.id : undefined,
     });
