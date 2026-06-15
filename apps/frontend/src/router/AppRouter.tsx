@@ -20,6 +20,7 @@ import { AiConciergePage } from '../features/ai/AiConciergePage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { ProvidersPage } from '../features/providers/ProvidersPage';
+import { ReservationsPage } from '../features/reservations/ReservationsPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
@@ -50,6 +51,7 @@ export function AppRouter() {
             <AppShell>
               <Routes>
                 <Route path="/" element={<RoleGuard roles={STAFF}><DashboardPage /></RoleGuard>} />
+                <Route path="/reservations" element={<RoleGuard roles={STAFF}><ReservationsPage /></RoleGuard>} />
                 <Route path="/villas" element={<VillasPage />} />
                 <Route path="/villas/:id" element={<VillaDetailPage />} />
                 <Route path="/services" element={<ServicesPage />} />
