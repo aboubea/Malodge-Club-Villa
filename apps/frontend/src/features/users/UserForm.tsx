@@ -6,14 +6,24 @@ import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../lib/apiClient';
 import { UserDto, Role } from '@malodge/shared';
 import { ROLES_LABELS } from '../../lib/constants';
+import { useAuthStore } from '../../store/authStore';
+import { useCountries } from '../../hooks/useCountries';
 
 interface UserFormProps {
   user?: UserDto | null;
   onSuccess: () => void;
 }
 
+const STAFF_ROLES: string[] = [Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.PROVIDER];
+
 export function UserForm({ user, onSuccess }: UserFormProps) {
   const qc = useQueryClient();
+  const { user: currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const { data: countriesData } = useCountries();
+  const availableCountries = countriesData ?? [];
+
   const [form, setForm] = useState({
     email: user?.email || '',
     firstName: user?.firstName || '',
@@ -23,15 +33,22 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
     password: '',
     isActive: user?.isActive ?? true,
   });
+  const [selectedCountries, setSelectedCountries] = useState<string[]>(user?.countries || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const mutation = useMutation({
     mutationFn: async (data: typeof form) => {
+      const payload: any = { ...data };
       if (user) {
-        const { password, ...rest } = data;
-        return apiClient.patch(`/users/${user.id}`, rest);
+        delete payload.password;
       }
-      return apiClient.post('/users', data);
+      if (isSuperAdmin && STAFF_ROLES.includes(payload.role)) {
+        payload.countries = selectedCountries;
+      }
+      if (user) {
+        return apiClient.patch(`/users/${user.id}`, payload);
+      }
+      return apiClient.post('/users', payload);
     },
     onSuccess: () => {
       toast.success(user ? 'Utilisateur modifié' : 'Utilisateur créé');
@@ -56,6 +73,14 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
     if (!validate()) return;
     mutation.mutate(form);
   };
+
+  function toggleCountry(name: string) {
+    setSelectedCountries((prev) =>
+      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name],
+    );
+  }
+
+  const showCountries = isSuperAdmin && STAFF_ROLES.includes(form.role) && form.role !== Role.CLIENT;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -109,13 +134,52 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
         <select
           className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
           value={form.role}
-          onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as Role }))}
+          onChange={(e) => {
+            const newRole = e.target.value as Role;
+            setForm((p) => ({ ...p, role: newRole }));
+            if (newRole === Role.CLIENT) setSelectedCountries([]);
+          }}
         >
           {Object.entries(ROLES_LABELS).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
       </div>
+
+      {showCountries && availableCountries.length > 0 && (
+        <div>
+          <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            Pays assignés
+            <span className="ml-2 normal-case font-normal text-[#3A3A3E]">
+              (laisser vide = accès global)
+            </span>
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {availableCountries.map((c) => {
+              const active = selectedCountries.includes(c.name);
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => toggleCountry(c.name)}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                    active
+                      ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
+                      : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+                  }`}
+                >
+                  {c.flag} {c.name}
+                </button>
+              );
+            })}
+          </div>
+          {selectedCountries.length > 0 && (
+            <p className="mt-1.5 text-[11px] text-[#6B6B6F]">
+              Restreint à : {selectedCountries.join(', ')}
+            </p>
+          )}
+        </div>
+      )}
 
       {user && (
         <label className="flex items-center gap-2.5 cursor-pointer">

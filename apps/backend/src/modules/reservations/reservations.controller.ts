@@ -16,7 +16,7 @@ export class ReservationsController {
   @Get()
   @ApiOperation({ summary: 'List reservations — CLIENT sees only their own' })
   findAll(
-    @CurrentUser() user: { id: string; role: string },
+    @CurrentUser() user: { id: string; role: string; countries?: string[] },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('villaId') villaId?: string,
@@ -31,6 +31,8 @@ export class ReservationsController {
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       status,
       country,
+      userRole: user.role,
+      userCountries: user.countries || [],
     });
   }
 

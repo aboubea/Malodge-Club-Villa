@@ -15,6 +15,8 @@ export class OrdersService {
     clientId?: string;
     search?: string;
     country?: string;
+    userRole?: string;
+    userCountries?: string[];
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -33,6 +35,24 @@ export class OrdersService {
     }
     if (params.country) {
       where.reservation = { ...(where.reservation || {}), villa: { country: params.country } };
+    }
+
+    if (
+      params.userRole &&
+      ['ADMIN', 'MANAGER'].includes(params.userRole) &&
+      params.userCountries &&
+      params.userCountries.length > 0
+    ) {
+      if (params.country) {
+        if (!params.userCountries.includes(params.country)) {
+          where.reservation = { ...(where.reservation || {}), villa: { country: '__none__' } };
+        }
+      } else {
+        where.reservation = {
+          ...(where.reservation || {}),
+          villa: { country: { in: params.userCountries } },
+        };
+      }
     }
     if (params.search) {
       where.OR = [

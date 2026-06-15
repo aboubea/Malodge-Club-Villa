@@ -92,6 +92,21 @@ export function UsersPage() {
       ),
     },
     {
+      key: 'countries',
+      header: 'Pays',
+      render: (row) => {
+        const countries: string[] = (row as any).countries || [];
+        if (countries.length === 0) return <span className="text-[11px] text-[#3A3A3E] italic">Global</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {countries.map((c) => (
+              <span key={c} className="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1D] border border-[#242428] text-[#6B6B6F]">{c}</span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
       key: 'lastLoginAt',
       header: 'Dernière connexion',
       render: (row) => (

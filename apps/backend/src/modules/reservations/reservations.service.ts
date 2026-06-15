@@ -15,6 +15,8 @@ export class ReservationsService {
     clientId?: string;
     status?: ReservationStatus;
     country?: string;
+    userRole?: string;
+    userCountries?: string[];
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -25,6 +27,21 @@ export class ReservationsService {
     if (params.clientId) where.clientId = params.clientId;
     if (params.status) where.status = params.status;
     if (params.country) where.villa = { ...(where.villa || {}), country: params.country };
+
+    if (
+      params.userRole &&
+      ['ADMIN', 'MANAGER'].includes(params.userRole) &&
+      params.userCountries &&
+      params.userCountries.length > 0
+    ) {
+      if (params.country) {
+        if (!params.userCountries.includes(params.country)) {
+          where.villa = { ...(where.villa || {}), country: '__none__' };
+        }
+      } else {
+        where.villa = { ...(where.villa || {}), country: { in: params.userCountries } };
+      }
+    }
 
     const [reservations, total] = await Promise.all([
       this.prisma.reservation.findMany({

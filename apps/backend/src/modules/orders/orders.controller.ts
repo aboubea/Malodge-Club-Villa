@@ -32,7 +32,7 @@ export class OrdersController {
   @Get()
   @ApiOperation({ summary: 'List orders — CLIENT sees only their own' })
   findAll(
-    @CurrentUser() user: { id: string; role: string },
+    @CurrentUser() user: { id: string; role: string; countries?: string[] },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: OrderStatus,
@@ -49,6 +49,8 @@ export class OrdersController {
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       search,
       country,
+      userRole: user.role,
+      userCountries: user.countries || [],
     });
   }
 
