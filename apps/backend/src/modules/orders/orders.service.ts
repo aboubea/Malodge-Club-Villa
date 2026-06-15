@@ -14,6 +14,9 @@ export class OrdersService {
     villaId?: string;
     clientId?: string;
     search?: string;
+    country?: string;
+    userRole?: string;
+    userCountries?: string[];
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -29,6 +32,27 @@ export class OrdersService {
     }
     if (params.clientId) {
       where.clientId = params.clientId;
+    }
+    if (params.country) {
+      where.reservation = { ...(where.reservation || {}), villa: { country: params.country } };
+    }
+
+    if (
+      params.userRole &&
+      ['ADMIN', 'MANAGER'].includes(params.userRole) &&
+      params.userCountries &&
+      params.userCountries.length > 0
+    ) {
+      if (params.country) {
+        if (!params.userCountries.includes(params.country)) {
+          where.reservation = { ...(where.reservation || {}), villa: { country: '__none__' } };
+        }
+      } else {
+        where.reservation = {
+          ...(where.reservation || {}),
+          villa: { country: { in: params.userCountries } },
+        };
+      }
     }
     if (params.search) {
       where.OR = [
@@ -91,20 +115,24 @@ export class OrdersService {
     return order;
   }
 
-  async create(dto: CreateOrderDto) {
-    const { items, ...orderData } = dto;
+  async create(dto: CreateOrderDto & { clientId: string }) {
+    const { items, clientId, reservationId, villaId, providerId, commission, notes, scheduledAt } = dto;
 
     // Calculate totals
     const totalAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const commissionRate = orderData.commission ?? 15;
+    const commissionRate = commission ?? 15;
     const commissionAmount = (totalAmount * commissionRate) / 100;
 
     const order = await this.prisma.order.create({
       data: {
-        ...orderData,
+        clientId,
+        reservationId,
+        villaId,
+        providerId,
+        notes,
         totalAmount,
         commission: commissionAmount,
-        scheduledAt: orderData.scheduledAt ? new Date(orderData.scheduledAt) : undefined,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
         items: {
           create: items.map((item) => ({
             serviceId: item.serviceId,

@@ -12,7 +12,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Card, CardHeader, CardContent, CardTitle } from '../../components/ui/Card';
+import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -100,11 +100,7 @@ function KpiCard({
   delay,
 }: ReturnType<typeof buildKpis>[0] & { delay: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3, ease: 'easeOut' }}
-    >
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.3, ease: 'easeOut' }}>
       <Card className="p-5 hover:border-[#C9A96E]/20 transition-all duration-200">
         <div className="flex items-start justify-between">
           <div>
@@ -140,10 +136,7 @@ export function DashboardPage() {
   const { data, isLoading } = useDashboard();
 
   const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 
   const kpis = data ? buildKpis(data.kpis) : [];

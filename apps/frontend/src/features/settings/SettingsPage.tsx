@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Globe, Bell, Shield, Puzzle, Save, RefreshCw, Key } from 'lucide-react';
+import { Settings, Globe, Bell, Shield, Puzzle, Save, MapPin, Trash2, Plus, RefreshCw, Key } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -9,11 +9,14 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { apiClient } from '../../lib/apiClient';
+import { useAuthStore } from '../../store/authStore';
+import type { Country } from '../../hooks/useCountries';
 
 const TABS = [
   { id: 'general', label: 'Général', icon: Settings },
   { id: 'appearance', label: 'Apparence', icon: Globe },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'pays', label: 'Pays', icon: MapPin },
   { id: 'roles', label: 'Rôles', icon: Shield },
   { id: 'integrations', label: 'Intégrations', icon: Puzzle },
 ];
@@ -35,9 +38,43 @@ const OTHER_INTEGRATIONS = [
 
 export function SettingsPage() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+
   const [activeTab, setActiveTab] = useState('general');
   const [companyName, setCompanyName] = useState('Malodge Club Villa');
   const [supportEmail, setSupportEmail] = useState('support@malodge.com');
+
+  // Countries management
+  const { data: countriesData } = useQuery<Country[]>({
+    queryKey: ['settings-countries'],
+    queryFn: async () => { const res = await apiClient.get('/settings/countries'); return res.data.data ?? res.data; },
+  });
+  const [newCountry, setNewCountry] = useState<Country>({ code: '', name: '', flag: '' });
+
+  const saveCountriesMutation = useMutation({
+    mutationFn: (countries: Country[]) => apiClient.put('/settings/countries', { countries }),
+    onSuccess: () => { toast.success('Pays mis à jour'); qc.invalidateQueries({ queryKey: ['settings-countries'] }); },
+    onError: () => toast.error('Erreur lors de la sauvegarde'),
+  });
+
+  const countries: Country[] = countriesData ?? [];
+
+  function addCountry() {
+    if (!newCountry.name.trim() || !newCountry.code.trim()) return;
+    if (countries.some((c) => c.code === newCountry.code.toUpperCase())) {
+      toast.error('Code pays déjà utilisé'); return;
+    }
+    const updated = [...countries, { ...newCountry, code: newCountry.code.toUpperCase() }];
+    saveCountriesMutation.mutate(updated);
+    setNewCountry({ code: '', name: '', flag: '' });
+  }
+
+  function removeCountry(code: string) {
+    saveCountriesMutation.mutate(countries.filter((c) => c.code !== code));
+  }
+
   const [notifications, setNotifications] = useState({
     newReservation: true,
     reservationStatusChange: true,
@@ -184,6 +221,78 @@ export function SettingsPage() {
                   ))}
                 </CardContent>
               </Card>
+            )}
+
+            {activeTab === 'pays' && (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pays disponibles</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {countries.length === 0 && (
+                      <p className="text-sm text-[#6B6B6F] py-4 text-center">Aucun pays configuré</p>
+                    )}
+                    {countries.map((c) => (
+                      <div key={c.code} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{c.flag}</span>
+                          <div>
+                            <p className="text-sm text-[#F5F0EB]">{c.name}</p>
+                            <p className="text-[11px] text-[#6B6B6F] font-mono">{c.code}</p>
+                          </div>
+                        </div>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => removeCountry(c.code)}
+                            className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors rounded hover:bg-red-900/10"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {isSuperAdmin && (
+                  <Card>
+                    <CardHeader><CardTitle>Ajouter un pays</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <Input
+                          label="Drapeau (emoji)"
+                          placeholder="🇫🇷"
+                          value={newCountry.flag}
+                          onChange={(e) => setNewCountry((p) => ({ ...p, flag: e.target.value }))}
+                        />
+                        <Input
+                          label="Nom"
+                          placeholder="France"
+                          value={newCountry.name}
+                          onChange={(e) => setNewCountry((p) => ({ ...p, name: e.target.value }))}
+                        />
+                        <Input
+                          label="Code ISO"
+                          placeholder="FR"
+                          value={newCountry.code}
+                          onChange={(e) => setNewCountry((p) => ({ ...p, code: e.target.value.toUpperCase() }))}
+                          maxLength={3}
+                        />
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={<Plus size={13} />}
+                        onClick={addCountry}
+                        disabled={saveCountriesMutation.isPending}
+                      >
+                        Ajouter
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
 
             {activeTab === 'roles' && (

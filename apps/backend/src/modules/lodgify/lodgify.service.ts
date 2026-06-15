@@ -10,7 +10,8 @@ export class LodgifyService {
 
   private async getApiKey(): Promise<string | null> {
     const setting = await this.prisma.appSetting.findUnique({ where: { key: 'lodgify_api_key' } });
-    return setting ? String((setting.value as any) || '') : null;
+    const raw = setting ? String((setting.value as any) || '') : null;
+    return raw ? raw.trim() : null;
   }
 
   async saveApiKey(apiKey: string) {
@@ -27,16 +28,13 @@ export class LodgifyService {
     return { configured: !!key && key.length > 0 };
   }
 
-  private async lodgifyGet(path: string, apiKey: string): Promise<any> {
+  private async lodgifyGet(path: string, extraHeaders: Record<string, string>): Promise<any> {
     return new Promise((resolve, reject) => {
       const options = {
         hostname: 'api.lodgify.com',
         path,
         method: 'GET',
-        headers: {
-          'X-ApiKey': apiKey,
-          'Accept': 'application/json',
-        },
+        headers: { 'Accept': 'application/json', ...extraHeaders },
       };
       const req = https.request(options, (res) => {
         let data = '';
@@ -63,6 +61,41 @@ export class LodgifyService {
     });
   }
 
+  private authHeaders(apiKey: string): Record<string, string>[] {
+    return [
+      { 'X-ApiKey': apiKey },
+      { 'Authorization': `Bearer ${apiKey}` },
+      { 'Authorization': apiKey },
+    ];
+  }
+
+  private async lodgifyGetAny(path: string, apiKey: string): Promise<any> {
+    const errors: string[] = [];
+    for (const headers of this.authHeaders(apiKey)) {
+      try {
+        return await this.lodgifyGet(path, headers);
+      } catch (e: any) {
+        errors.push(`[${JSON.stringify(Object.keys(headers))}] ${e?.message}`);
+      }
+    }
+    throw new Error(errors.join(' | '));
+  }
+
+  private async lodgifyProbe(paths: string[], apiKey: string): Promise<any> {
+    const errors: string[] = [];
+    for (const path of paths) {
+      try {
+        const result = await this.lodgifyGetAny(path, apiKey);
+        this.logger.log(`Lodgify: endpoint OK → ${path}`);
+        return result;
+      } catch (e: any) {
+        this.logger.warn(`Lodgify: endpoint failed (${path}): ${e?.message}`);
+        errors.push(`${path}: ${e?.message}`);
+      }
+    }
+    throw new Error(`Aucun endpoint Lodgify ne répond:\n${errors.join('\n')}`);
+  }
+
   async listReservations(): Promise<any[]> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
@@ -75,10 +108,22 @@ export class LodgifyService {
     const fromStr = from.toISOString().split('T')[0];
     const toStr = to.toISOString().split('T')[0];
 
-    const data = await this.lodgifyGet(
-      `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-      apiKey,
-    );
+    this.logger.log(`Lodgify: clé longueur=${apiKey.length}, début=${apiKey.slice(0, 4)}…`);
+
+    const data = await this.lodgifyProbe([
+      // endpoint documenté officiel Lodgify
+      `/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/v2/reservations/bookings`,
+      // variantes avec paramètres alternatifs
+      `/v2/reservations/bookings?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      `/v2/reservations/bookings?arrival_date_min=${fromStr}&arrival_date_max=${toStr}`,
+      // v1 reservation (pas booking)
+      `/v1/reservation/booking`,
+      `/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
+      // rental-api (gateway Lodgify)
+      `/rental-api/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/v2/reservations/bookings`,
+    ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
     return items.map((r) => ({
@@ -98,6 +143,98 @@ export class LodgifyService {
     }));
   }
 
+  async listProperties(): Promise<any[]> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+
+    const data = await this.lodgifyProbe([
+      `/v2/properties`,
+      `/v1/property`,
+      `/rental-api/property`,
+      `/rental-api/properties`,
+      `/rental-api/v2/properties`,
+    ], apiKey);
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+
+    return items.map((p) => {
+      const imgs: any[] = p.images ?? p.photos ?? [];
+      const coverImage =
+        imgs[0]?.url ?? imgs[0]?.src ?? imgs[0]?.large_url ?? imgs[0]?.thumb_url ??
+        p.image_url ?? p.main_image ?? p.image ?? null;
+
+      const allImages: string[] = imgs
+        .map((i: any) => i.url ?? i.src ?? i.large_url ?? i.thumb_url)
+        .filter(Boolean);
+
+      const country =
+        p.location?.country ??
+        p.location?.country_name ??
+        p.address?.country ??
+        p.address?.country_name ??
+        p.country ??
+        p.country_name ??
+        null;
+
+      return {
+        id: String(p.id),
+        name: p.name ?? `Property ${p.id}`,
+        description: p.description ?? p.about ?? null,
+        city: p.location?.city ?? p.address?.city ?? p.city ?? '',
+        country,
+        address: p.address?.street ?? p.address?.full ?? p.address?.line1 ?? null,
+        maxGuests: p.people_capacity ?? p.max_people ?? null,
+        bedrooms: p.bedrooms_number ?? p.rooms_count ?? null,
+        bathrooms: p.bathrooms_number ?? null,
+        coverImage,
+        images: allImages,
+        isActive: p.is_active ?? true,
+        lodgifyUrl: p.website_url ?? p.url ?? null,
+      };
+    });
+  }
+
+  async getSyncedIds(): Promise<string[]> {
+    const villas = await this.prisma.villa.findMany({ where: { logifyId: { not: null } }, select: { logifyId: true } });
+    return villas.map((v) => v.logifyId!);
+  }
+
+  async saveProperty(prop: {
+    id: string; name: string; city: string; country: string | null;
+    address: string | null; maxGuests: number | null; bedrooms: number | null;
+    bathrooms: number | null; coverImage: string | null; description: string | null;
+  }): Promise<{ villaId: string; created: boolean }> {
+    const lodgifyId = String(prop.id);
+    const slug = prop.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const data: any = {
+      logifyId: lodgifyId,
+      name: prop.name,
+      address: prop.address || '',
+      city: prop.city || '',
+      country: prop.country || 'France',
+      maxGuests: prop.maxGuests ?? 1,
+      bedrooms: prop.bedrooms ?? 1,
+      bathrooms: prop.bathrooms ?? 1,
+      coverImage: prop.coverImage,
+      description: prop.description,
+    };
+
+    const existing = await this.prisma.villa.findFirst({ where: { logifyId: lodgifyId } });
+    if (existing) {
+      await this.prisma.villa.update({ where: { id: existing.id }, data });
+      return { villaId: existing.id, created: false };
+    }
+
+    const existSlug = await this.prisma.villa.findUnique({ where: { slug } });
+    const villa = await this.prisma.villa.create({
+      data: { ...data, slug: existSlug ? `${slug}-${lodgifyId}` : slug, isActive: true },
+    });
+    return { villaId: villa.id, created: true };
+  }
+
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
@@ -106,7 +243,7 @@ export class LodgifyService {
     const errors: string[] = [];
 
     try {
-      const data = await this.lodgifyGet('/v1/property', apiKey);
+      const data = await this.lodgifyGetAny('/v1/property', apiKey);
       const properties: any[] = Array.isArray(data) ? data : (data.items ?? []);
 
       for (const prop of properties) {
@@ -174,10 +311,12 @@ export class LodgifyService {
       const fromStr = from.toISOString().split('T')[0];
       const toStr = to.toISOString().split('T')[0];
 
-      const data = await this.lodgifyGet(
+      const data = await this.lodgifyProbe([
+        `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}&includeRecords=true`,
         `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-        apiKey,
-      );
+        `/rental-api/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+        `/rental-api/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      ], apiKey);
       const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
 
       for (const res of reservations) {

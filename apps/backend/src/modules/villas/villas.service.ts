@@ -19,8 +19,11 @@ export class VillasService {
     limit?: number;
     search?: string;
     city?: string;
+    country?: string;
     isActive?: boolean;
     clientId?: string;
+    userRole?: string;
+    userCountries?: string[];
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -38,7 +41,23 @@ export class VillasService {
       ];
     }
     if (params.city) where.city = { contains: params.city, mode: 'insensitive' };
+    if (params.country) where.country = params.country;
     if (params.isActive !== undefined) where.isActive = params.isActive;
+
+    // Restrict ADMIN/MANAGER to their assigned countries
+    if (
+      params.userRole && ['ADMIN', 'MANAGER'].includes(params.userRole) &&
+      params.userCountries && params.userCountries.length > 0
+    ) {
+      if (params.country) {
+        // Country requested must be in user's countries
+        if (!params.userCountries.includes(params.country)) {
+          where.country = '__none__'; // force empty result
+        }
+      } else {
+        where.country = { in: params.userCountries };
+      }
+    }
 
     const [villas, total] = await Promise.all([
       this.prisma.villa.findMany({
@@ -106,5 +125,60 @@ export class VillasService {
     await this.findOne(id);
     await this.prisma.villa.delete({ where: { id } });
     return { message: 'Villa deleted successfully' };
+  }
+
+  async getVillaServices(villaId: string) {
+    await this.findOne(villaId);
+    return this.prisma.villaService.findMany({
+      where: { villaId },
+      include: {
+        service: {
+          include: {
+            category: true,
+            providers: {
+              include: {
+                provider: {
+                  include: { user: { select: { id: true, firstName: true, lastName: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { service: { name: 'asc' } },
+    });
+  }
+
+  async assignService(
+    villaId: string,
+    serviceId: string,
+    data: { customPrice?: number; commission?: number; isActive?: boolean; commissionTo?: string; ownerShare?: number },
+  ) {
+    await this.findOne(villaId);
+    return this.prisma.villaService.upsert({
+      where: { villaId_serviceId: { villaId, serviceId } },
+      create: { villaId, serviceId, ...data },
+      update: data,
+      include: { service: { include: { category: true } } },
+    });
+  }
+
+  async updateVillaService(
+    villaId: string,
+    serviceId: string,
+    data: { customPrice?: number | null; commission?: number; isActive?: boolean; commissionTo?: string; ownerShare?: number },
+  ) {
+    return this.prisma.villaService.update({
+      where: { villaId_serviceId: { villaId, serviceId } },
+      data,
+      include: { service: { include: { category: true } } },
+    });
+  }
+
+  async removeVillaService(villaId: string, serviceId: string) {
+    await this.prisma.villaService.delete({
+      where: { villaId_serviceId: { villaId, serviceId } },
+    });
+    return { message: 'Service removed from villa' };
   }
 }

@@ -5,7 +5,6 @@ import {
   Building2,
   CalendarDays,
   Sparkles,
-  Users,
   Briefcase,
   TrendingUp,
   FolderOpen,
@@ -19,6 +18,7 @@ import {
   BrainCircuit,
   Bell,
   Store,
+  CalendarRange,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -54,6 +54,7 @@ const NAV_ITEMS: NavDef[] = [
   // Client-specific
   { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
   // All
+  { path: '/agenda', label: 'Agenda', icon: CalendarRange },
   { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },

@@ -24,9 +24,10 @@ export class CreateOrderItemDto {
 }
 
 export class CreateOrderDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  clientId: string;
+  clientId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -82,6 +82,7 @@ export interface UserDto {
   lastLoginAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  countries?: string[];
 }
 
 export interface CreateUserDto {
@@ -101,6 +102,7 @@ export interface UpdateUserDto {
   avatar?: string;
   role?: Role;
   isActive?: boolean;
+  countries?: string[];
 }
 
 // ============================================================

@@ -11,7 +11,14 @@ function slugify(text: string): string {
 export class ServicesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAllServices(params: { page?: number; limit?: number; search?: string; categoryId?: string }) {
+  async findAllServices(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    categoryId?: string;
+    villaId?: string;
+    activeOnly?: boolean;
+  }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
@@ -21,20 +28,49 @@ export class ServicesService {
       where.name = { contains: params.search, mode: 'insensitive' };
     }
     if (params.categoryId) where.categoryId = params.categoryId;
+    if (params.activeOnly) where.isActive = true;
+
+    // If villaId provided, only return services linked to that villa
+    if (params.villaId) {
+      where.villaServices = { some: { villaId: params.villaId, isActive: true } };
+    }
 
     const [services, total] = await Promise.all([
       this.prisma.service.findMany({
         where,
         skip,
         take: limit,
-        include: { category: true },
-        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          providers: {
+            include: {
+              provider: {
+                include: { user: { select: { id: true, firstName: true, lastName: true } } },
+              },
+            },
+          },
+          ...(params.villaId
+            ? { villaServices: { where: { villaId: params.villaId }, take: 1 } }
+            : { villaServices: { select: { villaId: true }, take: 0 } }),
+        },
+        orderBy: { name: 'asc' },
       }),
       this.prisma.service.count({ where }),
     ]);
 
+    // Inject effectivePrice when villaId provided
+    const data = services.map((s: any) => {
+      const villaService = params.villaId ? s.villaServices?.[0] : null;
+      return {
+        ...s,
+        effectivePrice: villaService?.customPrice ?? s.basePrice,
+        commission: villaService?.commission ?? 15,
+        villaServices: undefined,
+      };
+    });
+
     return {
-      data: services,
+      data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }

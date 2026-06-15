@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, Search, ShoppingBag } from 'lucide-react';
+import { Plus, Search, ShoppingBag, CheckCircle2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +14,8 @@ import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { OrderStatus } from '@malodge/shared';
+import { useAuthStore } from '../../store/authStore';
+import { useCountries } from '../../hooks/useCountries';
 
 type StatusFilter = 'ALL' | OrderStatus;
 
@@ -30,12 +33,14 @@ async function fetchOrders(params: {
   limit: number;
   status?: OrderStatus;
   search?: string;
+  country?: string;
 }) {
   const query = new URLSearchParams({
     page: String(params.page),
     limit: String(params.limit),
     ...(params.status ? { status: params.status } : {}),
     ...(params.search ? { search: params.search } : {}),
+    ...(params.country ? { country: params.country } : {}),
   });
   const res = await apiClient.get(`/orders?${query}`);
   return res.data?.data ?? res.data;
@@ -43,31 +48,59 @@ async function fetchOrders(params: {
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isClient = user?.role === 'CLIENT';
+  const isManager = user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [countryFilter, setCountryFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  const { data: countriesData } = useCountries();
+  const countries = countriesData ?? [];
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
+      apiClient.patch(`/orders/${id}/status`, { status }),
+    onSuccess: (_, { status }) => {
+      toast.success(status === OrderStatus.CONFIRMED ? 'Demande acceptée' : 'Demande refusée');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, statusFilter, search],
+    queryKey: ['orders', page, statusFilter, search, countryFilter],
     queryFn: () =>
       fetchOrders({
         page,
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
         search: search || undefined,
+        country: countryFilter || undefined,
       }),
   });
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
 
+  // Columns differ by role
+  const staffCols = ['#', 'Client', 'Villa', 'Services', 'Montant', 'Statut', 'Prestataire', 'Date', ''];
+  const clientCols = ['#', 'Services', 'Villa', 'Date', 'Montant', 'Statut', ''];
+
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader title="Commandes" description="Gestion des commandes de services">
-        <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
-          Nouvelle commande
-        </Button>
+      <PageHeader
+        title={isClient ? 'Mes commandes' : 'Commandes'}
+        description={isClient ? 'Historique de vos commandes de services' : 'Gestion et validation des commandes de services'}
+      >
+        {!isClient && (
+          <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
+            Nouvelle commande
+          </Button>
+        )}
       </PageHeader>
 
       {/* Status filter tabs */}
@@ -88,18 +121,39 @@ export function OrdersPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
-          <Input
-            placeholder="Rechercher client, villa, service…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9"
-          />
+      {/* Search + country filter — staff only */}
+      {!isClient && (
+        <div className="space-y-2">
+          <div className="relative max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
+            <Input
+              placeholder="Rechercher client, villa, service…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9"
+            />
+          </div>
+          {countries.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => { setCountryFilter(''); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              >
+                Tous les pays
+              </button>
+              {countries.map((c) => (
+                <button
+                  key={c.code}
+                  onClick={() => { setCountryFilter(c.name); setPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                >
+                  {c.flag} {c.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Table */}
       <Card>
@@ -107,23 +161,21 @@ export function OrdersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#242428]">
-                {['#', 'Client', 'Villa', 'Services', 'Montant', 'Statut', 'Prestataire', 'Date', ''].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
-                    >
-                      {col}
-                    </th>
-                  ),
-                )}
+                {(isClient ? clientCols : staffCols).map((col) => (
+                  <th
+                    key={col}
+                    className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
+                  >
+                    {col}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#242428]">
               {isLoading
-                ? Array.from({ length: 8 }).map((_, i) => (
+                ? Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {(isClient ? clientCols : staffCols).map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <Skeleton className="h-4 w-full" />
                         </td>
@@ -133,9 +185,11 @@ export function OrdersPage() {
                 : orders.length === 0
                 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-16 text-center">
+                    <td colSpan={isClient ? clientCols.length : staffCols.length} className="px-4 py-16 text-center">
                       <ShoppingBag size={32} className="mx-auto text-[#242428] mb-3" />
-                      <p className="text-sm text-[#6B6B6F]">Aucune commande trouvée</p>
+                      <p className="text-sm text-[#6B6B6F]">
+                        {isClient ? 'Aucune commande pour le moment' : 'Aucune commande trouvée'}
+                      </p>
                     </td>
                   </tr>
                 )
@@ -151,50 +205,101 @@ export function OrdersPage() {
                       <td className="px-4 py-3 text-xs text-[#6B6B6F] font-mono">
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar
-                            firstName={order.client?.firstName}
-                            lastName={order.client?.lastName}
-                            src={order.client?.avatar}
-                            size="sm"
-                          />
-                          <span className="text-sm text-[#F5F0EB]">
-                            {order.client?.firstName} {order.client?.lastName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[#6B6B6F]">
-                        {order.reservation?.villa?.name ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+
+                      {/* Staff-only: client column */}
+                      {!isClient && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar
+                              firstName={order.client?.firstName}
+                              lastName={order.client?.lastName}
+                              src={order.client?.avatar}
+                              size="sm"
+                            />
+                            <span className="text-sm text-[#F5F0EB]">
+                              {order.client?.firstName} {order.client?.lastName}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+
+                      {/* Services */}
+                      <td className="px-4 py-3 text-sm text-[#F5F0EB]">
                         {order.items?.length
                           ? order.items.slice(0, 2).map((it: any) => it.service?.name).join(', ') +
                             (order.items.length > 2 ? ` +${order.items.length - 2}` : '')
                           : '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
-                        {formatCurrency(order.totalAmount)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <OrderStatusBadge status={order.status} />
-                      </td>
+
+                      {/* Villa */}
                       <td className="px-4 py-3 text-sm text-[#6B6B6F]">
-                        {order.provider
-                          ? `${order.provider.user?.firstName} ${order.provider.user?.lastName}`
-                          : <span className="text-[#3A3A3E] italic text-xs">Non assigné</span>}
+                        {order.reservation?.villa?.name ?? '—'}
                       </td>
+
+                      {/* Staff-only: provider + date order */}
+                      {!isClient && (
+                        <>
+                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                            {formatCurrency(order.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+                            {order.provider
+                              ? `${order.provider.user?.firstName} ${order.provider.user?.lastName}`
+                              : <span className="text-[#3A3A3E] italic text-xs">Non assigné</span>}
+                          </td>
+                        </>
+                      )}
+
+                      {/* Date */}
                       <td className="px-4 py-3 text-xs text-[#6B6B6F]">
                         {formatDate(order.createdAt)}
                       </td>
+
+                      {/* Client-only: montant + statut after date */}
+                      {isClient && (
+                        <>
+                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                            {formatCurrency(order.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                        </>
+                      )}
+
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/commandes/${order.id}`); }}
-                        >
-                          Voir
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {isManager && order.status === OrderStatus.PENDING && (
+                            <>
+                              <button
+                                onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CONFIRMED })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-green-400 border border-green-800/40 bg-green-900/10 hover:bg-green-900/20 transition-colors"
+                                title="Accepter"
+                              >
+                                <CheckCircle2 size={11} /> Accepter
+                              </button>
+                              <button
+                                onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CANCELLED })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-400 border border-red-800/40 bg-red-900/10 hover:bg-red-900/20 transition-colors"
+                                title="Refuser"
+                              >
+                                <XCircle size={11} /> Refuser
+                              </button>
+                            </>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/commandes/${order.id}`)}
+                          >
+                            Voir
+                          </Button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}

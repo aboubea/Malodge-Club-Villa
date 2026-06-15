@@ -72,6 +72,50 @@
   }
 }
 
+/* HTML content from external sources (Lodgify descriptions) */
+.lodgify-description h1,
+.lodgify-description h2,
+.lodgify-description h3,
+.lodgify-description h4 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #F5F0EB;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.01em;
+}
+.lodgify-description h1:first-child,
+.lodgify-description h2:first-child,
+.lodgify-description h3:first-child {
+  margin-top: 0;
+}
+.lodgify-description p {
+  margin-bottom: 0.65rem;
+  color: #A0A0A4;
+  line-height: 1.65;
+}
+.lodgify-description ul,
+.lodgify-description ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.65rem;
+  color: #A0A0A4;
+}
+.lodgify-description li {
+  margin-bottom: 0.2rem;
+}
+.lodgify-description strong,
+.lodgify-description b {
+  color: #D0CCC6;
+  font-weight: 500;
+}
+.lodgify-description em,
+.lodgify-description i {
+  color: #A0A0A4;
+}
+.lodgify-description br + br {
+  display: none;
+}
+
 @layer utilities {
   .text-gold {
     color: #C9A96E;

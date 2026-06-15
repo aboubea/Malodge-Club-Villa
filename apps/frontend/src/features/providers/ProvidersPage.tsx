@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Briefcase, Building2, Tag, CheckCircle2, XCircle, Globe } from 'lucide-react';
-import { useCountries } from '../../hooks/useCountries';
+import { Plus, Search, Briefcase, Building2, Tag, CheckCircle2, XCircle, Phone, Mail, CreditCard, Hash, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +11,7 @@ import { Modal } from '../../components/ui/Modal';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { apiClient } from '../../lib/apiClient';
 import { formatDate } from '../../lib/utils';
+import { useCountries } from '../../hooks/useCountries';
 
 interface Category {
   id: string;
@@ -56,9 +56,10 @@ export function ProvidersPage() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
+  const [detailProvider, setDetailProvider] = useState<Provider | null>(null);
   const [inviteForm, setInviteForm] = useState({ ...EMPTY_INVITE });
   const [editForm, setEditForm] = useState({ ...EMPTY_EDIT });
-  const { countries: allCountries } = useCountries();
+  const { data: allCountries = [] } = useCountries();
 
   const { data, isLoading } = useQuery({
     queryKey: ['providers', { page, search }],
@@ -280,9 +281,96 @@ export function ProvidersPage() {
         data={providers}
         loading={isLoading}
         onEdit={openEdit}
+        onRowClick={(row) => setDetailProvider(row)}
         emptyMessage="Aucun prestataire trouvé"
         pagination={meta ? { page, totalPages: meta.totalPages, onPageChange: setPage } : undefined}
       />
+
+      {/* Provider Detail Popup */}
+      <Modal
+        open={!!detailProvider}
+        onClose={() => setDetailProvider(null)}
+        title="Fiche prestataire"
+        size="lg"
+      >
+        {detailProvider && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <Avatar
+                firstName={detailProvider.user.firstName}
+                lastName={detailProvider.user.lastName}
+                src={detailProvider.user.avatar}
+                size="lg"
+              />
+              <div>
+                <h3 className="text-base font-medium text-[#F5F0EB]">
+                  {detailProvider.user.firstName} {detailProvider.user.lastName}
+                </h3>
+                {detailProvider.companyName && (
+                  <p className="text-sm text-[#6B6B6F] flex items-center gap-1.5 mt-0.5">
+                    <Building2 size={12} /> {detailProvider.companyName}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Badge variant={detailProvider.isActive ? 'active' : 'inactive'}>
+                    {detailProvider.isActive ? 'Actif' : 'Inactif'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
+                <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                <p className="text-sm text-[#F5F0EB]">{detailProvider.user.email}</p>
+              </div>
+              {detailProvider.user.phone && (
+                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
+                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Phone size={10} /> Téléphone</p>
+                  <p className="text-sm text-[#F5F0EB]">{detailProvider.user.phone}</p>
+                </div>
+              )}
+              {detailProvider.siret && (
+                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
+                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Hash size={10} /> SIRET</p>
+                  <p className="text-sm font-mono text-[#F5F0EB]">{detailProvider.siret}</p>
+                </div>
+              )}
+              {detailProvider.iban && (
+                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
+                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><CreditCard size={10} /> IBAN</p>
+                  <p className="text-sm font-mono text-[#F5F0EB]">{detailProvider.iban}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Specialties */}
+            {detailProvider.categories.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2 flex items-center gap-1.5"><Tag size={11} /> Spécialités</p>
+                <div className="flex flex-wrap gap-2">
+                  {detailProvider.categories.map((c) => (
+                    <Badge key={c.category.id} variant="default">{c.category.name}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-[#242428]">
+              <p className="text-xs text-[#6B6B6F]">Membre depuis {formatDate(detailProvider.createdAt)}</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setDetailProvider(null); openEdit(detailProvider); }}
+              >
+                Modifier
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Add / Edit Modal */}
       <Modal
@@ -414,7 +502,7 @@ export function ProvidersPage() {
           )}
 
           {/* Countries — invite only */}
-          {!editingProvider && (
+          {!editingProvider && allCountries.length > 0 && (
             <div className="space-y-3">
               <div className="border-t border-[#242428]" />
               <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
@@ -442,7 +530,7 @@ export function ProvidersPage() {
                 })}
               </div>
               {inviteForm.countries.length === 0 && (
-                <p className="text-[10px] text-[#3A3A3E]">Aucun pays sélectionné — le prestataire sera disponible partout</p>
+                <p className="text-[10px] text-[#3A3A3E]">Aucun pays sélectionné — disponible partout</p>
               )}
             </div>
           )}

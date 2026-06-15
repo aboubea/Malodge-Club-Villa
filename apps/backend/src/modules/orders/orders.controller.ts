@@ -33,13 +33,14 @@ export class OrdersController {
   @Get()
   @ApiOperation({ summary: 'List orders — CLIENT sees only their own' })
   findAll(
-    @CurrentUser() user: { id: string; role: string },
+    @CurrentUser() user: { id: string; role: string; countries?: string[] },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: OrderStatus,
     @Query('villaId') villaId?: string,
     @Query('clientId') clientId?: string,
     @Query('search') search?: string,
+    @Query('country') country?: string,
   ) {
     return this.ordersService.findAll({
       page: page ? parseInt(page) : undefined,
@@ -48,6 +49,9 @@ export class OrdersController {
       villaId,
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       search,
+      country,
+      userRole: user.role,
+      userCountries: user.countries || [],
     });
   }
 
@@ -58,10 +62,13 @@ export class OrdersController {
   }
 
   @Post()
-  @Roles(Role.MANAGER)
-  @ApiOperation({ summary: 'Create a new order' })
-  create(@Body() dto: CreateOrderDto) {
-    return this.ordersService.create(dto);
+  @ApiOperation({ summary: 'Create a new order — CLIENT auto-assigns themselves' })
+  create(
+    @CurrentUser() user: { id: string; role: string },
+    @Body() dto: CreateOrderDto,
+  ) {
+    const clientId = user.role === Role.CLIENT ? user.id : (dto.clientId ?? user.id);
+    return this.ordersService.create({ ...dto, clientId });
   }
 
   @Patch(':id/status')

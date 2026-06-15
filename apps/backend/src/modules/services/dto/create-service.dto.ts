@@ -39,6 +39,11 @@ export class CreateServiceDto {
   @ApiProperty()
   @IsString()
   categoryId: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CreateServiceCategoryDto {
