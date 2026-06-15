@@ -10,7 +10,8 @@ export class LodgifyService {
 
   private async getApiKey(): Promise<string | null> {
     const setting = await this.prisma.appSetting.findUnique({ where: { key: 'lodgify_api_key' } });
-    return setting ? String((setting.value as any) || '') : null;
+    const raw = setting ? String((setting.value as any) || '') : null;
+    return raw ? raw.trim() : null;
   }
 
   async saveApiKey(apiKey: string) {
@@ -27,16 +28,13 @@ export class LodgifyService {
     return { configured: !!key && key.length > 0 };
   }
 
-  private async lodgifyGet(path: string, apiKey: string): Promise<any> {
+  private async lodgifyGet(path: string, extraHeaders: Record<string, string>): Promise<any> {
     return new Promise((resolve, reject) => {
       const options = {
         hostname: 'api.lodgify.com',
         path,
         method: 'GET',
-        headers: {
-          'X-ApiKey': apiKey,
-          'Accept': 'application/json',
-        },
+        headers: { 'Accept': 'application/json', ...extraHeaders },
       };
       const req = https.request(options, (res) => {
         let data = '';
@@ -63,11 +61,31 @@ export class LodgifyService {
     });
   }
 
+  private authHeaders(apiKey: string): Record<string, string>[] {
+    return [
+      { 'X-ApiKey': apiKey },
+      { 'Authorization': `Bearer ${apiKey}` },
+      { 'Authorization': apiKey },
+    ];
+  }
+
+  private async lodgifyGetAny(path: string, apiKey: string): Promise<any> {
+    const errors: string[] = [];
+    for (const headers of this.authHeaders(apiKey)) {
+      try {
+        return await this.lodgifyGet(path, headers);
+      } catch (e: any) {
+        errors.push(`[${JSON.stringify(Object.keys(headers))}] ${e?.message}`);
+      }
+    }
+    throw new Error(errors.join(' | '));
+  }
+
   private async lodgifyProbe(paths: string[], apiKey: string): Promise<any> {
     const errors: string[] = [];
     for (const path of paths) {
       try {
-        const result = await this.lodgifyGet(path, apiKey);
+        const result = await this.lodgifyGetAny(path, apiKey);
         this.logger.log(`Lodgify: endpoint OK → ${path}`);
         return result;
       } catch (e: any) {
@@ -90,9 +108,10 @@ export class LodgifyService {
     const fromStr = from.toISOString().split('T')[0];
     const toStr = to.toISOString().split('T')[0];
 
-    // Sanity-check: verify auth with a known-valid endpoint
+    this.logger.log(`Lodgify: clé longueur=${apiKey.length}, début=${apiKey.slice(0, 4)}…`);
+    // Sanity-check: verify auth with a known-valid endpoint before probing reservations
     try {
-      await this.lodgifyGet('/v1/property', apiKey);
+      await this.lodgifyGetAny('/v1/property', apiKey);
     } catch (e: any) {
       throw new Error(`Lodgify auth/connectivity failed (/v1/property): ${e?.message}`);
     }
@@ -138,7 +157,7 @@ export class LodgifyService {
     const errors: string[] = [];
 
     try {
-      const data = await this.lodgifyGet('/v1/property', apiKey);
+      const data = await this.lodgifyGetAny('/v1/property', apiKey);
       const properties: any[] = Array.isArray(data) ? data : (data.items ?? []);
 
       for (const prop of properties) {
