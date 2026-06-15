@@ -1,11 +1,32 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { IsOptional, IsNumber, IsBoolean, Min } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { VillasService } from './villas.service';
 import { CreateVillaDto } from './dto/create-villa.dto';
 import { UpdateVillaDto } from './dto/update-villa.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@malodge/shared';
+
+class AssignServiceDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  customPrice?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  commission?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
 
 @ApiTags('Villas')
 @ApiBearerAuth()
@@ -62,5 +83,43 @@ export class VillasController {
   @ApiOperation({ summary: 'Delete villa — ADMIN+ only' })
   remove(@Param('id') id: string) {
     return this.villasService.remove(id);
+  }
+
+  @Get(':id/services')
+  @ApiOperation({ summary: 'Get services available for a villa with effective pricing' })
+  getVillaServices(@Param('id') id: string) {
+    return this.villasService.getVillaServices(id);
+  }
+
+  @Post(':id/services/:serviceId')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Link a service to a villa — MANAGER+' })
+  assignService(
+    @Param('id') id: string,
+    @Param('serviceId') serviceId: string,
+    @Body() dto: AssignServiceDto,
+  ) {
+    return this.villasService.assignService(id, serviceId, dto);
+  }
+
+  @Patch(':id/services/:serviceId')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Update villa-service pricing/settings — MANAGER+' })
+  updateVillaService(
+    @Param('id') id: string,
+    @Param('serviceId') serviceId: string,
+    @Body() dto: AssignServiceDto,
+  ) {
+    return this.villasService.updateVillaService(id, serviceId, dto);
+  }
+
+  @Delete(':id/services/:serviceId')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Remove service from villa — MANAGER+' })
+  removeVillaService(
+    @Param('id') id: string,
+    @Param('serviceId') serviceId: string,
+  ) {
+    return this.villasService.removeVillaService(id, serviceId);
   }
 }

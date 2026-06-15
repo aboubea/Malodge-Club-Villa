@@ -13,6 +13,9 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
+  Plus,
+  Sparkles,
+  Euro,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -20,16 +23,26 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card, CardHeader, CardContent, CardTitle } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
+import { formatCurrency } from '../../lib/utils';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
+import { useAuthStore } from '../../store/authStore';
 
 export function VillaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isStaff = user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
   const [editOpen, setEditOpen] = useState(false);
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
+  const [editServiceId, setEditServiceId] = useState<string | null>(null);
+  const [customPrice, setCustomPrice] = useState('');
+  const [commission, setCommission] = useState('15');
+  const [serviceSearch, setServiceSearch] = useState('');
 
   const { data: villa, isLoading } = useQuery<VillaDto>({
     queryKey: ['villa', id],
@@ -55,6 +68,69 @@ export function VillaDetailPage() {
       toast.success('Statut mis à jour');
       qc.invalidateQueries({ queryKey: ['villa', id] });
       qc.invalidateQueries({ queryKey: ['villas'] });
+    },
+  });
+
+  // Villa services
+  const { data: villaServicesData } = useQuery({
+    queryKey: ['villa-services', id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/villas/${id}/services`);
+      return res.data.data ?? res.data;
+    },
+    enabled: !!id && isStaff,
+  });
+  const villaServices: any[] = villaServicesData ?? [];
+
+  // All services for the add-service modal
+  const { data: allServicesData } = useQuery({
+    queryKey: ['services-all', serviceSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '50', activeOnly: 'true' });
+      if (serviceSearch) params.set('search', serviceSearch);
+      const res = await apiClient.get(`/services?${params}`);
+      return (res.data.data ?? res.data)?.data ?? res.data?.data ?? [];
+    },
+    enabled: addServiceOpen,
+  });
+  const allServices: any[] = allServicesData ?? [];
+  const linkedServiceIds = new Set(villaServices.map((vs: any) => vs.serviceId));
+
+  const assignServiceMutation = useMutation({
+    mutationFn: ({ serviceId, cp, cm }: { serviceId: string; cp?: number; cm?: number }) =>
+      apiClient.post(`/villas/${id}/services/${serviceId}`, {
+        customPrice: cp,
+        commission: cm,
+      }),
+    onSuccess: () => {
+      toast.success('Service ajouté à la villa');
+      qc.invalidateQueries({ queryKey: ['villa-services', id] });
+      setAddServiceOpen(false);
+      setServiceSearch('');
+      setCustomPrice('');
+    },
+    onError: () => toast.error('Erreur lors de l\'ajout'),
+  });
+
+  const updateServiceMutation = useMutation({
+    mutationFn: ({ serviceId, cp, cm }: { serviceId: string; cp?: number | null; cm?: number }) =>
+      apiClient.patch(`/villas/${id}/services/${serviceId}`, {
+        customPrice: cp,
+        commission: cm,
+      }),
+    onSuccess: () => {
+      toast.success('Prix mis à jour');
+      qc.invalidateQueries({ queryKey: ['villa-services', id] });
+      setEditServiceId(null);
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
+  });
+
+  const removeServiceMutation = useMutation({
+    mutationFn: (serviceId: string) => apiClient.delete(`/villas/${id}/services/${serviceId}`),
+    onSuccess: () => {
+      toast.success('Service retiré');
+      qc.invalidateQueries({ queryKey: ['villa-services', id] });
     },
   });
 
@@ -268,6 +344,174 @@ export function VillaDetailPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Villa Services Section — staff only */}
+      {isStaff && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-[#C9A96E]" />
+                  Services disponibles ({villaServices.length})
+                </CardTitle>
+                <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => setAddServiceOpen(true)}>
+                  Ajouter un service
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {villaServices.length === 0 ? (
+                <p className="text-sm text-[#6B6B6F] text-center py-6">Aucun service assigné à cette villa</p>
+              ) : (
+                <div className="space-y-2">
+                  {villaServices.map((vs: any) => {
+                    const effectivePrice = vs.customPrice ?? vs.service.basePrice;
+                    const isEditing = editServiceId === vs.serviceId;
+                    return (
+                      <div key={vs.serviceId} className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
+                        <div className="w-8 h-8 rounded-lg bg-[#C9A96E]/10 flex items-center justify-center shrink-0">
+                          <Sparkles size={12} className="text-[#C9A96E]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-[#F5F0EB] font-medium truncate">{vs.service.name}</p>
+                          <p className="text-[11px] text-[#6B6B6F]">{vs.service.category?.name}</p>
+                          {vs.service.providers && vs.service.providers.length > 0 && (
+                            <p className="text-[10px] text-[#6B6B6F] mt-0.5">
+                              {vs.service.providers.slice(0, 2).map((p: any) =>
+                                `${p.provider.user.firstName} ${p.provider.user.lastName}`
+                              ).join(', ')}
+                            </p>
+                          )}
+                        </div>
+
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              placeholder={`Prix (défaut: ${vs.service.basePrice})`}
+                              className="w-36 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                              value={customPrice}
+                              onChange={(e) => setCustomPrice(e.target.value)}
+                            />
+                            <input
+                              type="number"
+                              placeholder="Comm. %"
+                              className="w-20 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                              value={commission}
+                              onChange={(e) => setCommission(e.target.value)}
+                            />
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => updateServiceMutation.mutate({
+                                serviceId: vs.serviceId,
+                                cp: customPrice ? Number(customPrice) : null,
+                                cm: commission ? Number(commission) : 15,
+                              })}
+                              loading={updateServiceMutation.isPending}
+                            >
+                              OK
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditServiceId(null)}>✕</Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-light text-[#C9A96E]">{formatCurrency(effectivePrice)}</p>
+                              {vs.customPrice && (
+                                <p className="text-[10px] text-[#6B6B6F]">défaut: {formatCurrency(vs.service.basePrice)}</p>
+                              )}
+                              <p className="text-[10px] text-[#6B6B6F]">Comm. {vs.commission ?? 15}%</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditServiceId(vs.serviceId);
+                                setCustomPrice(vs.customPrice?.toString() || '');
+                                setCommission((vs.commission ?? 15).toString());
+                              }}
+                              className="p-1.5 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                            >
+                              <Euro size={13} />
+                            </button>
+                            <button
+                              onClick={() => { if (confirm(`Retirer "${vs.service.name}" ?`)) removeServiceMutation.mutate(vs.serviceId); }}
+                              className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Add service modal */}
+      <Modal open={addServiceOpen} onClose={() => { setAddServiceOpen(false); setServiceSearch(''); setCustomPrice(''); }} title="Ajouter un service" size="lg">
+        <div className="space-y-4">
+          <Input
+            placeholder="Rechercher un service..."
+            value={serviceSearch}
+            onChange={(e) => setServiceSearch(e.target.value)}
+          />
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {allServices
+              .filter((s: any) => !linkedServiceIds.has(s.id))
+              .map((s: any) => (
+                <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428] hover:border-[#C9A96E]/20 transition-colors">
+                  <div>
+                    <p className="text-sm text-[#F5F0EB]">{s.name}</p>
+                    <p className="text-[11px] text-[#6B6B6F]">{s.category?.name} · {formatCurrency(s.basePrice)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Plus size={12} />}
+                    onClick={() => assignServiceMutation.mutate({
+                      serviceId: s.id,
+                      cp: customPrice ? Number(customPrice) : undefined,
+                      cm: commission ? Number(commission) : 15,
+                    })}
+                    loading={assignServiceMutation.isPending}
+                  >
+                    Ajouter
+                  </Button>
+                </div>
+              ))}
+            {allServices.filter((s: any) => !linkedServiceIds.has(s.id)).length === 0 && (
+              <p className="text-sm text-[#6B6B6F] text-center py-4">Tous les services sont déjà assignés</p>
+            )}
+          </div>
+          <div className="flex gap-3 pt-2 border-t border-[#242428]">
+            <div className="flex-1">
+              <label className="text-xs text-[#6B6B6F]">Prix personnalisé (optionnel)</label>
+              <input
+                type="number"
+                placeholder="Laisser vide = prix de base"
+                className="w-full mt-1 h-9 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+              />
+            </div>
+            <div className="w-28">
+              <label className="text-xs text-[#6B6B6F]">Commission %</label>
+              <input
+                type="number"
+                placeholder="15"
+                className="w-full mt-1 h-9 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                value={commission}
+                onChange={(e) => setCommission(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={editOpen}

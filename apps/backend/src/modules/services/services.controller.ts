@@ -13,18 +13,22 @@ export class ServicesController {
   constructor(private servicesService: ServicesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all services' })
+  @ApiOperation({ summary: 'List all services — pass villaId for effective pricing' })
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('villaId') villaId?: string,
+    @Query('activeOnly') activeOnly?: string,
   ) {
     return this.servicesService.findAllServices({
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
       search,
       categoryId,
+      villaId,
+      activeOnly: activeOnly === 'true',
     });
   }
 

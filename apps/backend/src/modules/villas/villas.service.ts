@@ -126,4 +126,59 @@ export class VillasService {
     await this.prisma.villa.delete({ where: { id } });
     return { message: 'Villa deleted successfully' };
   }
+
+  async getVillaServices(villaId: string) {
+    await this.findOne(villaId);
+    return this.prisma.villaService.findMany({
+      where: { villaId },
+      include: {
+        service: {
+          include: {
+            category: true,
+            providers: {
+              include: {
+                provider: {
+                  include: { user: { select: { id: true, firstName: true, lastName: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { service: { name: 'asc' } },
+    });
+  }
+
+  async assignService(
+    villaId: string,
+    serviceId: string,
+    data: { customPrice?: number; commission?: number; isActive?: boolean },
+  ) {
+    await this.findOne(villaId);
+    return this.prisma.villaService.upsert({
+      where: { villaId_serviceId: { villaId, serviceId } },
+      create: { villaId, serviceId, ...data },
+      update: data,
+      include: { service: { include: { category: true } } },
+    });
+  }
+
+  async updateVillaService(
+    villaId: string,
+    serviceId: string,
+    data: { customPrice?: number | null; commission?: number; isActive?: boolean },
+  ) {
+    return this.prisma.villaService.update({
+      where: { villaId_serviceId: { villaId, serviceId } },
+      data,
+      include: { service: { include: { category: true } } },
+    });
+  }
+
+  async removeVillaService(villaId: string, serviceId: string) {
+    await this.prisma.villaService.delete({
+      where: { villaId_serviceId: { villaId, serviceId } },
+    });
+    return { message: 'Service removed from villa' };
+  }
 }

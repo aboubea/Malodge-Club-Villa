@@ -47,6 +47,7 @@ export function ServiceCataloguePage() {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedVillaId, setSelectedVillaId] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
@@ -55,18 +56,30 @@ export function ServiceCataloguePage() {
   const { data: categoriesData } = useQuery<ServiceCategory[]>({
     queryKey: ['service-categories'],
     queryFn: async () => {
-      const res = await apiClient.get('/services/categories');
+      const res = await apiClient.get('/service-categories');
       return res.data.data ?? res.data;
     },
   });
   const categories = categoriesData ?? [];
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['services-catalogue', search, selectedCategory],
+  // Load client's reserved villas for villa selector
+  const { data: villasData } = useQuery({
+    queryKey: ['client-villas'],
     queryFn: async () => {
-      const params = new URLSearchParams({ limit: '50' });
+      const res = await apiClient.get('/villas?limit=50&isActive=true');
+      return (res.data.data ?? res.data)?.data ?? res.data?.data ?? [];
+    },
+    enabled: isClient,
+  });
+  const clientVillas: any[] = villasData ?? [];
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['services-catalogue', search, selectedCategory, selectedVillaId],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '100', activeOnly: 'true' });
       if (search) params.set('search', search);
       if (selectedCategory) params.set('categoryId', selectedCategory);
+      if (selectedVillaId) params.set('villaId', selectedVillaId);
       const res = await apiClient.get(`/services?${params}`);
       return res.data.data ?? res.data;
     },
@@ -98,11 +111,12 @@ export function ServiceCataloguePage() {
     onError: () => toast.error('Erreur lors de la commande'),
   });
 
-  function addToCart(service: Service) {
+  function addToCart(service: Service & { effectivePrice?: number }) {
+    const priced = { ...service, basePrice: service.effectivePrice ?? service.basePrice };
     setCart((prev) => {
       const existing = prev.find((i) => i.service.id === service.id);
       if (existing) return prev.map((i) => i.service.id === service.id ? { ...i, quantity: i.quantity + 1 } : i);
-      return [...prev, { service, quantity: 1 }];
+      return [...prev, { service: priced, quantity: 1 }];
     });
     toast.success(`${service.name} ajouté au panier`);
   }
@@ -145,13 +159,30 @@ export function ServiceCataloguePage() {
 
       {/* Search + category filters */}
       <div className="space-y-3">
-        <div className="max-w-sm">
-          <Input
-            placeholder="Rechercher un service..."
-            leftIcon={<Search size={13} />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex gap-3 flex-wrap items-end">
+          <div className="w-64">
+            <Input
+              placeholder="Rechercher un service..."
+              leftIcon={<Search size={13} />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {clientVillas.length > 0 && (
+            <div>
+              <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider block mb-1.5">Villa</label>
+              <select
+                className="h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                value={selectedVillaId}
+                onChange={(e) => setSelectedVillaId(e.target.value)}
+              >
+                <option value="">Tous les services</option>
+                {clientVillas.map((v: any) => (
+                  <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
@@ -278,7 +309,8 @@ export function ServiceCataloguePage() {
   );
 }
 
-function ServiceCard({ service, index, onAdd }: { service: Service; index: number; onAdd: () => void }) {
+function ServiceCard({ service, index, onAdd }: { service: Service & { effectivePrice?: number; providers?: any[] }; index: number; onAdd: () => void }) {
+  const displayPrice = service.effectivePrice ?? service.basePrice;
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -311,8 +343,25 @@ function ServiceCard({ service, index, onAdd }: { service: Service; index: numbe
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between">
-            <p className="text-base font-light text-[#C9A96E]">{formatCurrency(service.basePrice)}</p>
+          {service.providers && service.providers.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mt-1">
+              {service.providers.slice(0, 2).map((sp: any) => (
+                <span key={sp.provider.id} className="text-[10px] text-[#6B6B6F] px-1.5 py-0.5 rounded bg-[#1A1A1D] border border-[#242428]">
+                  {sp.provider.user.firstName} {sp.provider.user.lastName}
+                </span>
+              ))}
+              {service.providers.length > 2 && (
+                <span className="text-[10px] text-[#6B6B6F]">+{service.providers.length - 2}</span>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-between mt-2">
+            <div>
+              <p className="text-base font-light text-[#C9A96E]">{formatCurrency(displayPrice)}</p>
+              {service.effectivePrice && service.effectivePrice !== service.basePrice && (
+                <p className="text-[10px] text-[#6B6B6F] line-through">{formatCurrency(service.basePrice)}</p>
+              )}
+            </div>
             <Button variant="primary" size="sm" icon={<Plus size={12} />} onClick={onAdd}>
               Ajouter
             </Button>
