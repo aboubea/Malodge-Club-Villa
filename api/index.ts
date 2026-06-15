@@ -99,6 +99,19 @@ async function bootstrap() {
   } catch { /* non-fatal */ }
 
   try {
+    const PrismaService3 = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+    const prisma3 = app.get(PrismaService3);
+    await prisma3.$executeRawUnsafe(`ALTER TABLE "VillaService" ADD COLUMN IF NOT EXISTS "commissionTo" TEXT DEFAULT 'manager'`);
+    await prisma3.$executeRawUnsafe(`ALTER TABLE "VillaService" ADD COLUMN IF NOT EXISTS "ownerShare" FLOAT DEFAULT 50`);
+  } catch { /* non-fatal */ }
+
+  try {
+    const PrismaService4 = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+    const prisma4 = app.get(PrismaService4);
+    await prisma4.$executeRawUnsafe(`ALTER TABLE "Villa" ADD COLUMN IF NOT EXISTS "customFields" JSONB DEFAULT '[]'`);
+  } catch { /* non-fatal */ }
+
+  try {
     const PrismaService2 = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
     const prisma2 = app.get(PrismaService2);
     await prisma2.$executeRawUnsafe(`

@@ -76,4 +76,9 @@ export class UpdateVillaDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  customFields?: Array<{ label: string; value: string }>;
 }

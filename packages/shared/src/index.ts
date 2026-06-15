@@ -145,6 +145,7 @@ export interface VillaDto {
   bathrooms: number;
   isActive: boolean;
   logifyId?: string | null;
+  customFields?: Array<{ label: string; value: string }> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -182,6 +183,7 @@ export interface UpdateVillaDto {
   bedrooms?: number;
   bathrooms?: number;
   isActive?: boolean;
+  customFields?: Array<{ label: string; value: string }>;
 }
 
 // ============================================================

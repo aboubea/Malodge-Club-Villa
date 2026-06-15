@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -13,6 +13,10 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
+  Plus,
+  Sparkles,
+  Euro,
+  List,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -24,12 +28,24 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
+import { useAuthStore } from '../../store/authStore';
 
 export function VillaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isStaff = user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
   const [editOpen, setEditOpen] = useState(false);
+
+  // Custom fields state
+  const [customFields, setCustomFields] = useState<Array<{ label: string; value: string }>>([]);
+  const [editingFieldIdx, setEditingFieldIdx] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [addingField, setAddingField] = useState(false);
+  const [newFieldLabel, setNewFieldLabel] = useState('');
+  const [newFieldValue, setNewFieldValue] = useState('');
 
   const { data: villa, isLoading } = useQuery<VillaDto>({
     queryKey: ['villa', id],
@@ -38,6 +54,24 @@ export function VillaDetailPage() {
       return res.data.data || res.data;
     },
     enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (villa?.customFields) {
+      setCustomFields(Array.isArray(villa.customFields) ? (villa.customFields as Array<{ label: string; value: string }>) : []);
+    } else {
+      setCustomFields([]);
+    }
+  }, [villa]);
+
+  const updateCustomFieldsMutation = useMutation({
+    mutationFn: (fields: Array<{ label: string; value: string }>) =>
+      apiClient.patch(`/villas/${id}`, { customFields: fields }),
+    onSuccess: () => {
+      toast.success('Champs mis à jour');
+      qc.invalidateQueries({ queryKey: ['villa', id] });
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
   });
 
   const deleteMutation = useMutation({
@@ -194,6 +228,136 @@ export function VillaDetailPage() {
                     </li>
                   ))}
                 </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Custom fields */}
+          {(isStaff || customFields.length > 0) && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <List size={14} className="text-[#C9A96E]" />
+                    Informations complémentaires
+                  </CardTitle>
+                  {isStaff && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<Plus size={12} />}
+                      onClick={() => { setAddingField(true); setNewFieldLabel(''); setNewFieldValue(''); }}
+                      disabled={addingField}
+                    >
+                      Ajouter
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {customFields.length === 0 && !addingField && (
+                  <p className="text-sm text-[#6B6B6F] text-center py-4">
+                    {isStaff ? 'Aucun champ. Cliquez sur Ajouter pour en créer.' : 'Aucune information complémentaire.'}
+                  </p>
+                )}
+
+                {customFields.map((field, idx) => (
+                  <div key={idx}>
+                    {editingFieldIdx === idx ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          placeholder="Label"
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                        />
+                        <input
+                          className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          placeholder="Valeur"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          loading={updateCustomFieldsMutation.isPending}
+                          onClick={() => {
+                            if (!editLabel.trim()) return;
+                            const updated = customFields.map((f, i) =>
+                              i === idx ? { label: editLabel.trim(), value: editValue.trim() } : f
+                            );
+                            setCustomFields(updated);
+                            updateCustomFieldsMutation.mutate(updated);
+                            setEditingFieldIdx(null);
+                          }}
+                        >
+                          OK
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingFieldIdx(null)}>✕</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-[#6B6B6F] uppercase tracking-wider">{field.label}</p>
+                          <p className="text-sm text-[#F5F0EB] mt-0.5">{field.value}</p>
+                        </div>
+                        {isStaff && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => { setEditingFieldIdx(idx); setEditLabel(field.label); setEditValue(field.value); }}
+                              className="p-1.5 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                const updated = customFields.filter((_, i) => i !== idx);
+                                setCustomFields(updated);
+                                updateCustomFieldsMutation.mutate(updated);
+                              }}
+                              className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {addingField && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      placeholder="Label (ex: Code WiFi)"
+                      value={newFieldLabel}
+                      onChange={(e) => setNewFieldLabel(e.target.value)}
+                      autoFocus
+                    />
+                    <input
+                      className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      placeholder="Valeur"
+                      value={newFieldValue}
+                      onChange={(e) => setNewFieldValue(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      loading={updateCustomFieldsMutation.isPending}
+                      onClick={() => {
+                        if (!newFieldLabel.trim()) return;
+                        const updated = [...customFields, { label: newFieldLabel.trim(), value: newFieldValue.trim() }];
+                        setCustomFields(updated);
+                        updateCustomFieldsMutation.mutate(updated);
+                        setAddingField(false);
+                      }}
+                    >
+                      OK
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setAddingField(false)}>✕</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

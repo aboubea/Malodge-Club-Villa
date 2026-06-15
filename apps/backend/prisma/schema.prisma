@@ -92,6 +92,7 @@ model Villa {
   bathrooms     Int       @default(1)
   isActive      Boolean   @default(true)
   logifyId      String?   @unique
+  customFields  Json      @default("[]")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
