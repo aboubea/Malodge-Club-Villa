@@ -90,11 +90,26 @@ export class LodgifyService {
     const fromStr = from.toISOString().split('T')[0];
     const toStr = to.toISOString().split('T')[0];
 
+    // Sanity-check: verify auth with a known-valid endpoint
+    try {
+      await this.lodgifyGet('/v1/property', apiKey);
+    } catch (e: any) {
+      throw new Error(`Lodgify auth/connectivity failed (/v1/property): ${e?.message}`);
+    }
+
     const data = await this.lodgifyProbe([
-      `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}&includeRecords=true`,
+      // v2 variants
+      `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/v2/reservations`,
+      `/v2/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
+      // v1 variants
       `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-      `/rental-api/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/rental-api/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      `/v1/booking`,
+      `/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
+      // rental-api variants
+      `/rental-api/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
