@@ -1,20 +1,63 @@
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import * as express from 'express';
-// Import from pre-compiled dist so that tsc emitDecoratorMetadata is preserved.
-// esbuild (Vercel's function builder) does NOT support emitDecoratorMetadata,
-// which would break NestJS DI if we imported from TypeScript source directly.
-import { AppServerlessModule } from '../apps/backend/dist/app.serverless.module';
-import { AuthService } from '../apps/backend/dist/modules/auth/auth.service';
+import * as path from 'path';
 
-const expressServer = express();
+// Everything at module level is wrapped in try/catch so an init error returns
+// a diagnostic 500 from the handler instead of Vercel's opaque FUNCTION_INVOCATION_FAILED.
+
+let _require: NodeRequire | null = null;
+let expressServer: any = null;
+let moduleError: string | null = null;
+
+try {
+  // eval('require') is opaque to esbuild — prevents re-bundling of pre-compiled NestJS
+  // dist files which would strip emitDecoratorMetadata and break DI.
+  // eslint-disable-next-line no-eval
+  _require = eval('require') as NodeRequire;
+  // Load reflect-metadata from node_modules (not bundled) for a single global Reflect.
+  _require('reflect-metadata');
+  expressServer = _require('express')();
+} catch (e: any) {
+  moduleError = `Module init: ${e?.message ?? String(e)}`;
+  console.error('[api/index module-eval]', moduleError);
+}
+
 let isInitialized = false;
-let bootstrapError: Error | null = null;
+let bootstrapError: string | null = null;
+
+function setCors(res: any) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
+
+function send(res: any, status: number, body: object) {
+  const json = JSON.stringify(body);
+  res.setHeader('Content-Type', 'application/json');
+  res.writeHead(status);
+  res.end(json);
+}
 
 async function bootstrap() {
-  if (isInitialized) return;
+  if (!_require) throw new Error('require not available — module init failed');
+
+  // process.cwd() is /var/task in Vercel Lambda.
+  // vercel.json includeFiles ships apps/backend/dist/** to /var/task/apps/backend/dist/**.
+  const distBase = path.join(process.cwd(), 'apps', 'backend', 'dist');
+
+  let AppServerlessModule: any;
+  let AuthService: any;
+  let ServicesService: any;
+  try {
+    AppServerlessModule = _require(path.join(distBase, 'app.serverless.module')).AppServerlessModule;
+    AuthService = _require(path.join(distBase, 'modules', 'auth', 'auth.service')).AuthService;
+    ServicesService = _require(path.join(distBase, 'modules', 'services', 'services.service')).ServicesService;
+  } catch (e: any) {
+    throw new Error(`Dist load failed (cwd=${process.cwd()}): ${e?.message}`);
+  }
+
+  const { NestFactory } = _require('@nestjs/core');
+  const { ExpressAdapter } = _require('@nestjs/platform-express');
+  const { ValidationPipe } = _require('@nestjs/common');
 
   const app = await NestFactory.create(
     AppServerlessModule,
@@ -23,9 +66,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: (origin: string | undefined, cb: (err: null, allow: boolean) => void) => {
-      cb(null, true);
-    },
+    origin: (_origin: string | undefined, cb: (err: null, allow: boolean) => void) => cb(null, true),
     credentials: true,
   });
 
@@ -35,57 +76,72 @@ async function bootstrap() {
 
   await app.init();
 
-  // Seed superadmin on first cold start
   try {
     const authService = app.get(AuthService);
     await authService.ensureSuperAdmin();
-  } catch {}
+  } catch { /* non-fatal */ }
+
+  try {
+    const servicesService = app.get(ServicesService);
+    await servicesService.ensureDefaultCategories();
+  } catch { /* non-fatal */ }
 
   isInitialized = true;
-}
-
-function setCors(res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 }
 
 export default async function handler(req: any, res: any) {
   setCors(res);
 
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
 
-  // Quick health check — always responds even if bootstrap hasn't run
   const url: string = req.url || '';
+
+  // Health check — always responds even if bootstrap failed
   if (url === '/api/health' || url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', initialized: isInitialized, error: bootstrapError?.message ?? null }));
+    let distExists = false;
+    try {
+      if (_require) {
+        const distBase = path.join(process.cwd(), 'apps', 'backend', 'dist');
+        _require.resolve(path.join(distBase, 'app.serverless.module'));
+        distExists = true;
+      }
+    } catch { /* not found */ }
+
+    send(res, 200, {
+      status: moduleError || bootstrapError ? 'error' : isInitialized ? 'ok' : 'pending',
+      initialized: isInitialized,
+      moduleError,
+      bootstrapError,
+      cwd: process.cwd(),
+      distExists,
+    });
     return;
   }
 
-  // Bootstrap NestJS once per cold start (retry if previous attempt failed)
+  if (moduleError || !expressServer) {
+    send(res, 503, { statusCode: 503, message: 'Module init failed', error: moduleError });
+    return;
+  }
+
   if (!isInitialized) {
     bootstrapError = null;
     try {
       await bootstrap();
     } catch (err: any) {
-      bootstrapError = err;
+      bootstrapError = err?.message ?? String(err);
+      console.error('[bootstrap]', bootstrapError);
     }
   }
 
   if (bootstrapError) {
-    res.writeHead(503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ statusCode: 503, message: 'Service unavailable', error: bootstrapError.message }));
+    send(res, 503, { statusCode: 503, message: 'Service unavailable', error: bootstrapError });
     return;
   }
 
-  // Strip /api prefix so NestJS controllers work the same as locally
   req.url = url.replace(/^\/api/, '') || '/';
   expressServer(req, res);
 }

@@ -17,15 +17,19 @@ export interface AiResponseDto {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private anthropic: Anthropic;
+  private readonly apiKey: string;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
   ) {
-    this.anthropic = new Anthropic({
-      apiKey: this.config.get('ANTHROPIC_API_KEY', ''),
-    });
+    this.apiKey = config.get('ANTHROPIC_API_KEY', '');
+    if (!this.apiKey) this.logger.warn('ANTHROPIC_API_KEY not set — AI features disabled');
+  }
+
+  private getClient(): Anthropic | null {
+    if (!this.apiKey) return null;
+    return new Anthropic({ apiKey: this.apiKey });
   }
 
   async query(question: string, userId: string): Promise<AiResponseDto> {
@@ -85,7 +89,9 @@ export class AiService {
 
     let answer: string;
     try {
-      const response = await this.anthropic.messages.create({
+      const anthropic = this.getClient();
+      if (!anthropic) throw new Error('AI client not configured');
+      const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: systemPrompt,

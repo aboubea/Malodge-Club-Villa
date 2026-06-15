@@ -19,7 +19,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card, CardHeader, CardContent, CardTitle } from '../../components/ui/Card';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
@@ -269,11 +269,12 @@ export function VillaDetailPage() {
         </motion.div>
       </div>
 
-      <SlideOver
+      <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Modifier la villa"
         description={`Modifier les informations de ${villa.name}`}
+        size="lg"
       >
         <VillaForm
           villa={villa}
@@ -282,7 +283,7 @@ export function VillaDetailPage() {
             qc.invalidateQueries({ queryKey: ['villa', id] });
           }}
         />
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

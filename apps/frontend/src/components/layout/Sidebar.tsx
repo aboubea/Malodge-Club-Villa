@@ -24,24 +24,37 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
 
-const NAV_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT';
+
+interface NavDef {
+  path: string;
+  label: string;
+  icon: React.ElementType;
+  exact?: boolean;
+  roles?: RoleKey[]; // undefined = visible to all authenticated users
+}
+
+const STAFF: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
+const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
+
+const NAV_ITEMS: NavDef[] = [
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: STAFF },
   { path: '/villas', label: 'Villas', icon: Building2 },
-  { path: '/reservations', label: 'Réservations', icon: CalendarDays },
+  { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
   { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/services', label: 'Services', icon: Sparkles },
-  { path: '/clients', label: 'Clients', icon: Users },
-  { path: '/prestataires', label: 'Prestataires', icon: Briefcase },
-  { path: '/finances', label: 'Finances', icon: TrendingUp },
-  { path: '/documents', label: 'Documents', icon: FolderOpen },
+  { path: '/clients', label: 'Clients', icon: Users, roles: STAFF },
+  { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
+  { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
+  { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
   { path: '/notifications', label: 'Notifications', icon: Bell },
 ];
 
-const BOTTOM_NAV = [
-  { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog },
-  { path: '/parametres', label: 'Paramètres', icon: Settings },
+const BOTTOM_NAV: NavDef[] = [
+  { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog, roles: ADMIN_UP },
+  { path: '/parametres', label: 'Paramètres', icon: Settings, roles: STAFF },
 ];
 
 interface NavItemProps {
@@ -81,9 +94,18 @@ function NavItem({ path, label, Icon, collapsed, exact }: NavItemProps) {
   );
 }
 
+function canSee(item: NavDef, role: string | undefined): boolean {
+  if (!item.roles) return true;
+  return !!role && (item.roles as string[]).includes(role);
+}
+
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user } = useAuthStore();
+  const role = user?.role;
+
+  const visibleNav = NAV_ITEMS.filter((item) => canSee(item, role));
+  const visibleBottom = BOTTOM_NAV.filter((item) => canSee(item, role));
 
   return (
     <motion.aside
@@ -118,7 +140,7 @@ export function Sidebar() {
 
       {/* Main nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => (
+        {visibleNav.map((item) => (
           <NavItem
             key={item.path}
             path={item.path}
@@ -132,7 +154,7 @@ export function Sidebar() {
 
       {/* Bottom nav + user */}
       <div className="px-2 py-3 space-y-0.5 border-t border-[#242428]">
-        {BOTTOM_NAV.map((item) => (
+        {visibleBottom.map((item) => (
           <NavItem
             key={item.path}
             path={item.path}
@@ -155,7 +177,13 @@ export function Sidebar() {
               <p className="text-xs font-medium text-[#F5F0EB] truncate">
                 {user.firstName} {user.lastName}
               </p>
-              <p className="text-[10px] text-[#6B6B6F] truncate">{user.role}</p>
+              <p className="text-[10px] text-[#6B6B6F] truncate capitalize">
+                {role === 'SUPER_ADMIN' ? 'Super Admin' :
+                 role === 'ADMIN' ? 'Admin' :
+                 role === 'MANAGER' ? 'Manager' :
+                 role === 'PROVIDER' ? 'Prestataire' :
+                 role === 'CLIENT' ? 'Client' : role}
+              </p>
             </div>
           </div>
         )}

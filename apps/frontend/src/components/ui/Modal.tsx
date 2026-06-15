@@ -1,4 +1,4 @@
-import { Fragment, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -9,6 +9,7 @@ interface ModalProps {
   title?: string;
   description?: string;
   children: ReactNode;
+  footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
@@ -26,6 +27,7 @@ export function Modal({
   title,
   description,
   children,
+  footer,
   size = 'md',
   className,
 }: ModalProps) {
@@ -49,7 +51,8 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
-              'relative w-full rounded-2xl',
+              'relative w-full rounded-2xl flex flex-col',
+              'max-h-[90vh]',
               'bg-[#111113] border border-[#242428]',
               'shadow-2xl shadow-black/50',
               sizeClasses[size],
@@ -58,7 +61,7 @@ export function Modal({
           >
             {/* Header */}
             {(title || description) && (
-              <div className="flex items-start justify-between px-6 py-5 border-b border-[#242428]">
+              <div className="flex items-start justify-between px-6 py-5 border-b border-[#242428] shrink-0">
                 <div>
                   {title && (
                     <h2 className="text-base font-light text-[#F5F0EB]">{title}</h2>
@@ -69,7 +72,7 @@ export function Modal({
                 </div>
                 <button
                   onClick={onClose}
-                  className="text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors ml-4 mt-0.5"
+                  className="text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors ml-4 mt-0.5 shrink-0"
                 >
                   <X size={16} />
                 </button>
@@ -83,8 +86,14 @@ export function Modal({
                 <X size={16} />
               </button>
             )}
-            {/* Content */}
-            <div className="px-6 py-5">{children}</div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+            {/* Footer */}
+            {footer && (
+              <div className="px-6 py-4 border-t border-[#242428] shrink-0 bg-[#0A0A0B]">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}

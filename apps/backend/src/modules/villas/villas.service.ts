@@ -20,12 +20,17 @@ export class VillasService {
     search?: string;
     city?: string;
     isActive?: boolean;
+    clientId?: string;
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    // If clientId provided (CLIENT role), only show villas they have reservations for
+    if (params.clientId) {
+      where.reservations = { some: { clientId: params.clientId } };
+    }
     if (params.search) {
       where.OR = [
         { name: { contains: params.search, mode: 'insensitive' } },

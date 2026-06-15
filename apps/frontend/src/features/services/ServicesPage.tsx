@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency } from '../../lib/utils';
@@ -160,17 +160,18 @@ export function ServicesPage() {
         </div>
       )}
 
-      <SlideOver
+      <Modal
         open={slideOpen}
         onClose={() => { setSlideOpen(false); setEditingService(null); }}
         title={editingService ? 'Modifier le service' : 'Ajouter un service'}
+        size="lg"
       >
         <ServiceForm
           service={editingService}
           categories={categories}
           onSuccess={() => { setSlideOpen(false); setEditingService(null); }}
         />
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

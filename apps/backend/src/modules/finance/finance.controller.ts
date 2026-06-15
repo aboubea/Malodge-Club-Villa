@@ -12,7 +12,8 @@ export class FinanceController {
   constructor(private financeService: FinanceService) {}
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'Get finance dashboard KPIs' })
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Get finance dashboard KPIs — MANAGER+ only' })
   getDashboard(@Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month') {
     return this.financeService.getDashboard(period);
   }

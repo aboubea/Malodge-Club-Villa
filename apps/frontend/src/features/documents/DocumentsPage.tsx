@@ -16,7 +16,7 @@ import { cn } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import toast from 'react-hot-toast';
@@ -253,8 +253,8 @@ export function DocumentsPage() {
         </div>
       </div>
 
-      {/* Add Document SlideOver */}
-      <SlideOver open={showAdd} onClose={() => setShowAdd(false)} title="Ajouter un document">
+      {/* Add Document Modal */}
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Ajouter un document" size="md">
         <div className="space-y-4">
           <div>
             <label className="block text-xs text-[#6B6B6F] mb-1.5">Nom du document *</label>
@@ -315,7 +315,7 @@ export function DocumentsPage() {
             {createMutation.isPending ? 'Ajout en cours...' : 'Ajouter le document'}
           </Button>
         </div>
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

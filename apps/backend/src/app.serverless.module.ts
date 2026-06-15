@@ -15,6 +15,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { AiModule } from './modules/ai/ai.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -36,6 +37,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AiModule,
     DocumentsModule,
     NotificationsModule,
+    DashboardModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

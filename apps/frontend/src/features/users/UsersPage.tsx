@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { DataTable, Column } from '../../components/ui/DataTable';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { apiClient } from '../../lib/apiClient';
 import { formatDate } from '../../lib/utils';
 import { UserDto, Role } from '@malodge/shared';
@@ -152,13 +152,14 @@ export function UsersPage() {
         pagination={meta ? { page, totalPages: meta.totalPages, onPageChange: setPage } : undefined}
       />
 
-      <SlideOver
+      <Modal
         open={slideOpen}
         onClose={() => { setSlideOpen(false); setEditingUser(null); }}
         title={editingUser ? "Modifier l'utilisateur" : 'Inviter un utilisateur'}
+        size="lg"
       >
         <UserForm user={editingUser} onSuccess={() => { setSlideOpen(false); setEditingUser(null); }} />
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

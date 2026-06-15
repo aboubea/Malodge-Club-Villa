@@ -82,6 +82,24 @@ export class ServicesService {
     });
   }
 
+  async ensureDefaultCategories() {
+    const count = await this.prisma.serviceCategory.count();
+    if (count > 0) return;
+
+    const defaults = [
+      { name: 'Ménage & Entretien', slug: 'menage-entretien' },
+      { name: 'Transport & Transfert', slug: 'transport-transfert' },
+      { name: 'Bien-être & Spa', slug: 'bien-etre-spa' },
+      { name: 'Restauration & Traiteur', slug: 'restauration-traiteur' },
+      { name: 'Activités & Loisirs', slug: 'activites-loisirs' },
+      { name: 'Conciergerie', slug: 'conciergerie' },
+      { name: 'Sécurité & Gardiennage', slug: 'securite-gardiennage' },
+      { name: 'Maintenance Technique', slug: 'maintenance-technique' },
+    ];
+
+    await this.prisma.serviceCategory.createMany({ data: defaults, skipDuplicates: true });
+  }
+
   async createCategory(dto: CreateServiceCategoryDto) {
     let slug = slugify(dto.name);
     const existing = await this.prisma.serviceCategory.findUnique({ where: { slug } });
