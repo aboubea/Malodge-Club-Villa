@@ -24,6 +24,13 @@ export class LodgifyController {
     return this.lodgifyService.saveApiKey(body.apiKey);
   }
 
+  @Get('reservations')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'List reservations directly from Lodgify (no DB write)' })
+  listReservations() {
+    return this.lodgifyService.listReservations();
+  }
+
   @Post('sync/properties')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Sync properties from Lodgify' })

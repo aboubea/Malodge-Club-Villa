@@ -50,6 +50,38 @@ export class LodgifyService {
     });
   }
 
+  async listReservations(): Promise<any[]> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+
+    const from = new Date();
+    from.setDate(from.getDate() - 90);
+    const to = new Date();
+    to.setDate(to.getDate() + 365);
+
+    const data = await this.lodgifyGet(
+      `/v2/reservations?includeRecords=true&dateFrom=${from.toISOString().split('T')[0]}&dateTo=${to.toISOString().split('T')[0]}`,
+      apiKey,
+    );
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? []);
+
+    return items.map((r) => ({
+      id: String(r.id),
+      propertyId: String(r.property_id),
+      propertyName: r.property_name ?? r.property?.name ?? null,
+      guestName: r.guest?.name ?? r.requester_name ?? 'Inconnu',
+      guestEmail: r.guest?.email ?? null,
+      guestPhone: r.guest?.phone ?? null,
+      checkIn: r.arrival_date ?? r.check_in,
+      checkOut: r.departure_date ?? r.check_out,
+      guests: r.people_count ?? r.guests_count ?? 1,
+      totalAmount: parseFloat(r.total_amount ?? r.price ?? 0),
+      status: r.status ?? 'unknown',
+      source: 'lodgify',
+      notes: r.notes ?? null,
+    }));
+  }
+
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');

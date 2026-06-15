@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -92,6 +92,7 @@ export function ReservationsPage() {
   const { user } = useAuthStore();
   const canEdit = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role ?? '');
 
+  const [source, setSource] = useState<'local' | 'lodgify'>('local');
   const [statusFilter, setStatusFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -135,6 +136,24 @@ export function ReservationsPage() {
     enabled: modalOpen,
     staleTime: 60_000,
   });
+
+  const { data: lodgifyStatusData } = useQuery({
+    queryKey: ['lodgify-status'],
+    queryFn: async () => { const res = await apiClient.get('/lodgify/status'); return res.data?.data ?? res.data; },
+    staleTime: 60_000,
+  });
+  const lodgifyConfigured = !!lodgifyStatusData?.configured;
+
+  const { data: lodgifyResData, isLoading: lodgifyLoading, refetch: refetchLodgify } = useQuery({
+    queryKey: ['lodgify-reservations'],
+    queryFn: async () => {
+      const res = await apiClient.get('/lodgify/reservations');
+      return res.data?.data ?? res.data ?? [];
+    },
+    enabled: source === 'lodgify' && lodgifyConfigured,
+    staleTime: 2 * 60_000,
+  });
+  const lodgifyReservations: any[] = lodgifyResData ?? [];
 
   const saveMutation = useMutation({
     mutationFn: async (payload: object) => {
@@ -233,6 +252,82 @@ export function ReservationsPage() {
         )}
       </PageHeader>
 
+      {/* Source tabs */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setSource('local')}
+          className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'local' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+        >
+          Réservations internes
+        </button>
+        {lodgifyConfigured && (
+          <button
+            onClick={() => setSource('lodgify')}
+            className={`px-4 py-2 rounded-lg text-sm border transition-all flex items-center gap-1.5 ${source === 'lodgify' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+          >
+            🔗 Lodgify
+          </button>
+        )}
+        {source === 'lodgify' && (
+          <button onClick={() => refetchLodgify()} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
+            <RefreshCw size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Lodgify reservations table */}
+      {source === 'lodgify' && (
+        <div className="rounded-xl border border-[#242428] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#242428] bg-[#111113]">
+                  {['Client', 'Propriété', 'Séjour', 'Voyageurs', 'Statut', 'Montant'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-[#6B6B6F] uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lodgifyLoading
+                  ? Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} />)
+                  : lodgifyReservations.length === 0
+                  ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-16 text-center">
+                        <CalendarDays size={32} className="text-[#242428] mx-auto mb-3" />
+                        <p className="text-sm text-[#6B6B6F]">Aucune réservation Lodgify</p>
+                      </td>
+                    </tr>
+                  )
+                  : lodgifyReservations.map((r: any, idx: number) => (
+                    <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
+                      className="border-b border-[#242428] hover:bg-[#111113] transition-colors">
+                      <td className="px-4 py-3.5">
+                        <p className="text-[#F5F0EB] font-light">{r.guestName}</p>
+                        {r.guestEmail && <p className="text-[11px] text-[#6B6B6F]">{r.guestEmail}</p>}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-[#F5F0EB] font-light truncate max-w-[140px]">{r.propertyName ?? `#${r.propertyId}`}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-[#6B6B6F] text-xs">
+                        {r.checkIn ? formatDate(r.checkIn) : '—'} → {r.checkOut ? formatDate(r.checkOut) : '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-[#6B6B6F]">{r.guests ?? '—'}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#242428] text-[#6B6B6F] capitalize">{r.status}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-[#C9A96E] font-light">{formatCurrency(r.totalAmount)}</td>
+                    </motion.tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {source === 'local' && (
+      <>
       {/* Filters */}
       <div className="space-y-2">
         <div className="flex gap-1.5 flex-wrap">
@@ -485,6 +580,8 @@ export function ReservationsPage() {
           </div>
         </form>
       </Modal>
+      </>
+      )}
     </div>
   );
 }
