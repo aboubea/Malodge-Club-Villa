@@ -109,26 +109,20 @@ export class LodgifyService {
     const toStr = to.toISOString().split('T')[0];
 
     this.logger.log(`Lodgify: clé longueur=${apiKey.length}, début=${apiKey.slice(0, 4)}…`);
-    // Sanity-check: verify auth with a known-valid endpoint before probing reservations
-    try {
-      await this.lodgifyGetAny('/v1/property', apiKey);
-    } catch (e: any) {
-      throw new Error(`Lodgify auth/connectivity failed (/v1/property): ${e?.message}`);
-    }
 
     const data = await this.lodgifyProbe([
-      // v2 variants
+      // rental-api sans préfixe de version (seul préfixe qui route vers le gateway)
+      `/rental-api/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      `/rental-api/booking`,
+      `/rental-api/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/reservations`,
+      `/rental-api/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/reservation`,
+      `/rental-api/bookings?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      `/rental-api/bookings`,
+      // v2 variants (au cas où)
       `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/v2/reservations`,
-      `/v2/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
-      // v1 variants
       `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-      `/v1/booking`,
-      `/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
-      // rental-api variants
-      `/rental-api/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/rental-api/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
