@@ -28,8 +28,12 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
 
   const mutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      if (service) return apiClient.patch(`/services/${service.id}`, data);
-      return apiClient.post('/services', data);
+      const payload = {
+        ...data,
+        duration: data.duration !== '' ? Number(data.duration) : undefined,
+      };
+      if (service) return apiClient.patch(`/services/${service.id}`, payload);
+      return apiClient.post('/services', payload);
     },
     onSuccess: () => {
       toast.success(service ? 'Service modifié' : 'Service créé');
