@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -111,77 +111,154 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
 function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
   const [imgIdx, setImgIdx] = useState(0);
   const imgs: string[] = p.images?.length ? p.images : (p.coverImage ? [p.coverImage] : []);
-  return (
-    <Modal open onClose={onClose} title={p.name} size="lg">
-      <div className="space-y-4">
-        {/* Image gallery */}
-        {imgs.length > 0 ? (
-          <div className="relative aspect-video rounded-lg overflow-hidden bg-[#1A1A1D]">
-            <img
-              src={imgs[imgIdx]}
-              alt={p.name}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            {imgs.length > 1 && (
-              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                {imgs.map((_: string, i: number) => (
-                  <button key={i} onClick={() => setImgIdx(i)}
-                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`} />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="aspect-video rounded-lg bg-[#1A1A1D] flex items-center justify-center">
-            <Building2 size={40} className="text-[#242428]" />
-          </div>
-        )}
+  const prev = () => setImgIdx((i) => (i - 1 + imgs.length) % imgs.length);
+  const next = () => setImgIdx((i) => (i + 1) % imgs.length);
 
-        {/* Info grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {p.city && (
-            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
-              <MapPin size={13} className="shrink-0" />
-              <span>{[p.city, p.country].filter(Boolean).join(', ')}</span>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.2 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-5xl max-h-[90vh] bg-[#0A0A0B] rounded-2xl border border-[#242428] overflow-hidden flex flex-col"
+      >
+        {/* Gallery */}
+        <div className="relative flex-shrink-0" style={{ height: '55%', minHeight: 300 }}>
+          {imgs.length > 0 ? (
+            <>
+              <img
+                key={imgIdx}
+                src={imgs[imgIdx]}
+                alt={p.name}
+                className="w-full h-full object-cover"
+                style={{ height: 360 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent pointer-events-none" style={{ height: 360 }} />
+
+              {/* Navigation arrows */}
+              {imgs.length > 1 && (<>
+                <button onClick={prev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm">
+                  <ChevronLeft size={18} />
+                </button>
+                <button onClick={next}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm">
+                  <ChevronRight size={18} />
+                </button>
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
+                  {imgs.slice(0, 12).map((_: string, i: number) => (
+                    <button key={i} onClick={() => setImgIdx(i)}
+                      className={`rounded-full transition-all ${i === imgIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40 hover:bg-white/70'}`} />
+                  ))}
+                </div>
+              </>)}
+
+              {/* Counter */}
+              {imgs.length > 1 && (
+                <span className="absolute top-4 right-14 text-xs text-white/70 bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  {imgIdx + 1} / {imgs.length}
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-center bg-[#1A1A1D]" style={{ height: 360 }}>
+              <Building2 size={56} className="text-[#242428]" />
             </div>
           )}
-          {p.maxGuests && (
-            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
-              <Users size={13} className="shrink-0" />
-              <span>{p.maxGuests} voyageurs max</span>
-            </div>
-          )}
-          {p.bedrooms && (
-            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
-              <BedDouble size={13} className="shrink-0" />
-              <span>{p.bedrooms} chambre{p.bedrooms > 1 ? 's' : ''}</span>
-            </div>
-          )}
-          {p.bathrooms && (
-            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
-              <Bath size={13} className="shrink-0" />
-              <span>{p.bathrooms} salle{p.bathrooms > 1 ? 's' : ''} de bain</span>
-            </div>
-          )}
+
+          {/* Close button */}
+          <button onClick={onClose}
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm">
+            <X size={16} />
+          </button>
+
+          {/* Lodgify badge */}
+          <div className="absolute top-4 left-4">
+            <span className="px-2.5 py-1 rounded-full text-[11px] border border-[#C9A96E]/40 bg-[#C9A96E]/15 text-[#C9A96E] backdrop-blur-sm">
+              🔗 Lodgify
+            </span>
+          </div>
         </div>
 
-        {p.address && (
-          <p className="text-xs text-[#6B6B6F]">{p.address}</p>
-        )}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Left: main info */}
+            <div className="md:col-span-2 space-y-5">
+              <div>
+                <h2 className="text-xl font-semibold text-[#F5F0EB]">{p.name}</h2>
+                {(p.city || p.country) && (
+                  <div className="flex items-center gap-1.5 mt-1.5 text-sm text-[#6B6B6F]">
+                    <MapPin size={13} />
+                    <span>{[p.address, p.city, p.country].filter(Boolean).join(', ')}</span>
+                  </div>
+                )}
+              </div>
 
-        {p.description && (
-          <p className="text-sm text-[#A0A0A4] leading-relaxed line-clamp-6">{p.description}</p>
-        )}
+              {p.description && (
+                <div>
+                  <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Description</h3>
+                  <p className="text-sm text-[#A0A0A4] leading-relaxed">{p.description}</p>
+                </div>
+              )}
 
-        {p.lodgifyUrl && (
-          <a href={p.lodgifyUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-block text-xs text-[#C9A96E] hover:underline">
-            Voir sur Lodgify →
-          </a>
-        )}
-      </div>
-    </Modal>
+              {/* Thumbnail strip */}
+              {imgs.length > 1 && (
+                <div>
+                  <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Photos</h3>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {imgs.map((src: string, i: number) => (
+                      <button key={i} onClick={() => setImgIdx(i)}
+                        className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === imgIdx ? 'border-[#C9A96E]' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                        <img src={src} alt="" className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: stats card */}
+            <div className="space-y-3">
+              <div className="rounded-xl border border-[#242428] bg-[#111113] p-4 space-y-3">
+                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Caractéristiques</h3>
+                {p.maxGuests && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-[#6B6B6F]"><Users size={14} /><span>Voyageurs</span></div>
+                    <span className="text-[#F5F0EB] font-medium">{p.maxGuests}</span>
+                  </div>
+                )}
+                {p.bedrooms && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-[#6B6B6F]"><BedDouble size={14} /><span>Chambres</span></div>
+                    <span className="text-[#F5F0EB] font-medium">{p.bedrooms}</span>
+                  </div>
+                )}
+                {p.bathrooms && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-[#6B6B6F]"><Bath size={14} /><span>Salles de bain</span></div>
+                    <span className="text-[#F5F0EB] font-medium">{p.bathrooms}</span>
+                  </div>
+                )}
+              </div>
+
+              {p.lodgifyUrl && (
+                <a href={p.lodgifyUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-[#C9A96E]/30 text-[#C9A96E] text-sm hover:bg-[#C9A96E]/10 transition-colors">
+                  <ExternalLink size={14} />
+                  Voir sur Lodgify
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
