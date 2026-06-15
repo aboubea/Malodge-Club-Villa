@@ -111,18 +111,18 @@ export class LodgifyService {
     this.logger.log(`Lodgify: clé longueur=${apiKey.length}, début=${apiKey.slice(0, 4)}…`);
 
     const data = await this.lodgifyProbe([
-      // rental-api sans préfixe de version (seul préfixe qui route vers le gateway)
-      `/rental-api/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
-      `/rental-api/booking`,
-      `/rental-api/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/rental-api/reservations`,
-      `/rental-api/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/rental-api/reservation`,
-      `/rental-api/bookings?checkInStart=${fromStr}&checkInEnd=${toStr}`,
-      `/rental-api/bookings`,
-      // v2 variants (au cas où)
-      `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
+      // endpoint documenté officiel Lodgify
+      `/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/v2/reservations/bookings`,
+      // variantes avec paramètres alternatifs
+      `/v2/reservations/bookings?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      `/v2/reservations/bookings?arrival_date_min=${fromStr}&arrival_date_max=${toStr}`,
+      // v1 reservation (pas booking)
+      `/v1/reservation/booking`,
+      `/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
+      // rental-api (gateway Lodgify)
+      `/rental-api/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/v2/reservations/bookings`,
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
