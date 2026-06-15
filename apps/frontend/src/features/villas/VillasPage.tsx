@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink, Check, Download } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink, Check, Download, Trash } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -265,7 +266,9 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
   );
 }
 
-function LodgifyVillaCard({ p, isSaved, onSave, onClick }: { p: any; isSaved: boolean; onSave: () => void; onClick: () => void }) {
+function LodgifyVillaCard({ p, isSaved, onSave, onSync, isSyncing, onClick }: {
+  p: any; isSaved: boolean; onSave: () => void; onSync: () => void; isSyncing: boolean; onClick: () => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -290,16 +293,27 @@ function LodgifyVillaCard({ p, isSaved, onSave, onClick }: { p: any; isSaved: bo
         <div className="absolute top-3 left-3">
           <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#C9A96E]/30 bg-[#C9A96E]/10 text-[#C9A96E]">Lodgify</span>
         </div>
-        {/* Save button */}
-        <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+        {/* Action buttons */}
+        <div className="absolute top-3 right-3 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {/* Sync button — always visible, updates data in DB */}
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            title="Synchroniser avec Lodgify"
+            className="flex items-center p-1.5 rounded-lg bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm disabled:opacity-40"
+          >
+            <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+          </button>
+          {/* Save / saved indicator */}
           {isSaved ? (
-            <span className="flex items-center gap-1 p-1.5 rounded-lg text-[10px] bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400">
+            <span className="flex items-center p-1.5 rounded-lg bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400">
               <Check size={12} />
             </span>
           ) : (
             <button
               onClick={onSave}
-              className="flex items-center p-1.5 rounded-lg text-[10px] bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm"
+              title="Sauvegarder en base"
+              className="flex items-center p-1.5 rounded-lg bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm"
             >
               <Download size={12} />
             </button>
@@ -327,7 +341,10 @@ type ActiveFilter = '' | 'true' | 'false';
 export function VillasPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [source, setSource] = useState<'local' | 'lodgify'>('local');
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('');
@@ -397,6 +414,27 @@ export function VillasPage() {
     onError: () => toast.error('Erreur lors de la sauvegarde'),
   });
 
+  const syncPropertyMutation = useMutation({
+    mutationFn: (prop: any) => apiClient.post('/lodgify/properties/save', prop),
+    onSuccess: (_, prop) => {
+      toast.success(`"${prop.name}" synchronisé`);
+      setSyncingId(null);
+      refetchSyncedIds();
+      qc.invalidateQueries({ queryKey: ['villas'] });
+    },
+    onError: () => { setSyncingId(null); toast.error('Erreur lors de la synchronisation'); },
+  });
+
+  const deleteAllVillasMutation = useMutation({
+    mutationFn: () => apiClient.delete('/villas/all'),
+    onSuccess: (res) => {
+      const d = res.data?.data ?? res.data;
+      toast.success(`${d.deleted ?? 0} villa(s) supprimée(s) de la base`);
+      qc.invalidateQueries({ queryKey: ['villas'] });
+    },
+    onError: () => toast.error('Erreur lors de la suppression'),
+  });
+
   const saveAllMutation = useMutation({
     mutationFn: () => apiClient.post('/lodgify/properties/save-all', { properties: lodgifyProperties }),
     onSuccess: (res) => {
@@ -459,13 +497,32 @@ export function VillasPage() {
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader title="Villas" description={source === 'lodgify' ? `${lodgifyProperties.length} logements Lodgify` : `${meta?.total ?? villas.length} villas au total`}>
         {source === 'local' && (
-          <Button
-            variant="primary"
-            icon={<Plus size={14} />}
-            onClick={() => { setEditingVilla(null); setModalOpen(true); }}
-          >
-            Ajouter une villa
-          </Button>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <Button
+                variant="destructive"
+                size="sm"
+                icon={<Trash size={13} />}
+                loading={deleteAllVillasMutation.isPending}
+                onClick={() => {
+                  if (confirm('Supprimer TOUTES les villas de la base de données ?\n\nCette action est irréversible. Lodgify n\'est pas affecté.')) {
+                    if (confirm('Confirmation finale : supprimer toutes les villas ?')) {
+                      deleteAllVillasMutation.mutate();
+                    }
+                  }
+                }}
+              >
+                Tout supprimer
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              icon={<Plus size={14} />}
+              onClick={() => { setEditingVilla(null); setModalOpen(true); }}
+            >
+              Ajouter une villa
+            </Button>
+          </div>
         )}
       </PageHeader>
 
@@ -559,6 +616,8 @@ export function VillasPage() {
                     p={p}
                     isSaved={syncedIds.has(p.id)}
                     onSave={() => savePropertyMutation.mutate(p)}
+                    onSync={() => { setSyncingId(p.id); syncPropertyMutation.mutate(p); }}
+                    isSyncing={syncingId === p.id}
                     onClick={() => setSelectedLodgify(p)}
                   />
                 ))}

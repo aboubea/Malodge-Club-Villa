@@ -127,6 +127,11 @@ export class VillasService {
     return { message: 'Villa deleted successfully' };
   }
 
+  async removeAll(): Promise<{ deleted: number }> {
+    const { count } = await this.prisma.villa.deleteMany({});
+    return { deleted: count };
+  }
+
   async getVillaServices(villaId: string) {
     await this.findOne(villaId);
     return this.prisma.villaService.findMany({

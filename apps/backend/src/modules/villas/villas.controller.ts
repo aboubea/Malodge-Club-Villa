@@ -78,6 +78,13 @@ export class VillasController {
     return this.villasService.update(id, dto);
   }
 
+  @Delete('all')
+  @Roles(Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Delete ALL villas from DB — SUPER_ADMIN only' })
+  removeAll() {
+    return this.villasService.removeAll();
+  }
+
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete villa — ADMIN+ only' })
