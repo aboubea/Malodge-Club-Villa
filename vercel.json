@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install --include=dev && npm run build --workspace=packages/shared && npm run build --workspace=apps/backend && npm run build --workspace=apps/frontend",
+  "buildCommand": "npm install --include=dev && npm run build --workspace=packages/shared && npm run build --workspace=apps/backend && npm run db:push --workspace=apps/backend && npm run build --workspace=apps/frontend",
   "outputDirectory": "apps/frontend/dist",
   "installCommand": "npm install --include=dev",
   "framework": null,

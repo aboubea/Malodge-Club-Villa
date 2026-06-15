@@ -1,26 +1,27 @@
 import * as path from 'path';
 
-// All third-party and dist modules are loaded at runtime via eval('require').
-// esbuild (Vercel's function compiler) would re-bundle imported files and strip
-// emitDecoratorMetadata, breaking NestJS DI. eval('require') is opaque to esbuild
-// so it is left as a runtime require that resolves from node_modules as-is.
-// eslint-disable-next-line no-eval
-const _require: NodeRequire = eval('require');
+// Everything at module level is wrapped in try/catch so an init error returns
+// a diagnostic 500 from the handler instead of Vercel's opaque FUNCTION_INVOCATION_FAILED.
 
-// Load reflect-metadata from node_modules so there is a single global Reflect
-// instance shared with the pre-compiled NestJS dist files (not a bundled copy).
-_require('reflect-metadata');
+let _require: NodeRequire | null = null;
+let expressServer: any = null;
+let moduleError: string | null = null;
 
-const express = _require('express');
-const expressServer = express();
+try {
+  // eval('require') is opaque to esbuild — prevents re-bundling of pre-compiled NestJS
+  // dist files which would strip emitDecoratorMetadata and break DI.
+  // eslint-disable-next-line no-eval
+  _require = eval('require') as NodeRequire;
+  // Load reflect-metadata from node_modules (not bundled) for a single global Reflect.
+  _require('reflect-metadata');
+  expressServer = _require('express')();
+} catch (e: any) {
+  moduleError = `Module init: ${e?.message ?? String(e)}`;
+  console.error('[api/index module-eval]', moduleError);
+}
+
 let isInitialized = false;
 let bootstrapError: string | null = null;
-
-// In Vercel Lambda, process.cwd() is /var/task.
-// vercel.json includeFiles ships apps/backend/dist/** to /var/task/apps/backend/dist/**.
-function dist(mod: string): string {
-  return path.join(process.cwd(), 'apps/backend/dist', mod);
-}
 
 function setCors(res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,13 +38,19 @@ function send(res: any, status: number, body: object) {
 }
 
 async function bootstrap() {
+  if (!_require) throw new Error('require not available — module init failed');
+
+  // process.cwd() is /var/task in Vercel Lambda.
+  // vercel.json includeFiles ships apps/backend/dist/** to /var/task/apps/backend/dist/**.
+  const distBase = path.join(process.cwd(), 'apps', 'backend', 'dist');
+
   let AppServerlessModule: any;
   let AuthService: any;
   try {
-    AppServerlessModule = _require(dist('app.serverless.module')).AppServerlessModule;
-    AuthService = _require(dist('modules/auth/auth.service')).AuthService;
+    AppServerlessModule = _require(path.join(distBase, 'app.serverless.module')).AppServerlessModule;
+    AuthService = _require(path.join(distBase, 'modules', 'auth', 'auth.service')).AuthService;
   } catch (e: any) {
-    throw new Error(`Module load failed: ${e?.message}`);
+    throw new Error(`Dist load failed (cwd=${process.cwd()}): ${e?.message}`);
   }
 
   const { NestFactory } = _require('@nestjs/core');
@@ -86,14 +93,30 @@ export default async function handler(req: any, res: any) {
 
   const url: string = req.url || '';
 
+  // Health check — always responds even if bootstrap failed
   if (url === '/api/health' || url === '/health') {
+    let distExists = false;
+    try {
+      if (_require) {
+        const distBase = path.join(process.cwd(), 'apps', 'backend', 'dist');
+        _require.resolve(path.join(distBase, 'app.serverless.module'));
+        distExists = true;
+      }
+    } catch { /* not found */ }
+
     send(res, 200, {
-      status: 'ok',
+      status: moduleError || bootstrapError ? 'error' : isInitialized ? 'ok' : 'pending',
       initialized: isInitialized,
-      error: bootstrapError,
+      moduleError,
+      bootstrapError,
       cwd: process.cwd(),
-      distExists: (() => { try { _require.resolve(dist('app.serverless.module')); return true; } catch { return false; } })(),
+      distExists,
     });
+    return;
+  }
+
+  if (moduleError || !expressServer) {
+    send(res, 503, { statusCode: 503, message: 'Module init failed', error: moduleError });
     return;
   }
 
