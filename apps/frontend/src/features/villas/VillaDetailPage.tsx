@@ -55,6 +55,7 @@ export function VillaDetailPage() {
   const [addingField, setAddingField] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState('');
   const [newFieldValue, setNewFieldValue] = useState('');
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const { data: villa, isLoading } = useQuery<VillaDto>({
     queryKey: ['villa', id],
@@ -268,7 +269,18 @@ export function VillaDetailPage() {
                 <CardTitle>Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-[#6B6B6F] leading-relaxed">{villa.description}</p>
+                <p
+                  className="text-sm text-[#6B6B6F] leading-relaxed"
+                  style={!descExpanded ? { overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 10 } : undefined}
+                >
+                  {villa.description}
+                </p>
+                <button
+                  onClick={() => setDescExpanded((v) => !v)}
+                  className="mt-2 text-xs text-[#C9A96E] hover:text-[#E8C98A] transition-colors"
+                >
+                  {descExpanded ? 'Voir moins ↑' : 'Voir plus ↓'}
+                </button>
               </CardContent>
             </Card>
           )}
@@ -308,135 +320,6 @@ export function VillaDetailPage() {
             </Card>
           )}
 
-          {/* Custom fields */}
-          {(isStaff || customFields.length > 0) && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <List size={14} className="text-[#C9A96E]" />
-                    Informations complémentaires
-                  </CardTitle>
-                  {isStaff && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<Plus size={12} />}
-                      onClick={() => { setAddingField(true); setNewFieldLabel(''); setNewFieldValue(''); }}
-                      disabled={addingField}
-                    >
-                      Ajouter
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {customFields.length === 0 && !addingField && (
-                  <p className="text-sm text-[#6B6B6F] text-center py-4">
-                    {isStaff ? 'Aucun champ. Cliquez sur Ajouter pour en créer.' : 'Aucune information complémentaire.'}
-                  </p>
-                )}
-
-                {customFields.map((field, idx) => (
-                  <div key={idx}>
-                    {editingFieldIdx === idx ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
-                          placeholder="Label"
-                          value={editLabel}
-                          onChange={(e) => setEditLabel(e.target.value)}
-                        />
-                        <input
-                          className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
-                          placeholder="Valeur"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                        />
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          loading={updateCustomFieldsMutation.isPending}
-                          onClick={() => {
-                            if (!editLabel.trim()) return;
-                            const updated = customFields.map((f, i) =>
-                              i === idx ? { label: editLabel.trim(), value: editValue.trim() } : f
-                            );
-                            setCustomFields(updated);
-                            updateCustomFieldsMutation.mutate(updated);
-                            setEditingFieldIdx(null);
-                          }}
-                        >
-                          OK
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingFieldIdx(null)}>✕</Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-[#6B6B6F] uppercase tracking-wider">{field.label}</p>
-                          <p className="text-sm text-[#F5F0EB] mt-0.5">{field.value}</p>
-                        </div>
-                        {isStaff && (
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => { setEditingFieldIdx(idx); setEditLabel(field.label); setEditValue(field.value); }}
-                              className="p-1.5 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                const updated = customFields.filter((_, i) => i !== idx);
-                                setCustomFields(updated);
-                                updateCustomFieldsMutation.mutate(updated);
-                              }}
-                              className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {addingField && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
-                      placeholder="Label (ex: Code WiFi)"
-                      value={newFieldLabel}
-                      onChange={(e) => setNewFieldLabel(e.target.value)}
-                      autoFocus
-                    />
-                    <input
-                      className="flex-1 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
-                      placeholder="Valeur"
-                      value={newFieldValue}
-                      onChange={(e) => setNewFieldValue(e.target.value)}
-                    />
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      loading={updateCustomFieldsMutation.isPending}
-                      onClick={() => {
-                        if (!newFieldLabel.trim()) return;
-                        const updated = [...customFields, { label: newFieldLabel.trim(), value: newFieldValue.trim() }];
-                        setCustomFields(updated);
-                        updateCustomFieldsMutation.mutate(updated);
-                        setAddingField(false);
-                      }}
-                    >
-                      OK
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setAddingField(false)}>✕</Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </motion.div>
 
         {/* Sidebar */}
@@ -506,6 +389,138 @@ export function VillaDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Custom fields */}
+          {(isStaff || customFields.length > 0) && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <List size={14} className="text-[#C9A96E]" />
+                    Infos complémentaires
+                  </CardTitle>
+                  {isStaff && (
+                    <button
+                      onClick={() => { setAddingField(true); setNewFieldLabel(''); setNewFieldValue(''); }}
+                      disabled={addingField}
+                      className="p-1 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors disabled:opacity-40"
+                    >
+                      <Plus size={13} />
+                    </button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {customFields.length === 0 && !addingField && (
+                  <p className="text-xs text-[#6B6B6F] text-center py-2">
+                    {isStaff ? 'Cliquez sur + pour ajouter.' : '—'}
+                  </p>
+                )}
+
+                {customFields.map((field, idx) => (
+                  <div key={idx}>
+                    {editingFieldIdx === idx ? (
+                      <div className="space-y-1">
+                        <input
+                          className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          placeholder="Label"
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                        />
+                        <input
+                          className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          placeholder="Valeur"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            loading={updateCustomFieldsMutation.isPending}
+                            onClick={() => {
+                              if (!editLabel.trim()) return;
+                              const updated = customFields.map((f, i) =>
+                                i === idx ? { label: editLabel.trim(), value: editValue.trim() } : f
+                              );
+                              setCustomFields(updated);
+                              updateCustomFieldsMutation.mutate(updated);
+                              setEditingFieldIdx(null);
+                            }}
+                          >
+                            OK
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingFieldIdx(null)}>✕</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2 py-2 border-b border-[#1A1A1D] last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider">{field.label}</p>
+                          <p className="text-xs text-[#F5F0EB] mt-0.5 break-words">{field.value}</p>
+                        </div>
+                        {isStaff && (
+                          <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                            <button
+                              onClick={() => { setEditingFieldIdx(idx); setEditLabel(field.label); setEditValue(field.value); }}
+                              className="p-1 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                const updated = customFields.filter((_, i) => i !== idx);
+                                setCustomFields(updated);
+                                updateCustomFieldsMutation.mutate(updated);
+                              }}
+                              className="p-1 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {addingField && (
+                  <div className="space-y-1 pt-1">
+                    <input
+                      className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      placeholder="Label (ex: Code WiFi)"
+                      value={newFieldLabel}
+                      onChange={(e) => setNewFieldLabel(e.target.value)}
+                      autoFocus
+                    />
+                    <input
+                      className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      placeholder="Valeur"
+                      value={newFieldValue}
+                      onChange={(e) => setNewFieldValue(e.target.value)}
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        loading={updateCustomFieldsMutation.isPending}
+                        onClick={() => {
+                          if (!newFieldLabel.trim()) return;
+                          const updated = [...customFields, { label: newFieldLabel.trim(), value: newFieldValue.trim() }];
+                          setCustomFields(updated);
+                          updateCustomFieldsMutation.mutate(updated);
+                          setAddingField(false);
+                        }}
+                      >
+                        OK
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setAddingField(false)}>✕</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </motion.div>
       </div>
 

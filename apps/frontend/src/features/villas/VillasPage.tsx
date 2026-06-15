@@ -293,15 +293,15 @@ function LodgifyVillaCard({ p, isSaved, onSave, onClick }: { p: any; isSaved: bo
         {/* Save button */}
         <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
           {isSaved ? (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400 whitespace-nowrap">
-              <Check size={10} /><span>En base</span>
+            <span className="flex items-center gap-1 p-1.5 rounded-lg text-[10px] bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400">
+              <Check size={12} />
             </span>
           ) : (
             <button
               onClick={onSave}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm whitespace-nowrap"
+              className="flex items-center p-1.5 rounded-lg text-[10px] bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm"
             >
-              <Download size={10} /><span>Sauvegarder</span>
+              <Download size={12} />
             </button>
           )}
         </div>
