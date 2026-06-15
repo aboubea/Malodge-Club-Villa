@@ -13,6 +13,7 @@ import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { OrderStatus } from '@malodge/shared';
+import { useAuthStore } from '../../store/authStore';
 
 type StatusFilter = 'ALL' | OrderStatus;
 
@@ -43,6 +44,8 @@ async function fetchOrders(params: {
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isClient = user?.role === 'CLIENT';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -62,12 +65,21 @@ export function OrdersPage() {
   const orders = data?.data ?? [];
   const meta = data?.meta;
 
+  // Columns differ by role
+  const staffCols = ['#', 'Client', 'Villa', 'Services', 'Montant', 'Statut', 'Prestataire', 'Date', ''];
+  const clientCols = ['#', 'Services', 'Villa', 'Date', 'Montant', 'Statut', ''];
+
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader title="Commandes" description="Gestion des commandes de services">
-        <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
-          Nouvelle commande
-        </Button>
+      <PageHeader
+        title={isClient ? 'Mes commandes' : 'Commandes'}
+        description={isClient ? 'Historique de vos commandes de services' : 'Gestion des commandes de services'}
+      >
+        {!isClient && (
+          <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
+            Nouvelle commande
+          </Button>
+        )}
       </PageHeader>
 
       {/* Status filter tabs */}
@@ -88,18 +100,20 @@ export function OrdersPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
-          <Input
-            placeholder="Rechercher client, villa, service…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9"
-          />
+      {/* Search — staff only */}
+      {!isClient && (
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
+            <Input
+              placeholder="Rechercher client, villa, service…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table */}
       <Card>
@@ -107,23 +121,21 @@ export function OrdersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#242428]">
-                {['#', 'Client', 'Villa', 'Services', 'Montant', 'Statut', 'Prestataire', 'Date', ''].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
-                    >
-                      {col}
-                    </th>
-                  ),
-                )}
+                {(isClient ? clientCols : staffCols).map((col) => (
+                  <th
+                    key={col}
+                    className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
+                  >
+                    {col}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#242428]">
               {isLoading
-                ? Array.from({ length: 8 }).map((_, i) => (
+                ? Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {(isClient ? clientCols : staffCols).map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <Skeleton className="h-4 w-full" />
                         </td>
@@ -133,9 +145,11 @@ export function OrdersPage() {
                 : orders.length === 0
                 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-16 text-center">
+                    <td colSpan={isClient ? clientCols.length : staffCols.length} className="px-4 py-16 text-center">
                       <ShoppingBag size={32} className="mx-auto text-[#242428] mb-3" />
-                      <p className="text-sm text-[#6B6B6F]">Aucune commande trouvée</p>
+                      <p className="text-sm text-[#6B6B6F]">
+                        {isClient ? 'Aucune commande pour le moment' : 'Aucune commande trouvée'}
+                      </p>
                     </td>
                   </tr>
                 )
@@ -151,42 +165,71 @@ export function OrdersPage() {
                       <td className="px-4 py-3 text-xs text-[#6B6B6F] font-mono">
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar
-                            firstName={order.client?.firstName}
-                            lastName={order.client?.lastName}
-                            src={order.client?.avatar}
-                            size="sm"
-                          />
-                          <span className="text-sm text-[#F5F0EB]">
-                            {order.client?.firstName} {order.client?.lastName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[#6B6B6F]">
-                        {order.reservation?.villa?.name ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+
+                      {/* Staff-only: client column */}
+                      {!isClient && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar
+                              firstName={order.client?.firstName}
+                              lastName={order.client?.lastName}
+                              src={order.client?.avatar}
+                              size="sm"
+                            />
+                            <span className="text-sm text-[#F5F0EB]">
+                              {order.client?.firstName} {order.client?.lastName}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+
+                      {/* Services */}
+                      <td className="px-4 py-3 text-sm text-[#F5F0EB]">
                         {order.items?.length
                           ? order.items.slice(0, 2).map((it: any) => it.service?.name).join(', ') +
                             (order.items.length > 2 ? ` +${order.items.length - 2}` : '')
                           : '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
-                        {formatCurrency(order.totalAmount)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <OrderStatusBadge status={order.status} />
-                      </td>
+
+                      {/* Villa */}
                       <td className="px-4 py-3 text-sm text-[#6B6B6F]">
-                        {order.provider
-                          ? `${order.provider.user?.firstName} ${order.provider.user?.lastName}`
-                          : <span className="text-[#3A3A3E] italic text-xs">Non assigné</span>}
+                        {order.reservation?.villa?.name ?? '—'}
                       </td>
+
+                      {/* Staff-only: provider + date order */}
+                      {!isClient && (
+                        <>
+                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                            {formatCurrency(order.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+                            {order.provider
+                              ? `${order.provider.user?.firstName} ${order.provider.user?.lastName}`
+                              : <span className="text-[#3A3A3E] italic text-xs">Non assigné</span>}
+                          </td>
+                        </>
+                      )}
+
+                      {/* Date */}
                       <td className="px-4 py-3 text-xs text-[#6B6B6F]">
                         {formatDate(order.createdAt)}
                       </td>
+
+                      {/* Client-only: montant + statut after date */}
+                      {isClient && (
+                        <>
+                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                            {formatCurrency(order.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                        </>
+                      )}
+
                       <td className="px-4 py-3 text-right">
                         <Button
                           variant="ghost"
