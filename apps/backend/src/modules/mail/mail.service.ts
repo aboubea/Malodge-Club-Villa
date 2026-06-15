@@ -5,21 +5,31 @@ import { Resend } from 'resend';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly resend: Resend;
+  private readonly apiKey: string;
   private readonly from: string;
   private readonly appUrl: string;
 
   constructor(private config: ConfigService) {
-    this.resend = new Resend(config.get('RESEND_API_KEY', ''));
+    this.apiKey = config.get('RESEND_API_KEY', '');
     this.from = config.get('MAIL_FROM', 'Malodge Club Villa <noreply@malodge.com>');
     this.appUrl = config.get('APP_URL', 'http://localhost:5173');
+    if (!this.apiKey) {
+      this.logger.warn('RESEND_API_KEY not set — email sending disabled');
+    }
+  }
+
+  private getClient(): Resend | null {
+    if (!this.apiKey) return null;
+    return new Resend(this.apiKey);
   }
 
   async sendPasswordReset(to: string, firstName: string, token: string): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
     const resetUrl = `${this.appUrl}/reinitialiser-mot-de-passe?token=${token}`;
 
     try {
-      await this.resend.emails.send({
+      await client.emails.send({
         from: this.from,
         to,
         subject: 'Réinitialisation de votre mot de passe — Malodge Club Villa',
@@ -27,13 +37,14 @@ export class MailService {
       });
     } catch (err) {
       this.logger.error(`Failed to send password reset email to ${to}`, err);
-      // Don't throw — caller should not reveal whether the email exists
     }
   }
 
   async sendPasswordChanged(to: string, firstName: string): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
     try {
-      await this.resend.emails.send({
+      await client.emails.send({
         from: this.from,
         to,
         subject: 'Votre mot de passe a été modifié — Malodge Club Villa',
@@ -45,8 +56,10 @@ export class MailService {
   }
 
   async sendWelcome(to: string, firstName: string, tempPassword?: string): Promise<void> {
+    const client = this.getClient();
+    if (!client) return;
     try {
-      await this.resend.emails.send({
+      await client.emails.send({
         from: this.from,
         to,
         subject: 'Bienvenue sur Malodge Club Villa',
