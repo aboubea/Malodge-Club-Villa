@@ -42,12 +42,60 @@ export class LodgifyService {
         let data = '';
         res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
-          try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid JSON response from Lodgify')); }
+          const status = res.statusCode ?? 0;
+          if (status === 401 || status === 403) {
+            return reject(new Error(`Clé API Lodgify invalide ou non autorisée (HTTP ${status})`));
+          }
+          if (status >= 400) {
+            const preview = data.slice(0, 200).replace(/\s+/g, ' ');
+            return reject(new Error(`Lodgify HTTP ${status}: ${preview}`));
+          }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            const preview = data.slice(0, 200).replace(/\s+/g, ' ');
+            reject(new Error(`Réponse Lodgify non-JSON (HTTP ${status}): ${preview}`));
+          }
         });
       });
-      req.on('error', reject);
+      req.on('error', (err) => reject(new Error(`Erreur réseau Lodgify: ${err.message}`)));
       req.end();
     });
+  }
+
+  async listReservations(): Promise<any[]> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+
+    const from = new Date();
+    from.setDate(from.getDate() - 90);
+    const to = new Date();
+    to.setDate(to.getDate() + 365);
+
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr = to.toISOString().split('T')[0];
+
+    const data = await this.lodgifyGet(
+      `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
+      apiKey,
+    );
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+
+    return items.map((r) => ({
+      id: String(r.id),
+      propertyId: String(r.property_id),
+      propertyName: r.property_name ?? r.property?.name ?? null,
+      guestName: r.guest?.name ?? r.requester_name ?? 'Inconnu',
+      guestEmail: r.guest?.email ?? null,
+      guestPhone: r.guest?.phone ?? null,
+      checkIn: r.arrival_date ?? r.check_in,
+      checkOut: r.departure_date ?? r.check_out,
+      guests: r.people_count ?? r.guests_count ?? 1,
+      totalAmount: parseFloat(r.total_amount ?? r.price ?? 0),
+      status: r.status ?? 'unknown',
+      source: 'lodgify',
+      notes: r.notes ?? null,
+    }));
   }
 
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
@@ -118,14 +166,16 @@ export class LodgifyService {
     const errors: string[] = [];
 
     try {
-      // Fetch reservations from last 90 days to next 365 days
       const from = new Date();
       from.setDate(from.getDate() - 90);
       const to = new Date();
       to.setDate(to.getDate() + 365);
 
+      const fromStr = from.toISOString().split('T')[0];
+      const toStr = to.toISOString().split('T')[0];
+
       const data = await this.lodgifyGet(
-        `/v2/reservations?includeRecords=true&dateFrom=${from.toISOString().split('T')[0]}&dateTo=${to.toISOString().split('T')[0]}`,
+        `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
         apiKey,
       );
       const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
@@ -134,7 +184,6 @@ export class LodgifyService {
         try {
           const lodgifyId = String(res.id);
 
-          // Find the villa by lodgify property_id
           const villa = await this.prisma.villa.findFirst({
             where: { logifyId: String(res.property_id) },
           });
@@ -143,12 +192,11 @@ export class LodgifyService {
             continue;
           }
 
-          // Find or create a guest user
           const guestEmail = res.guest?.email || `lodgify-guest-${res.id}@malodge.local`;
           let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
           if (!client) {
             const [firstName = 'Guest', ...lastParts] = (res.guest?.name || 'Guest Lodgify').split(' ');
-            const hashedPw = '$2b$12$placeholder'; // not a real login
+            const hashedPw = '$2b$12$placeholder';
             client = await this.prisma.user.create({
               data: {
                 email: guestEmail,
