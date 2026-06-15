@@ -18,11 +18,14 @@ import {
   MessageSquare,
   BrainCircuit,
   Bell,
+  Store,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
+import { apiClient } from '../../lib/apiClient';
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT';
 
@@ -37,16 +40,21 @@ interface NavDef {
 const STAFF: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
 const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
 
+const CLIENT: RoleKey[] = ['CLIENT'];
+
 const NAV_ITEMS: NavDef[] = [
+  // Staff
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: STAFF },
-  { path: '/villas', label: 'Villas', icon: Building2 },
+  { path: '/villas', label: 'Villas', icon: Building2, roles: STAFF },
   { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
-  { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
-  { path: '/services', label: 'Services', icon: Sparkles },
-  { path: '/clients', label: 'Clients', icon: Users, roles: STAFF },
+  { path: '/services', label: 'Catalogue', icon: Sparkles, roles: STAFF },
   { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
   { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
   { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },
+  // Client-specific
+  { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
+  // All
+  { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
   { path: '/notifications', label: 'Notifications', icon: Bell },
@@ -63,9 +71,10 @@ interface NavItemProps {
   Icon: React.ElementType;
   collapsed: boolean;
   exact?: boolean;
+  badge?: number;
 }
 
-function NavItem({ path, label, Icon, collapsed, exact }: NavItemProps) {
+function NavItem({ path, label, Icon, collapsed, exact, badge }: NavItemProps) {
   const location = useLocation();
   const isActive = exact
     ? location.pathname === path
@@ -86,9 +95,21 @@ function NavItem({ path, label, Icon, collapsed, exact }: NavItemProps) {
       {isActive && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#C9A96E] rounded-r-full" />
       )}
-      <Icon size={16} className="shrink-0" />
+      <span className="relative shrink-0">
+        <Icon size={16} />
+        {badge != null && badge > 0 && collapsed && (
+          <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-[#C9A96E] text-[#0A0A0B] text-[8px] font-bold flex items-center justify-center">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </span>
       {!collapsed && (
-        <span className="text-sm font-light truncate">{label}</span>
+        <span className="text-sm font-light truncate flex-1">{label}</span>
+      )}
+      {!collapsed && badge != null && badge > 0 && (
+        <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#C9A96E]/20 text-[#C9A96E]">
+          {badge > 99 ? '99+' : badge}
+        </span>
       )}
     </NavLink>
   );
@@ -103,6 +124,16 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user } = useAuthStore();
   const role = user?.role;
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: async () => {
+      const res = await apiClient.get('/notifications/unread-count');
+      return (res.data?.data ?? res.data)?.count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = unreadData ?? 0;
 
   const visibleNav = NAV_ITEMS.filter((item) => canSee(item, role));
   const visibleBottom = BOTTOM_NAV.filter((item) => canSee(item, role));
@@ -148,6 +179,7 @@ export function Sidebar() {
             Icon={item.icon}
             collapsed={sidebarCollapsed}
             exact={item.exact}
+            badge={item.path === '/notifications' ? unreadCount : undefined}
           />
         ))}
       </nav>

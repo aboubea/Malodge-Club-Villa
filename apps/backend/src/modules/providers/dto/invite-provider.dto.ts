@@ -39,4 +39,10 @@ export class InviteProviderDto {
   @IsArray()
   @IsString({ each: true })
   categoryIds?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  countries?: string[];
 }

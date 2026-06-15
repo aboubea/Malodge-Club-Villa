@@ -20,6 +20,8 @@ import { AiConciergePage } from '../features/ai/AiConciergePage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { ProvidersPage } from '../features/providers/ProvidersPage';
+import { ServiceCataloguePage } from '../features/catalogue/ServiceCataloguePage';
+import { ProviderConfirmPage } from '../features/confirm/ProviderConfirmPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
@@ -43,6 +45,7 @@ export function AppRouter() {
       <Route path="/inscription" element={<RegisterPage />} />
       <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
       <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
+      <Route path="/confirmer" element={<ProviderConfirmPage />} />
       <Route
         path="/*"
         element={
@@ -53,6 +56,7 @@ export function AppRouter() {
                 <Route path="/villas" element={<VillasPage />} />
                 <Route path="/villas/:id" element={<VillaDetailPage />} />
                 <Route path="/services" element={<ServicesPage />} />
+                <Route path="/catalogue" element={<ServiceCataloguePage />} />
                 <Route path="/commandes" element={<OrdersPage />} />
                 <Route path="/commandes/:id" element={<OrderDetailPage />} />
                 <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />

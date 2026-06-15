@@ -17,6 +17,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ChatRestModule } from './modules/chat/chat.rest.module';
+import { LodgifyModule } from './modules/lodgify/lodgify.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -40,6 +41,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     NotificationsModule,
     DashboardModule,
     ChatRestModule,
+    LodgifyModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

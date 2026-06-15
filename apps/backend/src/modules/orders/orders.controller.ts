@@ -14,6 +14,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto, AssignProviderDto } from './dto/update-order.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Role, OrderStatus } from '@malodge/shared';
 
 @ApiTags('Orders')
@@ -82,5 +83,15 @@ export class OrdersController {
   @ApiOperation({ summary: 'Cancel an order' })
   cancel(@Param('id') id: string) {
     return this.ordersService.cancel(id);
+  }
+
+  @Get('provider-confirm')
+  @Public()
+  @ApiOperation({ summary: 'Provider confirms or rejects availability — no auth required' })
+  providerConfirm(
+    @Query('orderId') orderId: string,
+    @Query('action') action: 'accept' | 'reject',
+  ) {
+    return this.ordersService.providerRespond(orderId, action);
   }
 }

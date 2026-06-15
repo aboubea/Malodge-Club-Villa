@@ -81,6 +81,7 @@ export class ProvidersService {
           phone: dto.phone,
           role: 'PROVIDER',
           isActive: true,
+          countries: dto.countries ?? [],
         },
       });
 
