@@ -63,6 +63,21 @@ export class LodgifyService {
     });
   }
 
+  private async lodgifyProbe(paths: string[], apiKey: string): Promise<any> {
+    const errors: string[] = [];
+    for (const path of paths) {
+      try {
+        const result = await this.lodgifyGet(path, apiKey);
+        this.logger.log(`Lodgify: endpoint OK → ${path}`);
+        return result;
+      } catch (e: any) {
+        this.logger.warn(`Lodgify: endpoint failed (${path}): ${e?.message}`);
+        errors.push(`${path}: ${e?.message}`);
+      }
+    }
+    throw new Error(`Aucun endpoint Lodgify ne répond:\n${errors.join('\n')}`);
+  }
+
   async listReservations(): Promise<any[]> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
@@ -75,10 +90,12 @@ export class LodgifyService {
     const fromStr = from.toISOString().split('T')[0];
     const toStr = to.toISOString().split('T')[0];
 
-    const data = await this.lodgifyGet(
+    const data = await this.lodgifyProbe([
+      `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}&includeRecords=true`,
       `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-      apiKey,
-    );
+      `/rental-api/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+      `/rental-api/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+    ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
     return items.map((r) => ({
@@ -174,10 +191,12 @@ export class LodgifyService {
       const fromStr = from.toISOString().split('T')[0];
       const toStr = to.toISOString().split('T')[0];
 
-      const data = await this.lodgifyGet(
+      const data = await this.lodgifyProbe([
+        `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}&includeRecords=true`,
         `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-        apiKey,
-      );
+        `/rental-api/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
+        `/rental-api/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
+      ], apiKey);
       const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
 
       for (const res of reservations) {
