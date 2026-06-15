@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npx prisma generate && npx nest build",
+    "build": "prisma generate && nest build",
     "start": "nest start",
     "start:dev": "prisma generate && nest start --watch",
     "start:debug": "nest start --debug --watch",
