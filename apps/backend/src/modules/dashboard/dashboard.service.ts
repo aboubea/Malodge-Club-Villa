@@ -37,7 +37,7 @@ export class DashboardService {
         _sum: { totalAmount: true },
       }),
       this.prisma.reservation.count({
-        where: { status: { in: ['CONFIRMED', 'CHECKED_IN'] } },
+        where: { status: { in: ['CONFIRMED', 'ACTIVE'] } },
       }),
       this.prisma.order.count({
         where: { status: 'PENDING' },

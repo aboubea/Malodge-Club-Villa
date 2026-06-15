@@ -20,7 +20,7 @@ import { formatCurrency, formatDate } from '../../lib/utils';
 import { useDashboard, DashboardKpis } from './useDashboard';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'active' | 'confirmed' | 'pending' | 'completed' | 'cancelled' }> = {
-  CHECKED_IN: { label: 'Active', variant: 'active' },
+  ACTIVE: { label: 'Active', variant: 'active' },
   CONFIRMED: { label: 'Confirmée', variant: 'confirmed' },
   PENDING: { label: 'En attente', variant: 'pending' },
   COMPLETED: { label: 'Terminée', variant: 'completed' },
