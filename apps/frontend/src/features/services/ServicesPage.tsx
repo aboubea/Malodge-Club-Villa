@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency } from '../../lib/utils';
@@ -24,7 +24,7 @@ function ServiceCard({ service, onEdit, onDelete }: {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group rounded-xl border border-[#242428] bg-[#111113] p-5 hover:border-[#C9A96E]/30 transition-all duration-200"
+      className="group rounded-xl border border-[#242428] bg-[#111113] p-5 hover:border-[#C9A96E]/30 transition-all duration-200 flex flex-col h-full"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -43,9 +43,9 @@ function ServiceCard({ service, onEdit, onDelete }: {
         </Badge>
       </div>
 
-      {service.description && (
-        <p className="text-xs text-[#6B6B6F] leading-relaxed mb-3 line-clamp-2">{service.description}</p>
-      )}
+      <p className="text-xs text-[#6B6B6F] leading-relaxed mb-3 line-clamp-2 flex-1">
+        {service.description || '—'}
+      </p>
 
       <div className="flex items-center gap-4 text-xs text-[#6B6B6F] mb-4">
         <span className="flex items-center gap-1">
@@ -160,17 +160,18 @@ export function ServicesPage() {
         </div>
       )}
 
-      <SlideOver
+      <Modal
         open={slideOpen}
         onClose={() => { setSlideOpen(false); setEditingService(null); }}
         title={editingService ? 'Modifier le service' : 'Ajouter un service'}
+        size="lg"
       >
         <ServiceForm
           service={editingService}
           categories={categories}
           onSuccess={() => { setSlideOpen(false); setEditingService(null); }}
         />
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ProvidersService } from './providers.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
+import { InviteProviderDto } from './dto/invite-provider.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@malodge/shared';
 
@@ -32,16 +33,23 @@ export class ProvidersController {
     return this.providersService.findOne(id);
   }
 
+  @Post('invite')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Create user + provider profile in one step — ADMIN+ only' })
+  inviteProvider(@Body() dto: InviteProviderDto) {
+    return this.providersService.inviteProvider(dto);
+  }
+
   @Post()
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Create provider' })
+  @ApiOperation({ summary: 'Create provider from existing user — ADMIN+ only' })
   create(@Body() dto: CreateProviderDto) {
     return this.providersService.create(dto);
   }
 
   @Patch(':id')
   @Roles(Role.MANAGER)
-  @ApiOperation({ summary: 'Update provider' })
+  @ApiOperation({ summary: 'Update provider — MANAGER+ only' })
   update(@Param('id') id: string, @Body() dto: UpdateProviderDto) {
     return this.providersService.update(id, dto);
   }

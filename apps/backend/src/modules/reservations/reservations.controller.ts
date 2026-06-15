@@ -3,7 +3,9 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
-import { ReservationStatus } from '@malodge/shared';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role, ReservationStatus } from '@malodge/shared';
 
 @ApiTags('Reservations')
 @ApiBearerAuth()
@@ -12,8 +14,9 @@ export class ReservationsController {
   constructor(private reservationsService: ReservationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List reservations' })
+  @ApiOperation({ summary: 'List reservations — CLIENT sees only their own' })
   findAll(
+    @CurrentUser() user: { id: string; role: string },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('villaId') villaId?: string,
@@ -24,7 +27,7 @@ export class ReservationsController {
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
       villaId,
-      clientId,
+      clientId: user.role === Role.CLIENT ? user.id : clientId,
       status,
     });
   }
@@ -36,13 +39,15 @@ export class ReservationsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create reservation' })
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Create reservation — MANAGER+ only' })
   create(@Body() dto: CreateReservationDto) {
     return this.reservationsService.create(dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update reservation' })
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Update reservation — MANAGER+ only' })
   update(@Param('id') id: string, @Body() dto: UpdateReservationDto) {
     return this.reservationsService.update(id, dto);
   }

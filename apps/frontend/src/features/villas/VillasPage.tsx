@@ -8,10 +8,9 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
-import { formatCurrency } from '../../lib/utils';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 
@@ -28,7 +27,7 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="group relative rounded-xl border border-[#242428] bg-[#111113] overflow-hidden hover:border-[#C9A96E]/30 transition-all duration-200 cursor-pointer"
+      className="group relative rounded-xl border border-[#242428] bg-[#111113] overflow-hidden hover:border-[#C9A96E]/30 transition-all duration-200 cursor-pointer flex flex-col h-full"
       onClick={onClick}
     >
       {/* Image */}
@@ -82,9 +81,9 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-1">
         <h3 className="text-sm font-medium text-[#F5F0EB] truncate">{villa.name}</h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F]">
+        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F] flex-1">
           <MapPin size={11} />
           <span>{villa.city}, {villa.country}</span>
         </div>
@@ -108,19 +107,23 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
   );
 }
 
+type ActiveFilter = '' | 'true' | 'false';
+
 export function VillasPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [slideOpen, setSlideOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('');
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingVilla, setEditingVilla] = useState<VillaDto | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['villas', { page, search }],
+    queryKey: ['villas', { page, search, activeFilter }],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '12' });
       if (search) params.set('search', search);
+      if (activeFilter !== '') params.set('isActive', activeFilter);
       const res = await apiClient.get(`/villas?${params}`);
       return res.data.data || res.data;
     },
@@ -137,7 +140,7 @@ export function VillasPage() {
 
   const handleEdit = (villa: VillaDto) => {
     setEditingVilla(villa);
-    setSlideOpen(true);
+    setModalOpen(true);
   };
 
   const handleDelete = (villa: VillaDto) => {
@@ -146,13 +149,26 @@ export function VillasPage() {
     }
   };
 
-  const handleSlideClose = () => {
-    setSlideOpen(false);
+  const handleClose = () => {
+    setModalOpen(false);
     setEditingVilla(null);
   };
 
   const villas: VillaDto[] = data?.data || data || [];
   const meta = data?.meta;
+
+  const filterBtn = (label: string, value: ActiveFilter) => (
+    <button
+      onClick={() => { setActiveFilter(value); setPage(1); }}
+      className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+        activeFilter === value
+          ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
+          : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -160,14 +176,14 @@ export function VillasPage() {
         <Button
           variant="primary"
           icon={<Plus size={14} />}
-          onClick={() => { setEditingVilla(null); setSlideOpen(true); }}
+          onClick={() => { setEditingVilla(null); setModalOpen(true); }}
         >
           Ajouter une villa
         </Button>
       </PageHeader>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="max-w-xs w-full">
           <Input
             placeholder="Rechercher une villa..."
@@ -176,9 +192,11 @@ export function VillasPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <Button variant="secondary" size="sm">Toutes</Button>
-        <Button variant="ghost" size="sm">Actives</Button>
-        <Button variant="ghost" size="sm">Inactives</Button>
+        <div className="flex gap-2">
+          {filterBtn('Toutes', '')}
+          {filterBtn('Actives', 'true')}
+          {filterBtn('Inactives', 'false')}
+        </div>
       </div>
 
       {/* Grid */}
@@ -221,18 +239,19 @@ export function VillasPage() {
         </div>
       )}
 
-      {/* SlideOver Form */}
-      <SlideOver
-        open={slideOpen}
-        onClose={handleSlideClose}
+      {/* Modal Form */}
+      <Modal
+        open={modalOpen}
+        onClose={handleClose}
         title={editingVilla ? 'Modifier la villa' : 'Ajouter une villa'}
         description={editingVilla ? `Modifier les informations de ${editingVilla.name}` : 'Renseignez les informations de la nouvelle villa'}
+        size="lg"
       >
         <VillaForm
           villa={editingVilla}
-          onSuccess={handleSlideClose}
+          onSuccess={handleClose}
         />
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

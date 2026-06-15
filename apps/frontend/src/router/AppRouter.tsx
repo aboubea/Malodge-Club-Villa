@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthGuard } from '../features/auth/AuthGuard';
 import { AppShell } from '../components/layout/AppShell';
@@ -18,6 +19,22 @@ import { ChatPage } from '../features/chat/ChatPage';
 import { AiConciergePage } from '../features/ai/AiConciergePage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
+import { ProvidersPage } from '../features/providers/ProvidersPage';
+import { useAuthStore } from '../store/authStore';
+
+const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
+const ADMIN_UP = ['SUPER_ADMIN', 'ADMIN'];
+
+function RoleGuard({ roles, children, fallback = '/villas' }: {
+  roles: string[];
+  children: ReactNode;
+  fallback?: string;
+}) {
+  const { user } = useAuthStore();
+  const role = user?.role || '';
+  if (!roles.includes(role)) return <Navigate to={fallback} replace />;
+  return <>{children}</>;
+}
 
 export function AppRouter() {
   return (
@@ -32,19 +49,20 @@ export function AppRouter() {
           <AuthGuard>
             <AppShell>
               <Routes>
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/" element={<RoleGuard roles={STAFF}><DashboardPage /></RoleGuard>} />
                 <Route path="/villas" element={<VillasPage />} />
                 <Route path="/villas/:id" element={<VillaDetailPage />} />
                 <Route path="/services" element={<ServicesPage />} />
-                <Route path="/utilisateurs" element={<UsersPage />} />
-                <Route path="/parametres" element={<SettingsPage />} />
                 <Route path="/commandes" element={<OrdersPage />} />
                 <Route path="/commandes/:id" element={<OrderDetailPage />} />
-                <Route path="/finances" element={<FinancePage />} />
+                <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />
+                <Route path="/finances" element={<RoleGuard roles={STAFF}><FinancePage /></RoleGuard>} />
+                <Route path="/documents" element={<RoleGuard roles={STAFF}><DocumentsPage /></RoleGuard>} />
                 <Route path="/messages" element={<ChatPage />} />
                 <Route path="/concierge-ia" element={<AiConciergePage />} />
-                <Route path="/documents" element={<DocumentsPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/utilisateurs" element={<RoleGuard roles={ADMIN_UP}><UsersPage /></RoleGuard>} />
+                <Route path="/parametres" element={<RoleGuard roles={STAFF}><SettingsPage /></RoleGuard>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

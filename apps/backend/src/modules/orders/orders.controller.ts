@@ -12,6 +12,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto, AssignProviderDto } from './dto/update-order.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role, OrderStatus } from '@malodge/shared';
 
@@ -22,14 +23,16 @@ export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
   @Get('stats')
-  @ApiOperation({ summary: 'Get order statistics' })
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Get order statistics — MANAGER+ only' })
   getStats() {
     return this.ordersService.getStats();
   }
 
   @Get()
-  @ApiOperation({ summary: 'List orders with filters' })
+  @ApiOperation({ summary: 'List orders — CLIENT sees only their own' })
   findAll(
+    @CurrentUser() user: { id: string; role: string },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: OrderStatus,
@@ -42,7 +45,7 @@ export class OrdersController {
       limit: limit ? parseInt(limit) : undefined,
       status,
       villaId,
-      clientId,
+      clientId: user.role === Role.CLIENT ? user.id : clientId,
       search,
     });
   }

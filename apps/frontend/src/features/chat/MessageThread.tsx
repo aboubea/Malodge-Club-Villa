@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { Avatar } from '../../components/ui/Avatar';
 import { MessageBubble } from './MessageBubble';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
-import { getSocket } from '../../lib/socket';
 import { useAuthStore } from '../../store/authStore';
 
 interface Props {
@@ -22,66 +20,37 @@ async function fetchConversation(id: string) {
 export function MessageThread({ conversationId }: Props) {
   const { user } = useAuthStore();
   const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [typingUser, setTypingUser] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
 
   const { data: conversation, isLoading } = useQuery({
     queryKey: ['conversation', conversationId],
     queryFn: () => fetchConversation(conversationId),
+    refetchInterval: 4000,
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: (content: string) =>
+      apiClient.post(`/chat/conversations/${conversationId}/messages`, { content, type: 'text' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+    },
   });
 
   useEffect(() => {
-    if (conversation?.messages) {
-      setMessages(conversation.messages);
-    }
-  }, [conversation]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    socket.emit('join_conversation', { conversationId });
-    socket.emit('mark_read', { conversationId });
-
-    const handleNewMessage = (msg: any) => {
-      setMessages((prev) => {
-        if (prev.find((m) => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
-    };
-
-    const handleTyping = (data: { userId: string; conversationId: string }) => {
-      if (data.conversationId === conversationId && data.userId !== user?.id) {
-        setTypingUser(data.userId);
-        if (typingTimeout.current) clearTimeout(typingTimeout.current);
-        typingTimeout.current = setTimeout(() => setTypingUser(null), 3000);
-      }
-    };
-
-    socket.on('new_message', handleNewMessage);
-    socket.on('user_typing', handleTyping);
-
-    return () => {
-      socket.emit('leave_conversation', { conversationId });
-      socket.off('new_message', handleNewMessage);
-      socket.off('user_typing', handleTyping);
-    };
-  }, [conversationId, user?.id, queryClient]);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [conversation?.messages]);
+
+  useEffect(() => {
+    apiClient.patch(`/chat/conversations/${conversationId}/read`).catch(() => {});
+  }, [conversationId]);
 
   const sendMessage = async () => {
-    if (!input.trim() || sending) return;
-    setSending(true);
-    const socket = getSocket();
-    socket.emit('send_message', { conversationId, content: input.trim(), type: 'text' });
+    const content = input.trim();
+    if (!content || sendMutation.isPending) return;
     setInput('');
-    setSending(false);
+    sendMutation.mutate(content);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -91,13 +60,8 @@ export function MessageThread({ conversationId }: Props) {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const socket = getSocket();
-    socket.emit('typing', { conversationId });
-  };
+  const messages: any[] = conversation?.messages ?? [];
 
-  // Group messages by date
   const groupedMessages = messages.reduce<{ date: string; msgs: any[] }[]>((groups, msg) => {
     const date = new Date(msg.createdAt).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -128,10 +92,7 @@ export function MessageThread({ conversationId }: Props) {
             <Skeleton
               key={i}
               className="h-10 rounded-xl"
-              style={{
-                width: `${40 + Math.random() * 40}%`,
-                marginLeft: i % 2 === 0 ? 'auto' : undefined,
-              }}
+              style={{ width: `${40 + Math.random() * 40}%`, marginLeft: i % 2 === 0 ? 'auto' : undefined }}
             />
           ))}
         </div>
@@ -156,9 +117,7 @@ export function MessageThread({ conversationId }: Props) {
                 {otherParticipant.firstName} {otherParticipant.lastName}
               </p>
               {conversation?.reservation?.villa?.name && (
-                <p className="text-[10px] text-[#6B6B6F]">
-                  {conversation.reservation.villa.name}
-                </p>
+                <p className="text-[10px] text-[#6B6B6F]">{conversation.reservation.villa.name}</p>
               )}
             </div>
           </>
@@ -170,38 +129,23 @@ export function MessageThread({ conversationId }: Props) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {groupedMessages.map((group) => (
-          <div key={group.date}>
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-[#242428]" />
-              <span className="text-[10px] text-[#6B6B6F] whitespace-nowrap">{group.date}</span>
-              <div className="flex-1 h-px bg-[#242428]" />
-            </div>
-            {group.msgs.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} isMe={msg.sender.id === user?.id} />
-            ))}
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <p className="text-sm text-[#6B6B6F]">Aucun message — démarrez la conversation</p>
           </div>
-        ))}
-
-        {typingUser && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 mt-2"
-          >
-            <div className="bg-[#1A1A1D] border border-[#242428] rounded-2xl rounded-bl-sm px-4 py-2.5">
-              <div className="flex gap-1 items-center">
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1.5 h-1.5 rounded-full bg-[#6B6B6F]"
-                    animate={{ opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                  />
-                ))}
+        ) : (
+          groupedMessages.map((group) => (
+            <div key={group.date}>
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-[#242428]" />
+                <span className="text-[10px] text-[#6B6B6F] whitespace-nowrap">{group.date}</span>
+                <div className="flex-1 h-px bg-[#242428]" />
               </div>
+              {group.msgs.map((msg) => (
+                <MessageBubble key={msg.id} message={msg} isMe={msg.sender.id === user?.id} />
+              ))}
             </div>
-          </motion.div>
+          ))
         )}
         <div ref={bottomRef} />
       </div>
@@ -210,7 +154,7 @@ export function MessageThread({ conversationId }: Props) {
       <div className="border-t border-[#242428] p-3 flex items-end gap-2 shrink-0">
         <textarea
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Écrivez votre message... (Entrée pour envoyer)"
           rows={1}
@@ -224,15 +168,15 @@ export function MessageThread({ conversationId }: Props) {
         />
         <button
           onClick={sendMessage}
-          disabled={!input.trim() || sending}
+          disabled={!input.trim() || sendMutation.isPending}
           className={cn(
             'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
-            input.trim() && !sending
+            input.trim() && !sendMutation.isPending
               ? 'bg-[#C9A96E] text-[#0A0A0B] hover:bg-[#E8C98A]'
               : 'bg-[#1A1A1D] text-[#6B6B6F] cursor-not-allowed',
           )}
         >
-          {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
         </button>
       </div>
     </div>

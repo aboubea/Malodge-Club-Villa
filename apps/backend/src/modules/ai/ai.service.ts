@@ -24,9 +24,7 @@ export class AiService {
     private config: ConfigService,
   ) {
     this.apiKey = config.get('ANTHROPIC_API_KEY', '');
-    if (!this.apiKey) {
-      this.logger.warn('ANTHROPIC_API_KEY not set — AI features disabled');
-    }
+    if (!this.apiKey) this.logger.warn('ANTHROPIC_API_KEY not set — AI features disabled');
   }
 
   private getClient(): Anthropic | null {

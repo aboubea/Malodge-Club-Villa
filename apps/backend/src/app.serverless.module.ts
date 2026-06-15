@@ -16,10 +16,11 @@ import { AiModule } from './modules/ai/ai.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ChatRestModule } from './modules/chat/chat.rest.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
-// ChatModule excluded: WebSocket (Socket.io) is not supported in serverless
+// ChatRestModule provides REST-only chat endpoints (no WebSocket — not supported in serverless).
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -38,6 +39,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     DocumentsModule,
     NotificationsModule,
     DashboardModule,
+    ChatRestModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

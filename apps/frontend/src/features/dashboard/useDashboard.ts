@@ -4,52 +4,38 @@ import { apiClient } from '../../lib/apiClient';
 export interface DashboardKpis {
   totalRevenue: number;
   revenueChange: number;
-  serviceRevenue: number;
-  serviceRevenueChange: number;
-  occupancyRate: number;
   activeReservations: number;
   pendingOrders: number;
-  pendingOrdersChange: number;
   activeVillas: number;
   totalVillas: number;
+  occupancyRate: number;
   activeClients: number;
   ordersThisMonth: number;
-  ordersChange: number;
 }
 
 export interface DashboardReservation {
   id: string;
-  client: { firstName: string; lastName: string };
-  villa: string;
   checkIn: string;
   checkOut: string;
   status: string;
-  amount: number;
-}
-
-export interface DashboardVilla {
-  id: string;
-  name: string;
-  city: string;
-  revenue: number;
-  reservations: number;
-  occupancy: number;
+  totalAmount?: number;
+  client: { id: string; firstName: string; lastName: string; email: string; avatar?: string };
+  villa: { id: string; name: string; city: string; coverImage?: string };
 }
 
 export interface DashboardData {
   kpis: DashboardKpis;
   recentReservations: DashboardReservation[];
-  topVillas: DashboardVilla[];
 }
 
 export function useDashboard() {
   return useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: DashboardData }>('/dashboard');
-      return res.data.data ?? (res.data as any);
+      const res = await apiClient.get('/dashboard');
+      return res.data.data ?? res.data;
     },
-    refetchInterval: 60_000, // refresh every minute
+    refetchInterval: 60_000,
     staleTime: 30_000,
   });
 }

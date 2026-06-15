@@ -46,9 +46,11 @@ async function bootstrap() {
 
   let AppServerlessModule: any;
   let AuthService: any;
+  let ServicesService: any;
   try {
     AppServerlessModule = _require(path.join(distBase, 'app.serverless.module')).AppServerlessModule;
     AuthService = _require(path.join(distBase, 'modules', 'auth', 'auth.service')).AuthService;
+    ServicesService = _require(path.join(distBase, 'modules', 'services', 'services.service')).ServicesService;
   } catch (e: any) {
     throw new Error(`Dist load failed (cwd=${process.cwd()}): ${e?.message}`);
   }
@@ -77,6 +79,11 @@ async function bootstrap() {
   try {
     const authService = app.get(AuthService);
     await authService.ensureSuperAdmin();
+  } catch { /* non-fatal */ }
+
+  try {
+    const servicesService = app.get(ServicesService);
+    await servicesService.ensureDefaultCategories();
   } catch { /* non-fatal */ }
 
   isInitialized = true;
