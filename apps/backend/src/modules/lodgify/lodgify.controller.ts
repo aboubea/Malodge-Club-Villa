@@ -24,6 +24,13 @@ export class LodgifyController {
     return this.lodgifyService.saveApiKey(body.apiKey);
   }
 
+  @Get('properties/raw')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get first raw Lodgify property (debug field names)' })
+  getRawFirstProperty() {
+    return this.lodgifyService.getRawFirstProperty();
+  }
+
   @Get('properties')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'List properties directly from Lodgify (no DB write)' })

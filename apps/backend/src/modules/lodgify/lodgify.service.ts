@@ -143,6 +143,25 @@ export class LodgifyService {
     }));
   }
 
+  async getRawFirstProperty(): Promise<any> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+    const data = await this.lodgifyProbe([
+      `/v2/properties`,
+      `/v1/property`,
+      `/rental-api/property`,
+      `/rental-api/properties`,
+      `/rental-api/v2/properties`,
+    ], apiKey);
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+    const first = items[0] ?? null;
+    return {
+      totalCount: items.length,
+      keys: first ? Object.keys(first) : [],
+      raw: first,
+    };
+  }
+
   async listProperties(): Promise<any[]> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
