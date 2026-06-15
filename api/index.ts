@@ -93,6 +93,12 @@ async function bootstrap() {
   } catch { /* non-fatal */ }
 
   try {
+    const PrismaService1b = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+    const prisma1b = app.get(PrismaService1b);
+    await prisma1b.$executeRawUnsafe(`ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "providerStatus" TEXT DEFAULT 'PENDING'`);
+  } catch { /* non-fatal */ }
+
+  try {
     const PrismaService2 = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
     const prisma2 = app.get(PrismaService2);
     await prisma2.$executeRawUnsafe(`

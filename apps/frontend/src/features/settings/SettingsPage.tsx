@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Globe, Bell, Shield, Puzzle, Save, MapPin, Trash2, Plus } from 'lucide-react';
+import { Settings, Globe, Bell, Shield, Puzzle, Save, MapPin, Trash2, Plus, RefreshCw, Key } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -29,18 +29,18 @@ const ROLES_CONFIG = [
   { role: 'CLIENT', label: 'Client', permissions: ['Voir réservations', 'Commander services'], variant: 'client' as const },
 ];
 
-const INTEGRATIONS = [
-  { name: 'Logify', description: 'Synchronisation des réservations PMS', status: 'inactive', icon: '🔗' },
-  { name: 'Stripe', description: 'Paiements en ligne sécurisés', status: 'inactive', icon: '💳' },
-  { name: 'Resend', description: "Envoi d'emails transactionnels", status: 'inactive', icon: '📧' },
-  { name: 'Twilio', description: 'SMS et WhatsApp', status: 'inactive', icon: '💬' },
-  { name: 'Cloudflare R2', description: 'Stockage de fichiers', status: 'inactive', icon: '☁️' },
+const OTHER_INTEGRATIONS = [
+  { name: 'Stripe', description: 'Paiements en ligne sécurisés', icon: '💳' },
+  { name: 'Resend', description: "Envoi d'emails transactionnels", icon: '📧' },
+  { name: 'Twilio', description: 'SMS et WhatsApp', icon: '💬' },
+  { name: 'Cloudflare R2', description: 'Stockage de fichiers', icon: '☁️' },
 ];
 
 export function SettingsPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
 
   const [activeTab, setActiveTab] = useState('general');
   const [companyName, setCompanyName] = useState('Malodge Club Villa');
@@ -84,6 +84,34 @@ export function SettingsPage() {
     weeklyReport: false,
   });
 
+  // Lodgify integration
+  const [lodgifyKey, setLodgifyKey] = useState('');
+  const { data: lodgifyStatus, refetch: refetchLodgify } = useQuery({
+    queryKey: ['lodgify-status'],
+    queryFn: async () => {
+      const res = await apiClient.get('/lodgify/status');
+      return res.data?.data ?? res.data;
+    },
+  });
+  const saveLodgifyKeyMutation = useMutation({
+    mutationFn: (apiKey: string) => apiClient.post('/lodgify/api-key', { apiKey }),
+    onSuccess: () => {
+      toast.success('Clé API Lodgify sauvegardée');
+      setLodgifyKey('');
+      refetchLodgify();
+      qc.invalidateQueries({ queryKey: ['lodgify-status'] });
+    },
+    onError: () => toast.error('Erreur lors de la sauvegarde'),
+  });
+  const syncLodgifyMutation = useMutation({
+    mutationFn: () => apiClient.post('/lodgify/sync/all'),
+    onSuccess: (res) => {
+      const d = res.data?.data ?? res.data;
+      toast.success(`Sync OK : ${d?.properties?.synced ?? 0} propriétés, ${d?.reservations?.synced ?? 0} réservations`);
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Erreur sync Lodgify'),
+  });
+
   return (
     <div className="space-y-6 max-w-[1000px]">
       <PageHeader title="Paramètres" description="Configurer votre plateforme" />
@@ -123,23 +151,13 @@ export function SettingsPage() {
                 <Card>
                   <CardHeader><CardTitle>Informations de l'entreprise</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <Input
-                      label="Nom de l'entreprise"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                    />
-                    <Input
-                      label="Email de support"
-                      type="email"
-                      value={supportEmail}
-                      onChange={(e) => setSupportEmail(e.target.value)}
-                    />
+                    <Input label="Nom de l'entreprise" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                    <Input label="Email de support" type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} />
                     <Input label="Téléphone" placeholder="+33 1 00 00 00 00" />
                     <Input label="Site web" placeholder="https://malodge.com" />
                     <Button variant="primary" size="sm" icon={<Save size={13} />}>Sauvegarder</Button>
                   </CardContent>
                 </Card>
-
                 <Card>
                   <CardHeader><CardTitle>Logo</CardTitle></CardHeader>
                   <CardContent>
@@ -161,10 +179,7 @@ export function SettingsPage() {
                       { name: 'Malodge Dark', colors: ['#0A0A0B', '#111113', '#C9A96E', '#F5F0EB'], active: true },
                       { name: 'Classic Light', colors: ['#FFFFFF', '#F8F9FA', '#1A1A2E', '#1A1A2E'], active: false },
                     ].map((theme) => (
-                      <div
-                        key={theme.name}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${theme.active ? 'border-[#C9A96E]/50 bg-[#C9A96E]/5' : 'border-[#242428] hover:border-[#C9A96E]/20'}`}
-                      >
+                      <div key={theme.name} className={`p-4 rounded-xl border cursor-pointer transition-all ${theme.active ? 'border-[#C9A96E]/50 bg-[#C9A96E]/5' : 'border-[#242428] hover:border-[#C9A96E]/20'}`}>
                         <div className="flex gap-2 mb-3">
                           {theme.colors.map((c, i) => (
                             <div key={i} className="w-6 h-6 rounded-full border border-white/10" style={{ backgroundColor: c }} />
@@ -300,8 +315,58 @@ export function SettingsPage() {
             )}
 
             {activeTab === 'integrations' && (
-              <div className="space-y-3">
-                {INTEGRATIONS.map((integ) => (
+              <div className="space-y-4">
+                {/* Lodgify */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span>🔗</span> Lodgify PMS
+                      <Badge variant={lodgifyStatus?.configured ? 'active' : 'inactive'} className="ml-2">
+                        {lodgifyStatus?.configured ? 'Connecté' : 'Non configuré'}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-xs text-[#6B6B6F]">Synchronisez vos propriétés et réservations depuis Lodgify PMS automatiquement.</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Input
+                          label="Clé API Lodgify"
+                          type="password"
+                          placeholder={lodgifyStatus?.configured ? '••••••••••••••••' : 'Entrez votre clé API Lodgify'}
+                          value={lodgifyKey}
+                          onChange={(e) => setLodgifyKey(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Key size={12} />}
+                          loading={saveLodgifyKeyMutation.isPending}
+                          onClick={() => lodgifyKey && saveLodgifyKeyMutation.mutate(lodgifyKey)}
+                          disabled={!lodgifyKey}
+                        >
+                          Sauvegarder
+                        </Button>
+                      </div>
+                    </div>
+                    {lodgifyStatus?.configured && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={<RefreshCw size={12} />}
+                        loading={syncLodgifyMutation.isPending}
+                        onClick={() => syncLodgifyMutation.mutate()}
+                      >
+                        Synchroniser depuis Lodgify
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Other integrations */}
+                {OTHER_INTEGRATIONS.map((integ) => (
                   <Card key={integ.name}>
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
@@ -313,12 +378,8 @@ export function SettingsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant={integ.status === 'active' ? 'active' : 'inactive'}>
-                            {integ.status === 'active' ? 'Connecté' : 'Non configuré'}
-                          </Badge>
-                          <Button variant="secondary" size="sm">
-                            Configurer
-                          </Button>
+                          <Badge variant="inactive">Non configuré</Badge>
+                          <Button variant="secondary" size="sm">Configurer</Button>
                         </div>
                       </div>
                     </CardContent>

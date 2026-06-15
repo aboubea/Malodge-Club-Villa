@@ -1,0 +1,202 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as https from 'https';
+
+@Injectable()
+export class LodgifyService {
+  private readonly logger = new Logger(LodgifyService.name);
+
+  constructor(private prisma: PrismaService) {}
+
+  private async getApiKey(): Promise<string | null> {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: 'lodgify_api_key' } });
+    return setting ? String((setting.value as any) || '') : null;
+  }
+
+  async saveApiKey(apiKey: string) {
+    await this.prisma.appSetting.upsert({
+      where: { key: 'lodgify_api_key' },
+      update: { value: apiKey as any },
+      create: { key: 'lodgify_api_key', value: apiKey as any },
+    });
+    return { success: true };
+  }
+
+  async getApiKeyStatus(): Promise<{ configured: boolean }> {
+    const key = await this.getApiKey();
+    return { configured: !!key && key.length > 0 };
+  }
+
+  private async lodgifyGet(path: string, apiKey: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.lodgify.com',
+        path,
+        method: 'GET',
+        headers: {
+          'X-ApiKey': apiKey,
+          'Accept': 'application/json',
+        },
+      };
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid JSON response from Lodgify')); }
+        });
+      });
+      req.on('error', reject);
+      req.end();
+    });
+  }
+
+  async syncProperties(): Promise<{ synced: number; errors: string[] }> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+
+    let synced = 0;
+    const errors: string[] = [];
+
+    try {
+      const data = await this.lodgifyGet('/v1/property', apiKey);
+      const properties: any[] = Array.isArray(data) ? data : (data.items ?? []);
+
+      for (const prop of properties) {
+        try {
+          const lodgifyId = String(prop.id);
+          const existingVilla = await this.prisma.villa.findFirst({
+            where: { OR: [{ logifyId: lodgifyId }, { name: prop.name }] },
+          });
+
+          const slug = (prop.name || `property-${prop.id}`)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+
+          const data: any = {
+            logifyId: lodgifyId,
+            name: prop.name || `Property ${prop.id}`,
+            address: prop.address?.street || prop.location?.name || '',
+            city: prop.location?.city || prop.address?.city || '',
+            country: prop.location?.country || 'France',
+            maxGuests: prop.people_capacity ?? prop.max_people ?? 1,
+            bedrooms: prop.bedrooms_number ?? prop.rooms_count ?? 1,
+            bathrooms: prop.bathrooms_number ?? 1,
+            coverImage: prop.images?.[0]?.url ?? null,
+          };
+
+          if (existingVilla) {
+            await this.prisma.villa.update({ where: { id: existingVilla.id }, data });
+          } else {
+            const existSlug = await this.prisma.villa.findUnique({ where: { slug } });
+            await this.prisma.villa.create({
+              data: {
+                ...data,
+                slug: existSlug ? `${slug}-${prop.id}` : slug,
+                isActive: true,
+              },
+            });
+          }
+          synced++;
+        } catch (e: any) {
+          errors.push(`Property ${prop.id}: ${e?.message}`);
+        }
+      }
+    } catch (e: any) {
+      throw new Error(`Lodgify properties sync failed: ${e?.message}`);
+    }
+
+    return { synced, errors };
+  }
+
+  async syncReservations(): Promise<{ synced: number; skipped: number; errors: string[] }> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+
+    let synced = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    try {
+      // Fetch reservations from last 90 days to next 365 days
+      const from = new Date();
+      from.setDate(from.getDate() - 90);
+      const to = new Date();
+      to.setDate(to.getDate() + 365);
+
+      const data = await this.lodgifyGet(
+        `/v2/reservations?includeRecords=true&dateFrom=${from.toISOString().split('T')[0]}&dateTo=${to.toISOString().split('T')[0]}`,
+        apiKey,
+      );
+      const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
+
+      for (const res of reservations) {
+        try {
+          const lodgifyId = String(res.id);
+
+          // Find the villa by lodgify property_id
+          const villa = await this.prisma.villa.findFirst({
+            where: { logifyId: String(res.property_id) },
+          });
+          if (!villa) {
+            skipped++;
+            continue;
+          }
+
+          // Find or create a guest user
+          const guestEmail = res.guest?.email || `lodgify-guest-${res.id}@malodge.local`;
+          let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
+          if (!client) {
+            const [firstName = 'Guest', ...lastParts] = (res.guest?.name || 'Guest Lodgify').split(' ');
+            const hashedPw = '$2b$12$placeholder'; // not a real login
+            client = await this.prisma.user.create({
+              data: {
+                email: guestEmail,
+                password: hashedPw,
+                firstName,
+                lastName: lastParts.join(' ') || 'Lodgify',
+                role: 'CLIENT',
+                isActive: true,
+                phone: res.guest?.phone || null,
+              },
+            });
+          }
+
+          const statusMap: Record<string, string> = {
+            booked: 'CONFIRMED',
+            confirmed: 'CONFIRMED',
+            check_in: 'ACTIVE',
+            check_out: 'COMPLETED',
+            cancelled: 'CANCELLED',
+            pending: 'PENDING',
+          };
+
+          const resData = {
+            villaId: villa.id,
+            clientId: client.id,
+            checkIn: new Date(res.arrival_date || res.check_in),
+            checkOut: new Date(res.departure_date || res.check_out),
+            guests: res.people_count ?? res.guests_count ?? 1,
+            totalAmount: parseFloat(res.total_amount ?? res.price ?? 0),
+            status: (statusMap[res.status?.toLowerCase()] || 'PENDING') as any,
+            source: 'lodgify',
+          };
+
+          const existing = await this.prisma.reservation.findUnique({ where: { logifyId: lodgifyId } });
+          if (existing) {
+            await this.prisma.reservation.update({ where: { id: existing.id }, data: resData });
+          } else {
+            await this.prisma.reservation.create({ data: { ...resData, logifyId: lodgifyId } });
+          }
+          synced++;
+        } catch (e: any) {
+          errors.push(`Reservation ${res.id}: ${e?.message}`);
+        }
+      }
+    } catch (e: any) {
+      throw new Error(`Lodgify reservations sync failed: ${e?.message}`);
+    }
+
+    return { synced, skipped, errors };
+  }
+}

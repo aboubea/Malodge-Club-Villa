@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, X, Plus, Minus, Clock, CheckCircle, Building2, CalendarDays } from 'lucide-react';
+import { Search, ShoppingCart, X, Plus, Minus, Clock, CheckCircle, Building2, CalendarDays, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -51,6 +51,7 @@ export function ServiceCataloguePage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
 
   const { data: categoriesData } = useQuery<ServiceCategory[]>({
     queryKey: ['service-categories'],
@@ -113,8 +114,10 @@ export function ServiceCataloguePage() {
         villaId: (selectedVillaId || activeStay?.villa?.id) || undefined,
       });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success('Commande passée avec succès !');
+      const order = res.data?.data ?? res.data;
+      if (order?.whatsappUrl) setWhatsappUrl(order.whatsappUrl);
       setCart([]);
       setCartOpen(false);
       setOrderNotes('');
@@ -163,12 +166,34 @@ export function ServiceCataloguePage() {
         title={isClient ? 'Services' : 'Catalogue des services'}
         description={isClient ? 'Commandez nos services directement depuis votre espace' : 'Tous les services disponibles'}
       >
-        {cartCount > 0 && (
+        {isClient && cartCount > 0 && (
           <Button variant="primary" icon={<ShoppingCart size={14} />} onClick={() => setCartOpen(true)}>
             Panier ({cartCount}) · {formatCurrency(totalAmount)}
           </Button>
         )}
       </PageHeader>
+
+      {/* WhatsApp confirmation banner */}
+      {whatsappUrl && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/20 bg-green-900/10">
+          <MessageCircle size={18} className="text-green-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[#F5F0EB]">Commande passée !</p>
+            <p className="text-xs text-[#6B6B6F]">Contactez le prestataire via WhatsApp pour confirmer sa disponibilité</p>
+          </div>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors"
+          >
+            <MessageCircle size={12} /> WhatsApp
+          </a>
+          <button onClick={() => setWhatsappUrl(null)} className="text-[#6B6B6F] hover:text-[#F5F0EB]">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Active stay context banner */}
       {isClient && activeStay && (
@@ -254,7 +279,7 @@ export function ServiceCataloguePage() {
       ) : selectedCategory ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.map((service, i) => (
-            <ServiceCard key={service.id} service={service} index={i} onAdd={() => addToCart(service)} />
+            <ServiceCard key={service.id} service={service} index={i} onAdd={() => addToCart(service)} canOrder={isClient} />
           ))}
         </div>
       ) : (
@@ -271,7 +296,7 @@ export function ServiceCataloguePage() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {catServices.map((service, i) => (
-                    <ServiceCard key={service.id} service={service} index={i} onAdd={() => addToCart(service)} />
+                    <ServiceCard key={service.id} service={service} index={i} onAdd={() => addToCart(service)} canOrder={isClient} />
                   ))}
                 </div>
               </div>
@@ -346,7 +371,7 @@ export function ServiceCataloguePage() {
   );
 }
 
-function ServiceCard({ service, index, onAdd }: { service: Service & { effectivePrice?: number; providers?: any[] }; index: number; onAdd: () => void }) {
+function ServiceCard({ service, index, onAdd, canOrder }: { service: Service & { effectivePrice?: number; providers?: any[] }; index: number; onAdd: () => void; canOrder?: boolean }) {
   const displayPrice = service.effectivePrice ?? service.basePrice;
   return (
     <motion.div
@@ -399,9 +424,11 @@ function ServiceCard({ service, index, onAdd }: { service: Service & { effective
                 <p className="text-[10px] text-[#6B6B6F] line-through">{formatCurrency(service.basePrice)}</p>
               )}
             </div>
-            <Button variant="primary" size="sm" icon={<Plus size={12} />} onClick={onAdd}>
-              Ajouter
-            </Button>
+            {canOrder && (
+              <Button variant="primary" size="sm" icon={<Plus size={12} />} onClick={onAdd}>
+                Ajouter
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

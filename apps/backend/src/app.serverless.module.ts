@@ -19,6 +19,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ChatRestModule } from './modules/chat/chat.rest.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { LodgifyModule } from './modules/lodgify/lodgify.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -44,6 +45,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     DashboardModule,
     ChatRestModule,
     CalendarModule,
+    LodgifyModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

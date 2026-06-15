@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Briefcase, Building2, Tag, CheckCircle2, XCircle, Phone, Mail, CreditCard, Hash } from 'lucide-react';
+import { Plus, Search, Briefcase, Building2, Tag, CheckCircle2, XCircle, Phone, Mail, CreditCard, Hash, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +11,7 @@ import { Modal } from '../../components/ui/Modal';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { apiClient } from '../../lib/apiClient';
 import { formatDate } from '../../lib/utils';
+import { useCountries } from '../../hooks/useCountries';
 
 interface Category {
   id: string;
@@ -38,6 +39,7 @@ const EMPTY_INVITE = {
   siret: '',
   iban: '',
   categoryIds: [] as string[],
+  countries: [] as string[],
 };
 
 const EMPTY_EDIT = {
@@ -57,6 +59,7 @@ export function ProvidersPage() {
   const [detailProvider, setDetailProvider] = useState<Provider | null>(null);
   const [inviteForm, setInviteForm] = useState({ ...EMPTY_INVITE });
   const [editForm, setEditForm] = useState({ ...EMPTY_EDIT });
+  const { data: allCountries = [] } = useCountries();
 
   const { data, isLoading } = useQuery({
     queryKey: ['providers', { page, search }],
@@ -158,6 +161,15 @@ export function ProvidersPage() {
           : [...p.categoryIds, categoryId],
       }));
     }
+  };
+
+  const toggleInviteCountry = (code: string) => {
+    setInviteForm((p) => ({
+      ...p,
+      countries: p.countries.includes(code)
+        ? p.countries.filter((c) => c !== code)
+        : [...p.countries, code],
+    }));
   };
 
   const categories: Category[] = categoriesData?.data || categoriesData || [];
@@ -486,6 +498,40 @@ export function ProvidersPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Countries — invite only */}
+          {!editingProvider && allCountries.length > 0 && (
+            <div className="space-y-3">
+              <div className="border-t border-[#242428]" />
+              <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
+                <Globe size={11} />
+                Pays d'intervention
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {allCountries.map((country) => {
+                  const selected = inviteForm.countries.includes(country.code);
+                  return (
+                    <button
+                      key={country.code}
+                      type="button"
+                      onClick={() => toggleInviteCountry(country.code)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5 ${
+                        selected
+                          ? 'border-[#C9A96E]/50 bg-[#C9A96E]/10 text-[#C9A96E]'
+                          : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:border-[#3A3A3E]'
+                      }`}
+                    >
+                      <span>{country.flag}</span>
+                      <span>{country.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {inviteForm.countries.length === 0 && (
+                <p className="text-[10px] text-[#3A3A3E]">Aucun pays sélectionné — disponible partout</p>
+              )}
             </div>
           )}
 

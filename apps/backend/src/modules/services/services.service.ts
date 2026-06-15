@@ -143,4 +143,23 @@ export class ServicesService {
 
     return this.prisma.serviceCategory.create({ data: { ...dto, slug } });
   }
+
+  async assignProvider(serviceId: string, providerId: string, isPreferred = false) {
+    await this.findOneService(serviceId);
+    return this.prisma.serviceProvider.upsert({
+      where: { serviceId_providerId: { serviceId, providerId } },
+      create: { serviceId, providerId, isPreferred },
+      update: { isPreferred },
+      include: {
+        provider: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
+      },
+    });
+  }
+
+  async removeProvider(serviceId: string, providerId: string) {
+    await this.prisma.serviceProvider.delete({
+      where: { serviceId_providerId: { serviceId, providerId } },
+    });
+    return { message: 'Provider removed from service' };
+  }
 }

@@ -145,12 +145,79 @@ export class OrdersService {
       },
       include: {
         client: { select: { id: true, firstName: true, lastName: true, email: true } },
-        items: { include: { service: true } },
+        items: {
+          include: {
+            service: {
+              include: {
+                providers: {
+                  where: { isPreferred: true },
+                  include: { provider: { include: { user: { select: { firstName: true, lastName: true, phone: true } } } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        reservation: { include: { villa: { select: { name: true, city: true } } } },
         payment: true,
       },
     });
 
-    return order;
+    // Build WhatsApp URL for the preferred provider of the first service
+    const whatsappUrl = this.buildWhatsappUrl(order);
+
+    return { ...order, whatsappUrl };
+  }
+
+  private buildWhatsappUrl(order: any): string | null {
+    const firstItem = order.items?.[0];
+    if (!firstItem) return null;
+
+    const preferredSp = firstItem.service?.providers?.[0];
+    if (!preferredSp?.provider?.user?.phone) return null;
+
+    const provider = preferredSp.provider;
+    const phone = provider.user.phone.replace(/[^0-9]/g, '');
+    const providerName = `${provider.user.firstName} ${provider.user.lastName}`;
+    const serviceName = firstItem.service?.name || 'Service';
+    const villa = order.reservation?.villa;
+    const villaName = villa ? `${villa.name} — ${villa.city}` : 'votre villa';
+    const dateStr = order.scheduledAt
+      ? new Date(order.scheduledAt).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+      : 'à convenir';
+    const appUrl = process.env['APP_URL'] || 'https://malodge.vercel.app';
+
+    const message = [
+      `Bonjour ${providerName},`,
+      '',
+      `Nouvelle demande de prestation :`,
+      `✦ Service : ${serviceName}`,
+      `🏠 Villa : ${villaName}`,
+      `📅 Date : ${dateStr}`,
+      `💰 Montant : ${order.totalAmount?.toFixed(2)} €`,
+      '',
+      `Confirmez votre disponibilité :`,
+      `✅ Accepter : ${appUrl}/confirmer?orderId=${order.id}&action=accept`,
+      `❌ Refuser : ${appUrl}/confirmer?orderId=${order.id}&action=reject`,
+      '',
+      `Malodge Club Villa`,
+    ].join('\n');
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  }
+
+  async providerRespond(orderId: string, action: 'accept' | 'reject') {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException(`Order ${orderId} not found`);
+
+    const providerStatus = action === 'accept' ? 'ACCEPTED' : 'REJECTED';
+    const statusUpdate = action === 'accept' ? { status: 'CONFIRMED' as any } : {};
+
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { providerStatus, ...statusUpdate },
+      select: { id: true, providerStatus: true, status: true },
+    });
   }
 
   async updateStatus(id: string, status: OrderStatus) {
