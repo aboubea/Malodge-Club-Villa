@@ -108,17 +108,100 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
   );
 }
 
-function LodgifyVillaCard({ p }: { p: any }) {
+function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
+  const [imgIdx, setImgIdx] = useState(0);
+  const imgs: string[] = p.images?.length ? p.images : (p.coverImage ? [p.coverImage] : []);
+  return (
+    <Modal open onClose={onClose} title={p.name} size="lg">
+      <div className="space-y-4">
+        {/* Image gallery */}
+        {imgs.length > 0 ? (
+          <div className="relative aspect-video rounded-lg overflow-hidden bg-[#1A1A1D]">
+            <img
+              src={imgs[imgIdx]}
+              alt={p.name}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+            {imgs.length > 1 && (
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                {imgs.map((_: string, i: number) => (
+                  <button key={i} onClick={() => setImgIdx(i)}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="aspect-video rounded-lg bg-[#1A1A1D] flex items-center justify-center">
+            <Building2 size={40} className="text-[#242428]" />
+          </div>
+        )}
+
+        {/* Info grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {p.city && (
+            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
+              <MapPin size={13} className="shrink-0" />
+              <span>{[p.city, p.country].filter(Boolean).join(', ')}</span>
+            </div>
+          )}
+          {p.maxGuests && (
+            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
+              <Users size={13} className="shrink-0" />
+              <span>{p.maxGuests} voyageurs max</span>
+            </div>
+          )}
+          {p.bedrooms && (
+            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
+              <BedDouble size={13} className="shrink-0" />
+              <span>{p.bedrooms} chambre{p.bedrooms > 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {p.bathrooms && (
+            <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
+              <Bath size={13} className="shrink-0" />
+              <span>{p.bathrooms} salle{p.bathrooms > 1 ? 's' : ''} de bain</span>
+            </div>
+          )}
+        </div>
+
+        {p.address && (
+          <p className="text-xs text-[#6B6B6F]">{p.address}</p>
+        )}
+
+        {p.description && (
+          <p className="text-sm text-[#A0A0A4] leading-relaxed line-clamp-6">{p.description}</p>
+        )}
+
+        {p.lodgifyUrl && (
+          <a href={p.lodgifyUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-xs text-[#C9A96E] hover:underline">
+            Voir sur Lodgify →
+          </a>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function LodgifyVillaCard({ p, onClick }: { p: any; onClick: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="rounded-xl border border-[#242428] bg-[#111113] overflow-hidden flex flex-col h-full"
+      onClick={onClick}
+      className="rounded-xl border border-[#242428] bg-[#111113] overflow-hidden flex flex-col h-full cursor-pointer hover:border-[#C9A96E]/30 transition-all duration-200"
     >
       <div className="aspect-video bg-[#1A1A1D] relative overflow-hidden">
         {p.coverImage ? (
-          <img src={p.coverImage} alt={p.name} className="w-full h-full object-cover" />
+          <img
+            src={p.coverImage}
+            alt={p.name}
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Building2 size={32} className="text-[#242428]" />
@@ -156,6 +239,7 @@ export function VillasPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVilla, setEditingVilla] = useState<VillaDto | null>(null);
+  const [selectedLodgify, setSelectedLodgify] = useState<any | null>(null);
 
   const { data: countriesData } = useCountries();
   const countries = countriesData ?? [];
@@ -289,7 +373,7 @@ export function VillasPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {lodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} />)}
+            {lodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} onClick={() => setSelectedLodgify(p)} />)}
           </div>
         )
       )}
@@ -373,6 +457,8 @@ export function VillasPage() {
       )}
 
       </>)}
+
+      {selectedLodgify && <LodgifyDetailModal p={selectedLodgify} onClose={() => setSelectedLodgify(null)} />}
 
       {/* Modal Form */}
       <Modal

@@ -156,17 +156,32 @@ export class LodgifyService {
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
-    return items.map((p) => ({
-      id: String(p.id),
-      name: p.name ?? `Property ${p.id}`,
-      city: p.location?.city ?? p.address?.city ?? '',
-      country: p.location?.country ?? p.address?.country ?? 'France',
-      maxGuests: p.people_capacity ?? p.max_people ?? null,
-      bedrooms: p.bedrooms_number ?? p.rooms_count ?? null,
-      bathrooms: p.bathrooms_number ?? null,
-      coverImage: p.images?.[0]?.url ?? p.image ?? null,
-      isActive: p.is_active ?? true,
-    }));
+    return items.map((p) => {
+      const imgs: any[] = p.images ?? p.photos ?? [];
+      const coverImage =
+        imgs[0]?.url ?? imgs[0]?.src ?? imgs[0]?.large_url ?? imgs[0]?.thumb_url ??
+        p.image_url ?? p.main_image ?? p.image ?? null;
+
+      const allImages: string[] = imgs
+        .map((i: any) => i.url ?? i.src ?? i.large_url ?? i.thumb_url)
+        .filter(Boolean);
+
+      return {
+        id: String(p.id),
+        name: p.name ?? `Property ${p.id}`,
+        description: p.description ?? p.about ?? null,
+        city: p.location?.city ?? p.address?.city ?? '',
+        country: p.location?.country ?? p.address?.country ?? 'France',
+        address: p.address?.street ?? p.address?.full ?? null,
+        maxGuests: p.people_capacity ?? p.max_people ?? null,
+        bedrooms: p.bedrooms_number ?? p.rooms_count ?? null,
+        bathrooms: p.bathrooms_number ?? null,
+        coverImage,
+        images: allImages,
+        isActive: p.is_active ?? true,
+        lodgifyUrl: p.website_url ?? p.url ?? null,
+      };
+    });
   }
 
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
