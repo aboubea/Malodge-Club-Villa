@@ -202,7 +202,10 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
               {p.description && (
                 <div>
                   <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Description</h3>
-                  <p className="text-sm text-[#A0A0A4] leading-relaxed">{p.description}</p>
+                  <div
+                    className="lodgify-description text-sm text-[#A0A0A4] leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: p.description }}
+                  />
                 </div>
               )}
 
