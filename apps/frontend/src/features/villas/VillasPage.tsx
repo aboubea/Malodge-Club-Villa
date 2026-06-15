@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink, Check, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -265,7 +265,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
   );
 }
 
-function LodgifyVillaCard({ p, onClick }: { p: any; onClick: () => void }) {
+function LodgifyVillaCard({ p, isSaved, onSave, onClick }: { p: any; isSaved: boolean; onSave: () => void; onClick: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -289,6 +289,21 @@ function LodgifyVillaCard({ p, onClick }: { p: any; onClick: () => void }) {
         )}
         <div className="absolute top-3 left-3">
           <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#C9A96E]/30 bg-[#C9A96E]/10 text-[#C9A96E]">Lodgify</span>
+        </div>
+        {/* Save button */}
+        <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+          {isSaved ? (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400">
+              <Check size={10} /> En base
+            </span>
+          ) : (
+            <button
+              onClick={onSave}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm"
+            >
+              <Download size={10} /> Sauvegarder
+            </button>
+          )}
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
@@ -357,10 +372,37 @@ export function VillasPage() {
   });
   const lodgifyProperties: any[] = Array.isArray(lodgifyPropsData) ? lodgifyPropsData : [];
   const [lodgifyCountryFilter, setLodgifyCountryFilter] = useState('');
+  const [lodgifySyncFilter, setLodgifySyncFilter] = useState<'all' | 'new' | 'saved'>('all');
   const lodgifyCountries = [...new Set(lodgifyProperties.map((p) => p.country).filter(Boolean))].sort();
-  const filteredLodgifyProperties = lodgifyCountryFilter
-    ? lodgifyProperties.filter((p) => p.country === lodgifyCountryFilter)
-    : lodgifyProperties;
+
+  const { data: syncedIdsData, refetch: refetchSyncedIds } = useQuery({
+    queryKey: ['lodgify-synced-ids'],
+    queryFn: async () => {
+      const res = await apiClient.get('/lodgify/properties/synced-ids');
+      const raw = res.data?.data ?? res.data;
+      return Array.isArray(raw) ? raw : [];
+    },
+    enabled: source === 'lodgify' && lodgifyConfigured,
+    staleTime: 30_000,
+  });
+  const syncedIds = new Set<string>(syncedIdsData ?? []);
+
+  const savePropertyMutation = useMutation({
+    mutationFn: (prop: any) => apiClient.post('/lodgify/properties/save', prop),
+    onSuccess: (_, prop) => {
+      toast.success(`"${prop.name}" ajouté aux logements internes`);
+      refetchSyncedIds();
+      qc.invalidateQueries({ queryKey: ['villas'] });
+    },
+    onError: () => toast.error('Erreur lors de la sauvegarde'),
+  });
+
+  const filteredLodgifyProperties = lodgifyProperties.filter((p) => {
+    if (lodgifyCountryFilter && p.country !== lodgifyCountryFilter) return false;
+    if (lodgifySyncFilter === 'new') return !syncedIds.has(p.id);
+    if (lodgifySyncFilter === 'saved') return syncedIds.has(p.id);
+    return true;
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/villas/${id}`),
@@ -453,25 +495,30 @@ export function VillasPage() {
           </div>
         ) : (
           <>
-            {lodgifyCountries.length > 1 && (
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setLodgifyCountryFilter('')}
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
-                >
+            <div className="flex gap-2 flex-wrap items-center">
+              {/* Sync filter */}
+              {(['all', 'new', 'saved'] as const).map((f) => (
+                <button key={f} onClick={() => setLodgifySyncFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifySyncFilter === f ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                  {f === 'all' ? 'Tous' : f === 'new' ? 'Non pushés' : 'En base'}
+                </button>
+              ))}
+              {/* Country filter */}
+              {lodgifyCountries.length > 1 && (<>
+                <span className="w-px h-4 bg-[#242428]" />
+                <button onClick={() => setLodgifyCountryFilter('')}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
                   Tous les pays
                 </button>
                 {lodgifyCountries.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setLodgifyCountryFilter(c)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
-                  >
+                  <button key={c} onClick={() => setLodgifyCountryFilter(c)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
                     {c}
                   </button>
                 ))}
-              </div>
-            )}
+              </>)}
+            </div>
+
             {filteredLodgifyProperties.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Building2 size={40} className="text-[#242428] mb-4" />
@@ -479,7 +526,15 @@ export function VillasPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredLodgifyProperties.map((p) => <LodgifyVillaCard key={p.id} p={p} onClick={() => setSelectedLodgify(p)} />)}
+                {filteredLodgifyProperties.map((p) => (
+                  <LodgifyVillaCard
+                    key={p.id}
+                    p={p}
+                    isSaved={syncedIds.has(p.id)}
+                    onSave={() => savePropertyMutation.mutate(p)}
+                    onClick={() => setSelectedLodgify(p)}
+                  />
+                ))}
               </div>
             )}
           </>

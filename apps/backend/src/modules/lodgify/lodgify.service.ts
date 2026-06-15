@@ -193,6 +193,48 @@ export class LodgifyService {
     });
   }
 
+  async getSyncedIds(): Promise<string[]> {
+    const villas = await this.prisma.villa.findMany({ where: { logifyId: { not: null } }, select: { logifyId: true } });
+    return villas.map((v) => v.logifyId!);
+  }
+
+  async saveProperty(prop: {
+    id: string; name: string; city: string; country: string | null;
+    address: string | null; maxGuests: number | null; bedrooms: number | null;
+    bathrooms: number | null; coverImage: string | null; description: string | null;
+  }): Promise<{ villaId: string; created: boolean }> {
+    const lodgifyId = String(prop.id);
+    const slug = prop.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const data: any = {
+      logifyId: lodgifyId,
+      name: prop.name,
+      address: prop.address || '',
+      city: prop.city || '',
+      country: prop.country || 'France',
+      maxGuests: prop.maxGuests ?? 1,
+      bedrooms: prop.bedrooms ?? 1,
+      bathrooms: prop.bathrooms ?? 1,
+      coverImage: prop.coverImage,
+      description: prop.description,
+    };
+
+    const existing = await this.prisma.villa.findFirst({ where: { logifyId: lodgifyId } });
+    if (existing) {
+      await this.prisma.villa.update({ where: { id: existing.id }, data });
+      return { villaId: existing.id, created: false };
+    }
+
+    const existSlug = await this.prisma.villa.findUnique({ where: { slug } });
+    const villa = await this.prisma.villa.create({
+      data: { ...data, slug: existSlug ? `${slug}-${lodgifyId}` : slug, isActive: true },
+    });
+    return { villaId: villa.id, created: true };
+  }
+
   async syncProperties(): Promise<{ synced: number; errors: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
