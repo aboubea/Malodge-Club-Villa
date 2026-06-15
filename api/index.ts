@@ -52,31 +52,40 @@ function setCors(res: any) {
 }
 
 export default async function handler(req: any, res: any) {
-  // Always allow CORS preflight
+  setCors(res);
+
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    setCors(res);
-    res.status(204).end();
+    res.writeHead(204);
+    res.end();
     return;
   }
 
-  try {
-    if (!isInitialized && !bootstrapError) {
-      await bootstrap();
-    }
+  // Quick health check — always responds even if bootstrap hasn't run
+  const url: string = req.url || '';
+  if (url === '/api/health' || url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', initialized: isInitialized, error: bootstrapError?.message ?? null }));
+    return;
+  }
 
-    if (bootstrapError) {
-      setCors(res);
-      res.status(503).json({ statusCode: 503, message: 'Service unavailable', error: bootstrapError.message });
-      return;
+  // Bootstrap NestJS once per cold start (retry if previous attempt failed)
+  if (!isInitialized) {
+    bootstrapError = null;
+    try {
+      await bootstrap();
+    } catch (err: any) {
+      bootstrapError = err;
     }
-  } catch (err: any) {
-    bootstrapError = err;
-    setCors(res);
-    res.status(503).json({ statusCode: 503, message: 'Service unavailable', error: err?.message });
+  }
+
+  if (bootstrapError) {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ statusCode: 503, message: 'Service unavailable', error: bootstrapError.message }));
     return;
   }
 
   // Strip /api prefix so NestJS controllers work the same as locally
-  req.url = req.url?.replace(/^\/api/, '') || '/';
+  req.url = url.replace(/^\/api/, '') || '/';
   expressServer(req, res);
 }
