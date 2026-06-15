@@ -17,15 +17,21 @@ export interface AiResponseDto {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private anthropic: Anthropic;
+  private readonly apiKey: string;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
   ) {
-    this.anthropic = new Anthropic({
-      apiKey: this.config.get('ANTHROPIC_API_KEY', ''),
-    });
+    this.apiKey = config.get('ANTHROPIC_API_KEY', '');
+    if (!this.apiKey) {
+      this.logger.warn('ANTHROPIC_API_KEY not set — AI features disabled');
+    }
+  }
+
+  private getClient(): Anthropic | null {
+    if (!this.apiKey) return null;
+    return new Anthropic({ apiKey: this.apiKey });
   }
 
   async query(question: string, userId: string): Promise<AiResponseDto> {
@@ -84,8 +90,9 @@ export class AiService {
     const systemPrompt = `Tu es le concierge IA de Malodge Club Villa. Réponds UNIQUEMENT à partir des documents fournis. Si l'information n'est pas dans les documents, réponds: "Je ne dispose pas de cette information dans ma base de connaissances." Ne jamais inventer. Ne jamais chercher sur internet. Cite toujours les sources en indiquant le nom du document.`;
 
     let answer: string;
+    const anthropic = this.getClient();
     try {
-      const response = await this.anthropic.messages.create({
+      const response = await anthropic?.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: systemPrompt,
@@ -96,11 +103,12 @@ export class AiService {
           },
         ],
       });
-      answer = response.content[0].type === 'text' ? response.content[0].text : '';
+      answer = response?.content[0].type === 'text' ? response.content[0].text : '';
     } catch (err) {
       this.logger.error('Anthropic API error', err);
       answer = "Je ne dispose pas de cette information dans ma base de connaissances.";
     }
+    if (!answer) answer = "Je ne dispose pas de cette information dans ma base de connaissances.";
 
     const hasAnswer = !answer.includes("Je ne dispose pas de cette information");
 
