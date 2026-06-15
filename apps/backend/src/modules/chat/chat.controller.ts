@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -39,12 +39,18 @@ export class ChatController {
   }
 
   @Post('conversations/:id/messages')
-  @ApiOperation({ summary: 'Send message (REST fallback)' })
+  @ApiOperation({ summary: 'Send message via REST' })
   sendMessage(
     @Param('id') conversationId: string,
     @CurrentUser('sub') userId: string,
     @Body() dto: { content: string; type?: string; fileUrl?: string },
   ) {
     return this.chatService.sendMessage(conversationId, userId, dto.content, dto.type || 'text', dto.fileUrl);
+  }
+
+  @Patch('conversations/:id/read')
+  @ApiOperation({ summary: 'Mark all messages in conversation as read' })
+  markRead(@Param('id') conversationId: string, @CurrentUser('sub') userId: string) {
+    return this.chatService.markRead(conversationId, userId).then(() => ({ success: true }));
   }
 }

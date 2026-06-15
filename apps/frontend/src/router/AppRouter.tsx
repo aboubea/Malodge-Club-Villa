@@ -19,6 +19,7 @@ import { ChatPage } from '../features/chat/ChatPage';
 import { AiConciergePage } from '../features/ai/AiConciergePage';
 import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
+import { ProvidersPage } from '../features/providers/ProvidersPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
@@ -54,6 +55,7 @@ export function AppRouter() {
                 <Route path="/services" element={<ServicesPage />} />
                 <Route path="/commandes" element={<OrdersPage />} />
                 <Route path="/commandes/:id" element={<OrderDetailPage />} />
+                <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />
                 <Route path="/finances" element={<RoleGuard roles={STAFF}><FinancePage /></RoleGuard>} />
                 <Route path="/documents" element={<RoleGuard roles={STAFF}><DocumentsPage /></RoleGuard>} />
                 <Route path="/messages" element={<ChatPage />} />

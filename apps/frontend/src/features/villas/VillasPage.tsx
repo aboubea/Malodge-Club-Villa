@@ -27,7 +27,7 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="group relative rounded-xl border border-[#242428] bg-[#111113] overflow-hidden hover:border-[#C9A96E]/30 transition-all duration-200 cursor-pointer"
+      className="group relative rounded-xl border border-[#242428] bg-[#111113] overflow-hidden hover:border-[#C9A96E]/30 transition-all duration-200 cursor-pointer flex flex-col h-full"
       onClick={onClick}
     >
       {/* Image */}
@@ -81,9 +81,9 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-1">
         <h3 className="text-sm font-medium text-[#F5F0EB] truncate">{villa.name}</h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F]">
+        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F] flex-1">
           <MapPin size={11} />
           <span>{villa.city}, {villa.country}</span>
         </div>
