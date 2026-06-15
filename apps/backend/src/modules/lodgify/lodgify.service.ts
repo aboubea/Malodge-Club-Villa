@@ -42,10 +42,23 @@ export class LodgifyService {
         let data = '';
         res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
-          try { resolve(JSON.parse(data)); } catch { reject(new Error('Invalid JSON response from Lodgify')); }
+          const status = res.statusCode ?? 0;
+          if (status === 401 || status === 403) {
+            return reject(new Error(`Clé API Lodgify invalide ou non autorisée (HTTP ${status})`));
+          }
+          if (status >= 400) {
+            const preview = data.slice(0, 200).replace(/\s+/g, ' ');
+            return reject(new Error(`Lodgify HTTP ${status}: ${preview}`));
+          }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            const preview = data.slice(0, 200).replace(/\s+/g, ' ');
+            reject(new Error(`Réponse Lodgify non-JSON (HTTP ${status}): ${preview}`));
+          }
         });
       });
-      req.on('error', reject);
+      req.on('error', (err) => reject(new Error(`Erreur réseau Lodgify: ${err.message}`)));
       req.end();
     });
   }
@@ -59,11 +72,25 @@ export class LodgifyService {
     const to = new Date();
     to.setDate(to.getDate() + 365);
 
-    const data = await this.lodgifyGet(
-      `/v2/reservations?includeRecords=true&dateFrom=${from.toISOString().split('T')[0]}&dateTo=${to.toISOString().split('T')[0]}`,
-      apiKey,
-    );
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? []);
+    // Try v2 first; fall back to v1 if v2 fails
+    let items: any[] = [];
+    try {
+      const fromStr = from.toISOString().split('T')[0];
+      const toStr = to.toISOString().split('T')[0];
+      const data = await this.lodgifyGet(
+        `/v2/reservations?includeRecords=true&dateFrom=${fromStr}&dateTo=${toStr}`,
+        apiKey,
+      );
+      items = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+    } catch (e: any) {
+      // v2 failed — try v1
+      try {
+        const data = await this.lodgifyGet('/v1/booking/reservation', apiKey);
+        items = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
+      } catch {
+        throw e; // re-throw original error
+      }
+    }
 
     return items.map((r) => ({
       id: String(r.id),
