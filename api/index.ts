@@ -3,8 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
-import { AppServerlessModule } from '../apps/backend/src/app.serverless.module';
-import { AuthService } from '../apps/backend/src/modules/auth/auth.service';
+// Import from pre-compiled dist so that tsc emitDecoratorMetadata is preserved.
+// esbuild (Vercel's function builder) does NOT support emitDecoratorMetadata,
+// which would break NestJS DI if we imported from TypeScript source directly.
+import { AppServerlessModule } from '../apps/backend/dist/app.serverless.module';
+import { AuthService } from '../apps/backend/dist/modules/auth/auth.service';
 
 const expressServer = express();
 let isInitialized = false;
