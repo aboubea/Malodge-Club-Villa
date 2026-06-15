@@ -16,7 +16,7 @@ export class VillasController {
   @Get()
   @ApiOperation({ summary: 'List villas — CLIENT sees only their reserved villas' })
   findAll(
-    @CurrentUser() user: { id: string; role: string },
+    @CurrentUser() user: { id: string; role: string; countries?: string[] },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -32,6 +32,8 @@ export class VillasController {
       country,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
       clientId: user.role === Role.CLIENT ? user.id : undefined,
+      userRole: user.role,
+      userCountries: user.countries || [],
     });
   }
 

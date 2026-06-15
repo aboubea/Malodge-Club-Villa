@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@malodge/shared';
 
@@ -37,4 +37,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  countries?: string[];
 }

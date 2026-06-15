@@ -22,6 +22,8 @@ export class VillasService {
     country?: string;
     isActive?: boolean;
     clientId?: string;
+    userRole?: string;
+    userCountries?: string[];
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -41,6 +43,21 @@ export class VillasService {
     if (params.city) where.city = { contains: params.city, mode: 'insensitive' };
     if (params.country) where.country = params.country;
     if (params.isActive !== undefined) where.isActive = params.isActive;
+
+    // Restrict ADMIN/MANAGER to their assigned countries
+    if (
+      params.userRole && ['ADMIN', 'MANAGER'].includes(params.userRole) &&
+      params.userCountries && params.userCountries.length > 0
+    ) {
+      if (params.country) {
+        // Country requested must be in user's countries
+        if (!params.userCountries.includes(params.country)) {
+          where.country = '__none__'; // force empty result
+        }
+      } else {
+        where.country = { in: params.userCountries };
+      }
+    }
 
     const [villas, total] = await Promise.all([
       this.prisma.villa.findMany({

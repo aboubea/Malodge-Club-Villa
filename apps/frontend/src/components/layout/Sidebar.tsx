@@ -17,6 +17,8 @@ import {
   MessageSquare,
   BrainCircuit,
   Bell,
+  Store,
+  CalendarRange,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUIStore } from '../../store/uiStore';
@@ -36,12 +38,16 @@ interface NavDef {
 const STAFF: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
 const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
 
+const CLIENT: RoleKey[] = ['CLIENT'];
+
 const NAV_ITEMS: NavDef[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, roles: STAFF },
+  { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
   { path: '/villas', label: 'Villas', icon: Building2 },
   { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
+  { path: '/agenda', label: 'Agenda', icon: CalendarRange },
   { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
-  { path: '/services', label: 'Services', icon: Sparkles },
+  { path: '/services', label: 'Catalogue', icon: Sparkles, roles: STAFF },
   { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
   { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
   { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },

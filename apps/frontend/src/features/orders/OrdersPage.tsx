@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, Search, ShoppingBag } from 'lucide-react';
+import { Plus, Search, ShoppingBag, CheckCircle2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -47,8 +48,10 @@ async function fetchOrders(params: {
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { user } = useAuthStore();
   const isClient = user?.role === 'CLIENT';
+  const isManager = user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [countryFilter, setCountryFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -57,6 +60,16 @@ export function OrdersPage() {
 
   const { data: countriesData } = useCountries();
   const countries = countriesData ?? [];
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
+      apiClient.patch(`/orders/${id}/status`, { status }),
+    onSuccess: (_, { status }) => {
+      toast.success(status === OrderStatus.CONFIRMED ? 'Demande acceptée' : 'Demande refusée');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['orders', page, statusFilter, search, countryFilter],
@@ -81,7 +94,7 @@ export function OrdersPage() {
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
         title={isClient ? 'Mes commandes' : 'Commandes'}
-        description={isClient ? 'Historique de vos commandes de services' : 'Gestion des commandes de services'}
+        description={isClient ? 'Historique de vos commandes de services' : 'Gestion et validation des commandes de services'}
       >
         {!isClient && (
           <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
@@ -258,13 +271,35 @@ export function OrdersPage() {
                       )}
 
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/commandes/${order.id}`); }}
-                        >
-                          Voir
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {isManager && order.status === OrderStatus.PENDING && (
+                            <>
+                              <button
+                                onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CONFIRMED })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-green-400 border border-green-800/40 bg-green-900/10 hover:bg-green-900/20 transition-colors"
+                                title="Accepter"
+                              >
+                                <CheckCircle2 size={11} /> Accepter
+                              </button>
+                              <button
+                                onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CANCELLED })}
+                                disabled={statusMutation.isPending}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-400 border border-red-800/40 bg-red-900/10 hover:bg-red-900/20 transition-colors"
+                                title="Refuser"
+                              >
+                                <XCircle size={11} /> Refuser
+                              </button>
+                            </>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/commandes/${order.id}`)}
+                          >
+                            Voir
+                          </Button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}

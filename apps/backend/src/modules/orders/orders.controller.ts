@@ -61,10 +61,13 @@ export class OrdersController {
   }
 
   @Post()
-  @Roles(Role.MANAGER)
-  @ApiOperation({ summary: 'Create a new order' })
-  create(@Body() dto: CreateOrderDto) {
-    return this.ordersService.create(dto);
+  @ApiOperation({ summary: 'Create a new order — CLIENT auto-assigns themselves' })
+  create(
+    @CurrentUser() user: { id: string; role: string },
+    @Body() dto: CreateOrderDto,
+  ) {
+    const clientId = user.role === Role.CLIENT ? user.id : (dto.clientId ?? user.id);
+    return this.ordersService.create({ ...dto, clientId });
   }
 
   @Patch(':id/status')

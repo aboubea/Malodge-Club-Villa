@@ -115,20 +115,24 @@ export class OrdersService {
     return order;
   }
 
-  async create(dto: CreateOrderDto) {
-    const { items, ...orderData } = dto;
+  async create(dto: CreateOrderDto & { clientId: string }) {
+    const { items, clientId, reservationId, villaId, providerId, commission, notes, scheduledAt } = dto;
 
     // Calculate totals
     const totalAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const commissionRate = orderData.commission ?? 15;
+    const commissionRate = commission ?? 15;
     const commissionAmount = (totalAmount * commissionRate) / 100;
 
     const order = await this.prisma.order.create({
       data: {
-        ...orderData,
+        clientId,
+        reservationId,
+        villaId,
+        providerId,
+        notes,
         totalAmount,
         commission: commissionAmount,
-        scheduledAt: orderData.scheduledAt ? new Date(orderData.scheduledAt) : undefined,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
         items: {
           create: items.map((item) => ({
             serviceId: item.serviceId,

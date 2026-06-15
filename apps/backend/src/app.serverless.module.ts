@@ -18,6 +18,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SettingsModule } from './modules/settings/settings.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ChatRestModule } from './modules/chat/chat.rest.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -42,6 +43,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     SettingsModule,
     DashboardModule,
     ChatRestModule,
+    CalendarModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

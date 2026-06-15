@@ -57,6 +57,7 @@ model User {
   role          Role      @default(CLIENT)
   isActive      Boolean   @default(true)
   lastLoginAt   DateTime?
+  countries     String[]  @default([])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -70,6 +71,7 @@ model User {
   aiQueries     AiQuery[]
   notifications Notification[]
   conversationParticipations ConversationParticipant[]
+  createdCalendarEvents CalendarEvent[] @relation("CalendarEventCreator")
 }
 
 model Villa {
@@ -94,10 +96,11 @@ model Villa {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  managers      VillaManager[]
-  reservations  Reservation[]
-  villaServices VillaService[]
-  documents     Document[]
+  managers        VillaManager[]
+  reservations    Reservation[]
+  villaServices   VillaService[]
+  documents       Document[]
+  calendarEvents  CalendarEvent[]
 }
 
 model VillaManager {
@@ -207,10 +210,11 @@ model Reservation {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  villa         Villa       @relation(fields: [villaId], references: [id])
-  client        User        @relation(fields: [clientId], references: [id])
-  orders        Order[]
-  conversations Conversation[]
+  villa           Villa       @relation(fields: [villaId], references: [id])
+  client          User        @relation(fields: [clientId], references: [id])
+  orders          Order[]
+  conversations   Conversation[]
+  calendarEvents  CalendarEvent[]
 }
 
 model Order {
@@ -228,11 +232,12 @@ model Order {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  reservation   Reservation?  @relation(fields: [reservationId], references: [id])
-  client        User          @relation(fields: [clientId], references: [id])
-  provider      Provider?     @relation(fields: [providerId], references: [id])
-  items         OrderItem[]
-  payment       Payment?
+  reservation     Reservation?  @relation(fields: [reservationId], references: [id])
+  client          User          @relation(fields: [clientId], references: [id])
+  provider        Provider?     @relation(fields: [providerId], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+  calendarEvents  CalendarEvent[]
 }
 
 model OrderItem {
@@ -373,4 +378,26 @@ model Notification {
   readAt     DateTime?
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CalendarEvent {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  startAt       DateTime
+  endAt         DateTime
+  allDay        Boolean   @default(false)
+  type          String    @default("event")
+  color         String?
+  villaId       String?
+  reservationId String?
+  orderId       String?
+  createdBy     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  villa         Villa?       @relation(fields: [villaId], references: [id])
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  order         Order?       @relation(fields: [orderId], references: [id])
+  creator       User?        @relation("CalendarEventCreator", fields: [createdBy], references: [id])
 }

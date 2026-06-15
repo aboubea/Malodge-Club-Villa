@@ -21,10 +21,13 @@ import { DocumentsPage } from '../features/documents/DocumentsPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { ProvidersPage } from '../features/providers/ProvidersPage';
 import { ReservationsPage } from '../features/reservations/ReservationsPage';
+import { ServiceCataloguePage } from '../features/catalogue/ServiceCataloguePage';
+import { CalendarPage } from '../features/calendar/CalendarPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
 const ADMIN_UP = ['SUPER_ADMIN', 'ADMIN'];
+const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'PROVIDER', 'CLIENT'];
 
 function RoleGuard({ roles, children, fallback = '/villas' }: {
   roles: string[];
@@ -50,11 +53,13 @@ export function AppRouter() {
           <AuthGuard>
             <AppShell>
               <Routes>
-                <Route path="/" element={<RoleGuard roles={STAFF}><DashboardPage /></RoleGuard>} />
+                <Route path="/" element={<RoleGuard roles={STAFF} fallback="/catalogue"><DashboardPage /></RoleGuard>} />
                 <Route path="/reservations" element={<RoleGuard roles={STAFF}><ReservationsPage /></RoleGuard>} />
+                <Route path="/catalogue" element={<ServiceCataloguePage />} />
+                <Route path="/agenda" element={<CalendarPage />} />
                 <Route path="/villas" element={<VillasPage />} />
                 <Route path="/villas/:id" element={<VillaDetailPage />} />
-                <Route path="/services" element={<ServicesPage />} />
+                <Route path="/services" element={<RoleGuard roles={STAFF}><ServicesPage /></RoleGuard>} />
                 <Route path="/commandes" element={<OrdersPage />} />
                 <Route path="/commandes/:id" element={<OrderDetailPage />} />
                 <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />

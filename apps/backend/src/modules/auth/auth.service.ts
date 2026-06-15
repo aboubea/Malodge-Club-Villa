@@ -38,7 +38,7 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.config.get('JWT_SECRET', 'default-secret'),
@@ -78,7 +78,7 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const newPayload = { sub: user.id, email: user.email, role: user.role };
+      const newPayload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
       const accessToken = this.jwtService.sign(newPayload, {
         secret: this.config.get('JWT_SECRET', 'default-secret'),
         expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
@@ -105,6 +105,7 @@ export class AuthService {
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
+        countries: true,
       },
     });
 
@@ -129,7 +130,7 @@ export class AuthService {
       },
     });
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
     const accessToken = this.jwtService.sign(payload, {
       secret: this.config.get('JWT_SECRET', 'default-secret'),
       expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),

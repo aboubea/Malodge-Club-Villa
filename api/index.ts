@@ -82,9 +82,39 @@ async function bootstrap() {
   } catch { /* non-fatal */ }
 
   try {
+    const PrismaService = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+    const prisma = app.get(PrismaService);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS countries TEXT[] DEFAULT '{}'`);
+  } catch { /* non-fatal — column may already exist */ }
+
+  try {
     const servicesService = app.get(ServicesService);
     await servicesService.ensureDefaultCategories();
   } catch { /* non-fatal */ }
+
+  try {
+    const PrismaService2 = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+    const prisma2 = app.get(PrismaService2);
+    await prisma2.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "CalendarEvent" (
+        "id" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "description" TEXT,
+        "startAt" TIMESTAMP(3) NOT NULL,
+        "endAt" TIMESTAMP(3) NOT NULL,
+        "allDay" BOOLEAN NOT NULL DEFAULT false,
+        "type" TEXT NOT NULL DEFAULT 'event',
+        "color" TEXT,
+        "villaId" TEXT,
+        "reservationId" TEXT,
+        "orderId" TEXT,
+        "createdBy" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CalendarEvent_pkey" PRIMARY KEY ("id")
+      )
+    `);
+  } catch { /* non-fatal — table may already exist */ }
 
   isInitialized = true;
 }
