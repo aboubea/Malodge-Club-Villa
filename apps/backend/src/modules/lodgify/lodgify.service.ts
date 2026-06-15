@@ -156,7 +156,25 @@ export class LodgifyService {
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
 
-    return items.map((p) => {
+    return items.map((p, idx) => {
+      // Log first raw property once to diagnose field names
+      if (idx === 0) {
+        this.logger.log(`Lodgify raw property keys: ${JSON.stringify(Object.keys(p))}`);
+        this.logger.log(`Lodgify raw property sample: ${JSON.stringify({
+          people_capacity: p.people_capacity,
+          accommodates: p.accommodates,
+          accommodation: p.accommodation,
+          max_people: p.max_people,
+          max_guests: p.max_guests,
+          bedrooms_number: p.bedrooms_number,
+          bedrooms: p.bedrooms,
+          rooms_count: p.rooms_count,
+          rooms: typeof p.rooms === 'object' ? p.rooms : '(non-object)',
+          bathrooms_number: p.bathrooms_number,
+          bathrooms: p.bathrooms,
+        })}`);
+      }
+
       const imgs: any[] = p.images ?? p.photos ?? [];
       const coverImage =
         imgs[0]?.url ?? imgs[0]?.src ?? imgs[0]?.large_url ?? imgs[0]?.thumb_url ??
@@ -175,6 +193,26 @@ export class LodgifyService {
         p.country_name ??
         null;
 
+      // Rooms can be an object {bedrooms, bathrooms} or an array of room items
+      const roomsObj = p.rooms && !Array.isArray(p.rooms) ? p.rooms : null;
+      const roomsArr: any[] = Array.isArray(p.rooms) ? p.rooms : [];
+
+      const bedroomsFromArr = roomsArr.length > 0
+        ? roomsArr.filter((r: any) => {
+            const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString().toLowerCase();
+            const n = (r.name ?? '').toLowerCase();
+            return t === 'bedroom' || t === '0' || n.includes('bedroom') || n.includes('chambre');
+          }).length || null
+        : null;
+
+      const bathroomsFromArr = roomsArr.length > 0
+        ? roomsArr.filter((r: any) => {
+            const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString().toLowerCase();
+            const n = (r.name ?? '').toLowerCase();
+            return t === 'bathroom' || t === '1' || n.includes('bathroom') || n.includes('salle');
+          }).length || null
+        : null;
+
       return {
         id: String(p.id),
         name: p.name ?? `Property ${p.id}`,
@@ -182,9 +220,31 @@ export class LodgifyService {
         city: p.location?.city ?? p.address?.city ?? p.city ?? '',
         country,
         address: p.address?.street ?? p.address?.full ?? p.address?.line1 ?? null,
-        maxGuests: p.people_capacity ?? p.max_people ?? null,
-        bedrooms: p.bedrooms_number ?? p.rooms_count ?? null,
-        bathrooms: p.bathrooms_number ?? null,
+        maxGuests:
+          p.people_capacity ??
+          p.accommodates ??
+          p.accommodation ??
+          p.max_people ??
+          p.max_guests ??
+          p.occupancy?.max ??
+          null,
+        bedrooms:
+          p.bedrooms_number ??
+          p.bedrooms ??
+          p.bedroom_count ??
+          roomsObj?.bedrooms ??
+          roomsObj?.bedroom_count ??
+          bedroomsFromArr ??
+          p.rooms_count ??
+          null,
+        bathrooms:
+          p.bathrooms_number ??
+          p.bathrooms ??
+          p.bathroom_count ??
+          roomsObj?.bathrooms ??
+          roomsObj?.bathroom_count ??
+          bathroomsFromArr ??
+          null,
         coverImage,
         images: allImages,
         isActive: p.is_active ?? true,
@@ -274,15 +334,28 @@ export class LodgifyService {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '');
 
+          const rObj = prop.rooms && !Array.isArray(prop.rooms) ? prop.rooms : null;
+          const rArr: any[] = Array.isArray(prop.rooms) ? prop.rooms : [];
+          const bedroomsArrCount = rArr.filter((r: any) => {
+            const t = (r.type ?? r.type_id ?? '').toString().toLowerCase();
+            const n = (r.name ?? '').toLowerCase();
+            return t === 'bedroom' || t === '0' || n.includes('bedroom') || n.includes('chambre');
+          }).length || null;
+          const bathroomsArrCount = rArr.filter((r: any) => {
+            const t = (r.type ?? r.type_id ?? '').toString().toLowerCase();
+            const n = (r.name ?? '').toLowerCase();
+            return t === 'bathroom' || t === '1' || n.includes('bathroom') || n.includes('salle');
+          }).length || null;
+
           const data: any = {
             logifyId: lodgifyId,
             name: prop.name || `Property ${prop.id}`,
             address: prop.address?.street || prop.location?.name || '',
             city: prop.location?.city || prop.address?.city || '',
             country: prop.location?.country || 'France',
-            maxGuests: prop.people_capacity ?? prop.max_people ?? 1,
-            bedrooms: prop.bedrooms_number ?? prop.rooms_count ?? 1,
-            bathrooms: prop.bathrooms_number ?? 1,
+            maxGuests: prop.people_capacity ?? prop.accommodates ?? prop.accommodation ?? prop.max_people ?? prop.max_guests ?? 1,
+            bedrooms: prop.bedrooms_number ?? prop.bedrooms ?? prop.bedroom_count ?? rObj?.bedrooms ?? rObj?.bedroom_count ?? bedroomsArrCount ?? prop.rooms_count ?? 1,
+            bathrooms: prop.bathrooms_number ?? prop.bathrooms ?? prop.bathroom_count ?? rObj?.bathrooms ?? rObj?.bathroom_count ?? bathroomsArrCount ?? 1,
             coverImage: prop.images?.[0]?.url ?? null,
           };
 
