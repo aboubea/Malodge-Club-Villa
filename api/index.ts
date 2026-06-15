@@ -1,6 +1,13 @@
 import 'reflect-metadata';
 import * as express from 'express';
 
+// eval('require') is opaque to esbuild's static analysis, so it won't
+// re-bundle our tsc-compiled NestJS dist files. If esbuild bundled them
+// it would strip emitDecoratorMetadata and break NestJS DI entirely.
+// The dist files are shipped via vercel.json includeFiles instead.
+// eslint-disable-next-line no-eval
+const _require: NodeRequire = eval('require');
+
 const expressServer = express();
 let isInitialized = false;
 let bootstrapError: string | null = null;
@@ -20,12 +27,11 @@ function send(res: any, status: number, body: object) {
 }
 
 async function bootstrap() {
-  // Dynamic imports so any load error is caught here, not at module level
   let AppServerlessModule: any;
   let AuthService: any;
   try {
-    AppServerlessModule = (await import('../apps/backend/dist/app.serverless.module')).AppServerlessModule;
-    AuthService = (await import('../apps/backend/dist/modules/auth/auth.service')).AuthService;
+    AppServerlessModule = _require('../apps/backend/dist/app.serverless.module').AppServerlessModule;
+    AuthService = _require('../apps/backend/dist/modules/auth/auth.service').AuthService;
   } catch (e: any) {
     throw new Error(`Module load failed: ${e?.message}`);
   }
@@ -70,7 +76,6 @@ export default async function handler(req: any, res: any) {
 
   const url: string = req.url || '';
 
-  // Health check — always responds, shows exact error if bootstrap failed
   if (url === '/api/health' || url === '/health') {
     send(res, 200, { status: 'ok', initialized: isInitialized, error: bootstrapError });
     return;
