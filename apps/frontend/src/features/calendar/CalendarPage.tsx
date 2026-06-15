@@ -238,7 +238,7 @@ export function CalendarPage() {
             <div className="grid grid-cols-7">
               {days.map((day, idx) => {
                 if (!day) return <div key={idx} className="h-24 border-b border-r border-[#1A1A1D] last:border-r-0" />;
-                const key = day.toISOString().slice(0, 10);
+                const key = localKey(day);
                 const dayEvents = eventsByDay[key] || [];
                 const isToday = key === todayKey;
                 const isSelected = selectedDayKey === key;
