@@ -1,16 +1,26 @@
-import 'reflect-metadata';
-import * as express from 'express';
+import * as path from 'path';
 
-// eval('require') is opaque to esbuild's static analysis, so it won't
-// re-bundle our tsc-compiled NestJS dist files. If esbuild bundled them
-// it would strip emitDecoratorMetadata and break NestJS DI entirely.
-// The dist files are shipped via vercel.json includeFiles instead.
+// All third-party and dist modules are loaded at runtime via eval('require').
+// esbuild (Vercel's function compiler) would re-bundle imported files and strip
+// emitDecoratorMetadata, breaking NestJS DI. eval('require') is opaque to esbuild
+// so it is left as a runtime require that resolves from node_modules as-is.
 // eslint-disable-next-line no-eval
 const _require: NodeRequire = eval('require');
 
+// Load reflect-metadata from node_modules so there is a single global Reflect
+// instance shared with the pre-compiled NestJS dist files (not a bundled copy).
+_require('reflect-metadata');
+
+const express = _require('express');
 const expressServer = express();
 let isInitialized = false;
 let bootstrapError: string | null = null;
+
+// In Vercel Lambda, process.cwd() is /var/task.
+// vercel.json includeFiles ships apps/backend/dist/** to /var/task/apps/backend/dist/**.
+function dist(mod: string): string {
+  return path.join(process.cwd(), 'apps/backend/dist', mod);
+}
 
 function setCors(res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,15 +40,15 @@ async function bootstrap() {
   let AppServerlessModule: any;
   let AuthService: any;
   try {
-    AppServerlessModule = _require('../apps/backend/dist/app.serverless.module').AppServerlessModule;
-    AuthService = _require('../apps/backend/dist/modules/auth/auth.service').AuthService;
+    AppServerlessModule = _require(dist('app.serverless.module')).AppServerlessModule;
+    AuthService = _require(dist('modules/auth/auth.service')).AuthService;
   } catch (e: any) {
     throw new Error(`Module load failed: ${e?.message}`);
   }
 
-  const { NestFactory } = await import('@nestjs/core');
-  const { ExpressAdapter } = await import('@nestjs/platform-express');
-  const { ValidationPipe } = await import('@nestjs/common');
+  const { NestFactory } = _require('@nestjs/core');
+  const { ExpressAdapter } = _require('@nestjs/platform-express');
+  const { ValidationPipe } = _require('@nestjs/common');
 
   const app = await NestFactory.create(
     AppServerlessModule,
@@ -77,7 +87,13 @@ export default async function handler(req: any, res: any) {
   const url: string = req.url || '';
 
   if (url === '/api/health' || url === '/health') {
-    send(res, 200, { status: 'ok', initialized: isInitialized, error: bootstrapError });
+    send(res, 200, {
+      status: 'ok',
+      initialized: isInitialized,
+      error: bootstrapError,
+      cwd: process.cwd(),
+      distExists: (() => { try { _require.resolve(dist('app.serverless.module')); return true; } catch { return false; } })(),
+    });
     return;
   }
 
