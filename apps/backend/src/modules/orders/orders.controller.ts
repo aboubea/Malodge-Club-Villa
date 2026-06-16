@@ -30,6 +30,16 @@ export class OrdersController {
     return this.ordersService.getStats();
   }
 
+  @Get('provider-confirm')
+  @Public()
+  @ApiOperation({ summary: 'Provider confirms or rejects availability — no auth required' })
+  providerConfirm(
+    @Query('orderId') orderId: string,
+    @Query('action') action: 'accept' | 'reject',
+  ) {
+    return this.ordersService.providerRespond(orderId, action);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List orders — CLIENT sees only their own' })
   findAll(
@@ -90,15 +100,5 @@ export class OrdersController {
   @ApiOperation({ summary: 'Cancel an order' })
   cancel(@Param('id') id: string) {
     return this.ordersService.cancel(id);
-  }
-
-  @Get('provider-confirm')
-  @Public()
-  @ApiOperation({ summary: 'Provider confirms or rejects availability — no auth required' })
-  providerConfirm(
-    @Query('orderId') orderId: string,
-    @Query('action') action: 'accept' | 'reject',
-  ) {
-    return this.ordersService.providerRespond(orderId, action);
   }
 }

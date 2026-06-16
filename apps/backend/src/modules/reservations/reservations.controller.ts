@@ -38,8 +38,12 @@ export class ReservationsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get reservation by ID' })
-  findOne(@Param('id') id: string) {
-    return this.reservationsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    const clientId = user.role === Role.CLIENT ? user.id : undefined;
+    return this.reservationsService.findOne(id, clientId);
   }
 
   @Post()

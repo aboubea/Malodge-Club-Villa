@@ -187,9 +187,17 @@ export function OrdersPage() {
                   <tr>
                     <td colSpan={isClient ? clientCols.length : staffCols.length} className="px-4 py-16 text-center">
                       <ShoppingBag size={32} className="mx-auto text-[#242428] mb-3" />
-                      <p className="text-sm text-[#6B6B6F]">
+                      <p className="text-sm text-[#6B6B6F] mb-3">
                         {isClient ? 'Aucune commande pour le moment' : 'Aucune commande trouvée'}
                       </p>
+                      {isClient && (
+                        <button
+                          onClick={() => navigate('/catalogue')}
+                          className="px-4 py-2 rounded-lg text-xs bg-[#C9A96E]/10 border border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/20 transition-colors"
+                        >
+                          Découvrir les services →
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

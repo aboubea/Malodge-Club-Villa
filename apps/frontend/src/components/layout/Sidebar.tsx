@@ -52,9 +52,10 @@ const NAV_ITEMS: NavDef[] = [
   { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
   { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },
   // Client-specific
+  { path: '/mes-sejours', label: 'Mes séjours', icon: Building2, roles: CLIENT },
   { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
   // All
-  { path: '/agenda', label: 'Agenda', icon: CalendarRange },
+  { path: '/agenda', label: 'Agenda', icon: CalendarRange, roles: STAFF },
   { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
   { path: '/messages', label: 'Messages', icon: MessageSquare },
   { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },

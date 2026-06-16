@@ -22,10 +22,8 @@ export class CalendarController {
     @Query('type') type?: string,
   ) {
     const now = new Date();
-    const fromDate = from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1);
-    const toDate = to
-      ? new Date(to)
-      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     return this.calendarService.getEvents({
       from: fromDate,

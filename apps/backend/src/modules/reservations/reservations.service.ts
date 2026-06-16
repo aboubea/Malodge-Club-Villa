@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -63,7 +63,7 @@ export class ReservationsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, requestingClientId?: string) {
     const reservation = await this.prisma.reservation.findUnique({
       where: { id },
       include: {
@@ -79,15 +79,42 @@ export class ReservationsService {
       },
     });
     if (!reservation) throw new NotFoundException(`Reservation ${id} not found`);
+    if (requestingClientId && reservation.clientId !== requestingClientId) {
+      throw new ForbiddenException('Access denied');
+    }
     return reservation;
   }
 
   async create(dto: CreateReservationDto) {
+    const checkIn = new Date(dto.checkIn);
+    const checkOut = new Date(dto.checkOut);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      throw new BadRequestException('Invalid date format for checkIn or checkOut');
+    }
+    if (checkOut <= checkIn) {
+      throw new BadRequestException('checkOut must be after checkIn');
+    }
+
+    const overlap = await this.prisma.reservation.findFirst({
+      where: {
+        villaId: dto.villaId,
+        status: { not: 'CANCELLED' as any },
+        checkIn: { lt: checkOut },
+        checkOut: { gt: checkIn },
+      },
+    });
+    if (overlap) {
+      throw new BadRequestException(
+        `Villa already reserved from ${overlap.checkIn.toISOString().split('T')[0]} to ${overlap.checkOut.toISOString().split('T')[0]}`,
+      );
+    }
+
     return this.prisma.reservation.create({
       data: {
         ...dto,
-        checkIn: new Date(dto.checkIn),
-        checkOut: new Date(dto.checkOut),
+        checkIn,
+        checkOut,
       },
       include: {
         villa: { select: { id: true, name: true, city: true } },

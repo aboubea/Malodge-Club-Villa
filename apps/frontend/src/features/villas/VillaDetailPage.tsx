@@ -91,6 +91,7 @@ export function VillaDetailPage() {
       qc.invalidateQueries({ queryKey: ['villas'] });
       navigate('/villas');
     },
+    onError: () => toast.error('Erreur lors de la suppression de la villa'),
   });
 
   const toggleActiveMutation = useMutation({

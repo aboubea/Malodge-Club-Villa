@@ -234,7 +234,7 @@ export class AuthService {
           isActive: true,
         },
       });
-      console.log('Super admin created: superadmin@malodge.com / SuperAdmin2024!');
+      console.log('Super admin account created (check environment variables for credentials)');
     }
   }
 }

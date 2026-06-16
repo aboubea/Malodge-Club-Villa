@@ -24,6 +24,7 @@ import { ReservationsPage } from '../features/reservations/ReservationsPage';
 import { ServiceCataloguePage } from '../features/catalogue/ServiceCataloguePage';
 import { CalendarPage } from '../features/calendar/CalendarPage';
 import { ProviderConfirmPage } from '../features/confirm/ProviderConfirmPage';
+import { ClientStaysPage } from '../features/stays/ClientStaysPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
@@ -57,8 +58,9 @@ export function AppRouter() {
               <Routes>
                 <Route path="/" element={<RoleGuard roles={STAFF} fallback="/catalogue"><DashboardPage /></RoleGuard>} />
                 <Route path="/reservations" element={<RoleGuard roles={STAFF}><ReservationsPage /></RoleGuard>} />
+                <Route path="/mes-sejours" element={<RoleGuard roles={['CLIENT']} fallback="/"><ClientStaysPage /></RoleGuard>} />
                 <Route path="/catalogue" element={<ServiceCataloguePage />} />
-                <Route path="/agenda" element={<CalendarPage />} />
+                <Route path="/agenda" element={<RoleGuard roles={STAFF}><CalendarPage /></RoleGuard>} />
                 <Route path="/villas" element={<RoleGuard roles={STAFF} fallback="/catalogue"><VillasPage /></RoleGuard>} />
                 <Route path="/villas/:id" element={<RoleGuard roles={STAFF} fallback="/catalogue"><VillaDetailPage /></RoleGuard>} />
                 <Route path="/services" element={<RoleGuard roles={STAFF}><ServicesPage /></RoleGuard>} />

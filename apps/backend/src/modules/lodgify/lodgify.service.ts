@@ -498,23 +498,30 @@ export class LodgifyService {
             pending: 'PENDING',
           };
 
+          const checkInDate = new Date(res.arrival_date || res.check_in);
+          const checkOutDate = new Date(res.departure_date || res.check_out);
+          if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+            errors.push(`Reservation ${res.id}: invalid dates`);
+            continue;
+          }
+
           const resData = {
             villaId: villa.id,
             clientId: client.id,
-            checkIn: new Date(res.arrival_date || res.check_in),
-            checkOut: new Date(res.departure_date || res.check_out),
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
             guests: res.people_count ?? res.guests_count ?? 1,
             totalAmount: parseFloat(res.total_amount ?? res.price ?? 0),
             status: (statusMap[res.status?.toLowerCase()] || 'PENDING') as any,
             source: 'lodgify',
+            notes: res.notes ?? null,
           };
 
-          const existing = await this.prisma.reservation.findUnique({ where: { logifyId: lodgifyId } });
-          if (existing) {
-            await this.prisma.reservation.update({ where: { id: existing.id }, data: resData });
-          } else {
-            await this.prisma.reservation.create({ data: { ...resData, logifyId: lodgifyId } });
-          }
+          await this.prisma.reservation.upsert({
+            where: { logifyId: lodgifyId },
+            update: resData,
+            create: { ...resData, logifyId: lodgifyId },
+          });
           synced++;
         } catch (e: any) {
           errors.push(`Reservation ${res.id}: ${e?.message}`);
