@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink, Check, Download, Trash } from 'lucide-react';
+import { Plus, Search, Building2, MapPin, Users, BedDouble, Bath, MoreHorizontal, Pencil, Trash2, RefreshCw, ChevronLeft, ChevronRight, X, ExternalLink, Check, Download, Trash, Bug } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -352,6 +352,13 @@ export function VillasPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVilla, setEditingVilla] = useState<VillaDto | null>(null);
   const [selectedLodgify, setSelectedLodgify] = useState<any | null>(null);
+  const [rawDebug, setRawDebug] = useState<any | null>(null);
+
+  const rawDebugMutation = useMutation({
+    mutationFn: () => apiClient.get('/lodgify/properties/raw'),
+    onSuccess: (res) => setRawDebug(res.data?.data ?? res.data),
+    onError: () => toast.error('Erreur debug raw'),
+  });
 
   const { data: countriesData } = useCountries();
   const countries = countriesData ?? [];
@@ -588,19 +595,32 @@ export function VillasPage() {
                 </>)}
               </div>
 
-              {/* Sync all button */}
-              {lodgifyProperties.length > 0 && (
+              {/* Right-side actions */}
+              <div className="flex items-center gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
-                  icon={saveAllMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
-                  onClick={() => saveAllMutation.mutate()}
-                  loading={saveAllMutation.isPending}
-                  disabled={saveAllMutation.isPending}
+                  icon={rawDebugMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Bug size={13} />}
+                  onClick={() => rawDebugMutation.mutate()}
+                  loading={rawDebugMutation.isPending}
+                  disabled={rawDebugMutation.isPending}
+                  title="Afficher les champs bruts Lodgify (debug)"
                 >
-                  Tout synchroniser ({lodgifyProperties.length})
+                  Debug
                 </Button>
-              )}
+                {lodgifyProperties.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={saveAllMutation.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+                    onClick={() => saveAllMutation.mutate()}
+                    loading={saveAllMutation.isPending}
+                    disabled={saveAllMutation.isPending}
+                  >
+                    Tout synchroniser ({lodgifyProperties.length})
+                  </Button>
+                )}
+              </div>
             </div>
 
             {filteredLodgifyProperties.length === 0 ? (
@@ -708,6 +728,45 @@ export function VillasPage() {
       </>)}
 
       {selectedLodgify && <LodgifyDetailModal p={selectedLodgify} onClose={() => setSelectedLodgify(null)} />}
+
+      {/* Raw debug modal */}
+      {rawDebug && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setRawDebug(null)}>
+          <div className="w-full max-w-3xl max-h-[85vh] bg-[#0A0A0B] rounded-2xl border border-[#242428] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#242428]">
+              <div>
+                <h2 className="text-sm font-semibold text-[#F5F0EB]">Debug — Champs bruts Lodgify</h2>
+                <p className="text-xs text-[#6B6B6F] mt-0.5">{rawDebug.totalCount} propriété(s) · 1ère propriété ci-dessous</p>
+              </div>
+              <button onClick={() => setRawDebug(null)} className="p-1.5 rounded-lg text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#1A1A1D] transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Champs disponibles</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {(rawDebug.keys ?? []).map((k: string) => (
+                    <span key={k} className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1A1A1D] border border-[#242428] text-[#C9A96E]">{k}</span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Champs capacité / chambres</h3>
+                <pre className="text-xs font-mono text-[#A0A0A4] bg-[#111113] rounded-lg border border-[#242428] p-3 overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(rawDebug.occupancyFields, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Objet complet (1ère propriété)</h3>
+                <pre className="text-xs font-mono text-[#A0A0A4] bg-[#111113] rounded-lg border border-[#242428] p-3 overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(rawDebug.raw, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Form */}
       <Modal

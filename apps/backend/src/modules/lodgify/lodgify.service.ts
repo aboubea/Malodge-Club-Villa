@@ -155,9 +155,25 @@ export class LodgifyService {
     ], apiKey);
     const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
     const first = items[0] ?? null;
+    const occupancyFields: Record<string, any> = first ? {
+      people_capacity: first.people_capacity,
+      accommodates: first.accommodates,
+      max_people: first.max_people,
+      max_guests: first.max_guests,
+      bedrooms_number: first.bedrooms_number,
+      bedrooms: first.bedrooms,
+      bedroom_count: first.bedroom_count,
+      bathrooms_number: first.bathrooms_number,
+      bathrooms: first.bathrooms,
+      bathroom_count: first.bathroom_count,
+      rooms_count: first.rooms_count,
+      rooms: first.rooms,
+      occupancy: first.occupancy,
+    } : {};
     return {
       totalCount: items.length,
       keys: first ? Object.keys(first) : [],
+      occupancyFields,
       raw: first,
     };
   }
@@ -216,20 +232,26 @@ export class LodgifyService {
       const roomsObj = p.rooms && !Array.isArray(p.rooms) ? p.rooms : null;
       const roomsArr: any[] = Array.isArray(p.rooms) ? p.rooms : [];
 
+      // Lodgify rooms array: each entry is a room TYPE with an `amount` field
+      // type_id: 1 = bedroom, 2 = bathroom
       const bedroomsFromArr = roomsArr.length > 0
-        ? roomsArr.filter((r: any) => {
-            const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString().toLowerCase();
-            const n = (r.name ?? '').toLowerCase();
-            return t === 'bedroom' || t === '0' || n.includes('bedroom') || n.includes('chambre');
-          }).length || null
+        ? roomsArr
+            .filter((r: any) => {
+              const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString();
+              const n = (r.name ?? '').toLowerCase();
+              return t === '1' || t.toLowerCase() === 'bedroom' || n.includes('bedroom') || n.includes('chambre');
+            })
+            .reduce((sum: number, r: any) => sum + (r.amount ?? r.count ?? r.quantity ?? 1), 0) || null
         : null;
 
       const bathroomsFromArr = roomsArr.length > 0
-        ? roomsArr.filter((r: any) => {
-            const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString().toLowerCase();
-            const n = (r.name ?? '').toLowerCase();
-            return t === 'bathroom' || t === '1' || n.includes('bathroom') || n.includes('salle');
-          }).length || null
+        ? roomsArr
+            .filter((r: any) => {
+              const t = (r.type ?? r.type_id ?? r.room_type ?? '').toString();
+              const n = (r.name ?? '').toLowerCase();
+              return t === '2' || t.toLowerCase() === 'bathroom' || n.includes('bathroom') || n.includes('salle');
+            })
+            .reduce((sum: number, r: any) => sum + (r.amount ?? r.count ?? r.quantity ?? 1), 0) || null
         : null;
 
       return {
@@ -355,16 +377,26 @@ export class LodgifyService {
 
           const rObj = prop.rooms && !Array.isArray(prop.rooms) ? prop.rooms : null;
           const rArr: any[] = Array.isArray(prop.rooms) ? prop.rooms : [];
-          const bedroomsArrCount = rArr.filter((r: any) => {
-            const t = (r.type ?? r.type_id ?? '').toString().toLowerCase();
-            const n = (r.name ?? '').toLowerCase();
-            return t === 'bedroom' || t === '0' || n.includes('bedroom') || n.includes('chambre');
-          }).length || null;
-          const bathroomsArrCount = rArr.filter((r: any) => {
-            const t = (r.type ?? r.type_id ?? '').toString().toLowerCase();
-            const n = (r.name ?? '').toLowerCase();
-            return t === 'bathroom' || t === '1' || n.includes('bathroom') || n.includes('salle');
-          }).length || null;
+          // Lodgify rooms array: each entry is a room TYPE with an `amount` field
+          // type_id: 1 = bedroom, 2 = bathroom
+          const bedroomsArrCount = rArr.length > 0
+            ? rArr
+                .filter((r: any) => {
+                  const t = (r.type ?? r.type_id ?? '').toString();
+                  const n = (r.name ?? '').toLowerCase();
+                  return t === '1' || t.toLowerCase() === 'bedroom' || n.includes('bedroom') || n.includes('chambre');
+                })
+                .reduce((sum: number, r: any) => sum + (r.amount ?? r.count ?? r.quantity ?? 1), 0) || null
+            : null;
+          const bathroomsArrCount = rArr.length > 0
+            ? rArr
+                .filter((r: any) => {
+                  const t = (r.type ?? r.type_id ?? '').toString();
+                  const n = (r.name ?? '').toLowerCase();
+                  return t === '2' || t.toLowerCase() === 'bathroom' || n.includes('bathroom') || n.includes('salle');
+                })
+                .reduce((sum: number, r: any) => sum + (r.amount ?? r.count ?? r.quantity ?? 1), 0) || null
+            : null;
 
           const data: any = {
             logifyId: lodgifyId,
