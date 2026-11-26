@@ -34,117 +34,25 @@ import { useAuthStore } from '../../store/authStore';
 import { Logo, LogoMark } from '../brand/Logo';
 import { apiClient } from '../../lib/apiClient';
 import { AI_CONCIERGE_ENABLED } from '../../lib/features';
+import { groupsFor, NavGroup, NavPage, pageMatches, RoleKey } from './navigation';
 
-type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT' | 'OWNER' | 'EMPLOYEE';
-
-interface NavDef {
-  path: string;
-  label: string;
-  icon: React.ElementType;
-  exact?: boolean;
-  roles?: RoleKey[]; // undefined = visible to all authenticated users
-  /** Shown greyed out and not clickable, with this reason as tooltip. */
-  disabled?: string;
-}
-
-interface NavSection {
-  title: string;
-  items: NavDef[];
-}
-
-const STAFF: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
-const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
-const CLIENT: RoleKey[] = ['CLIENT'];
-/** Everyone except owners and employees, who only have their extras account. */
+/** Who sees the concierge card at the bottom of the menu. */
 const APP_USERS: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'PROVIDER', 'CLIENT'];
-const ACCOUNT_HOLDERS: RoleKey[] = ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'];
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    title: 'Pilotage',
-    items: [
-      { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true, roles: STAFF },
-      { path: '/agenda', label: 'Agenda', icon: CalendarRange, roles: STAFF },
-      { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
-      { path: '/performance', label: 'Performance', icon: Gauge, roles: STAFF },
-      { path: '/releves', label: 'Relevés propriétaires', icon: FileText, roles: ADMIN_UP },
-      { path: '/extras', label: 'Suivi des extras', icon: Wallet, roles: STAFF },
-    ],
-  },
-  {
-    title: 'Mon séjour',
-    items: [
-      { path: '/mes-sejours', label: 'Mon séjour', icon: Building2, roles: CLIENT },
-      { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
-    ],
-  },
-  {
-    title: 'Mon espace',
-    items: [
-      { path: '/prestataire', label: 'Mes missions', icon: Briefcase, roles: ['PROVIDER'] },
-      { path: '/mon-compte', label: 'Mon compte', icon: Wallet, roles: ACCOUNT_HOLDERS },
-    ],
-  },
-  {
-    title: 'Gestion',
-    items: [
-      { path: '/villas', label: 'Villas', icon: Building2, roles: STAFF },
-      { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
-      { path: '/accueil', label: 'Accueil voyageurs', icon: HandHeart, roles: STAFF },
-      { path: '/services', label: 'Catalogue', icon: Sparkles, roles: STAFF },
-      { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
-      { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },
-    ],
-  },
-  {
-    title: 'Conciergerie',
-    items: [
-      { path: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: APP_USERS },
-      { path: '/messages', label: 'Messages', icon: MessageSquare, roles: APP_USERS },
-      { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit, roles: APP_USERS, disabled: AI_CONCIERGE_ENABLED ? undefined : 'Bientôt disponible' },
-      { path: '/notifications', label: 'Notifications', icon: Bell },
-    ],
-  },
-];
-
-const BOTTOM_NAV: NavDef[] = [
-  { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog, roles: ADMIN_UP },
-  { path: '/controle', label: 'Contrôle des données', icon: ShieldCheck, roles: ADMIN_UP },
-  { path: '/nettoyage', label: 'Nettoyage des données', icon: Eraser, roles: ADMIN_UP },
-  { path: '/parametres', label: 'Paramètres', icon: Settings, roles: STAFF },
-];
 
 interface NavItemProps {
-  item: NavDef;
+  group: NavGroup & { home: NavPage };
   collapsed: boolean;
   badge?: number;
   onNavigate?: () => void;
 }
 
-function NavItem({ item, collapsed, badge, onNavigate }: NavItemProps) {
+/** One section of the menu: opens its first page; active on any of its pages. */
+function NavItem({ group, collapsed, badge, onNavigate }: NavItemProps) {
   const location = useLocation();
-  const { path, label, icon: Icon, exact } = item;
-  const isActive = exact ? location.pathname === path : location.pathname.startsWith(path);
+  const { label, icon: Icon } = group;
+  const path = group.home.path;
+  const isActive = group.pages.some((p) => pageMatches(p, location.pathname));
   const hasBadge = badge != null && badge > 0;
-
-  // Greyed out: visible, not clickable.
-  if (item.disabled) {
-    return (
-      <span
-        aria-disabled="true"
-        title={item.disabled}
-        className={cn(
-          'relative flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] font-medium text-muted/60 cursor-not-allowed select-none',
-          collapsed && 'justify-center px-0 w-10 mx-auto',
-        )}
-      >
-        <Icon size={17} strokeWidth={1.8} className="shrink-0 text-muted/50" />
-        {!collapsed && <span className="truncate flex-1">{label}</span>}
-        {!collapsed && <span className="ml-auto h-5 px-1.5 rounded-full bg-surface-2 text-[10px] font-semibold text-muted inline-flex items-center">Bientôt</span>}
-      </span>
-    );
-  }
-
   return (
     <NavLink
       to={path}
@@ -184,10 +92,6 @@ function NavItem({ item, collapsed, badge, onNavigate }: NavItemProps) {
   );
 }
 
-function canSee(item: NavDef, role: string | undefined): boolean {
-  if (!item.roles) return true;
-  return !!role && (item.roles as string[]).includes(role);
-}
 
 interface SidebarContentProps {
   collapsed: boolean;
@@ -215,10 +119,7 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
   });
   const unreadCount: number = unreadData ?? 0;
 
-  const sections = NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => canSee(i, role)) })).filter(
-    (s) => s.items.length > 0,
-  );
-  const visibleBottom = BOTTOM_NAV.filter((item) => canSee(item, role));
+  const groups = groupsFor(role);
   const onNavigate = mobile ? () => setMobileNavOpen(false) : undefined;
 
   return (
@@ -249,47 +150,13 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
         )}
       </div>
 
-      {/* Main nav */}
-      <nav className={cn('flex-1 overflow-y-auto scrollbar-none pt-3 pb-4', collapsed ? 'px-2' : 'px-3')}>
-        {sections.map((section, idx) => (
-          <div key={section.title} className={cn(idx > 0 && 'mt-4')}>
-            {collapsed ? (
-              idx > 0 && <div className="mx-auto mb-3 w-6 h-px bg-line" />
-            ) : (
-              <p className="px-3 mb-1.5 text-[11px] font-semibold text-muted/80">
-                {section.title}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <NavItem
-                  key={item.path}
-                  item={item}
-                  collapsed={collapsed}
-                  onNavigate={onNavigate}
-                  badge={item.path === '/notifications' ? unreadCount : undefined}
-                />
-              ))}
-            </div>
+      {/* Main nav: a few sections, their pages are tabs at the top of the page */}
+      <nav className={cn('flex-1 overflow-y-auto scrollbar-none pt-3 pb-4 space-y-0.5', collapsed ? 'px-2' : 'px-3')}>
+        {groups.map((g) => (
+          <div key={g.key} className={cn(g.key === 'settings' && 'pt-3 mt-3 border-t border-line')}>
+            <NavItem group={g} collapsed={collapsed} onNavigate={onNavigate} badge={g.key === 'messages' ? unreadCount : undefined} />
           </div>
         ))}
-
-        {visibleBottom.length > 0 && (
-          <div className="mt-4">
-            {collapsed ? (
-              <div className="mx-auto mb-3 w-6 h-px bg-line" />
-            ) : (
-              <p className="px-3 mb-1.5 text-[11px] font-semibold text-muted/80">
-                Administration
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {visibleBottom.map((item) => (
-                <NavItem key={item.path} item={item} collapsed={collapsed} onNavigate={onNavigate} />
-              ))}
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* Footer: logout + concierge card */}

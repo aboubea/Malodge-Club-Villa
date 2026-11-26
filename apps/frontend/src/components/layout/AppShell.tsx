@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar, SidebarContent } from './Sidebar';
 import { TopBar } from './TopBar';
+import { SectionTabs } from './SectionTabs';
 import { useUIStore } from '../../store/uiStore';
 
 interface AppShellProps {
@@ -61,6 +62,7 @@ export function AppShell({ children }: AppShellProps) {
         <TopBar />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-10 py-6 lg:py-9">
+            <SectionTabs />
             {children}
           </div>
         </main>
