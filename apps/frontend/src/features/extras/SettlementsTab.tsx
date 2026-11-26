@@ -9,6 +9,8 @@ import { cn, formatDay } from '../../lib/utils';
 import { METHOD_LABELS, Options, ROLE_LABELS, SETTLEMENT_STATUS_LABELS, Settlement, api, useExtrasMutation, useSettlements } from './api';
 import { SettlementFormModal } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
+import { mergeInDisplay } from '../../lib/display';
+import { useUIStore } from '../../store/uiStore';
 
 const STATUS_VARIANT = { PENDING: 'pending', VALIDATED: 'success', CANCELLED: 'cancelled' } as const;
 
@@ -16,6 +18,7 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const [params, setParams] = useSearchParams();
+  useUIStore((s) => s.currency); // totals follow the MAD / € switch
   const filters = {
     role: params.get('role') ?? '',
     status: params.get('status') ?? '',
@@ -74,19 +77,19 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
         </Button>
       </div>
 
-      {data?.totals.map((t) => (
-        <div key={t.currency} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {mergeInDisplay(data?.totals ?? [], (t) => t.currency, ['inflow', 'outflow', 'net', 'pending'] as const).map(({ row: t, currency }) => (
+        <div key={currency} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-2xl bg-surface border border-line px-4 py-3.5">
             <p className="text-[12px] text-muted">Encaissements validés</p>
-            <Money value={t.inflow} currency={t.currency} className="block text-[18px] font-bold mt-1 text-success" />
+            <Money value={t.inflow} currency={currency} className="block text-[18px] font-bold mt-1 text-success" />
           </div>
           <div className="rounded-2xl bg-surface border border-line px-4 py-3.5">
             <p className="text-[12px] text-muted">Décaissements validés</p>
-            <Money value={t.outflow} currency={t.currency} className="block text-[18px] font-bold mt-1" />
+            <Money value={t.outflow} currency={currency} className="block text-[18px] font-bold mt-1" />
           </div>
           <div className="rounded-2xl bg-peach px-4 py-3.5">
             <p className="text-[12px] text-muted">Trésorerie nette</p>
-            <Money value={t.net} currency={t.currency} className="block text-[18px] font-bold mt-1" />
+            <Money value={t.net} currency={currency} className="block text-[18px] font-bold mt-1" />
           </div>
         </div>
       ))}

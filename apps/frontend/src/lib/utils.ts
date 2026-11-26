@@ -13,10 +13,13 @@ export function formatCurrency(amount: number, currency = 'EUR'): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: d.currency,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: cents(d.amount, d.converted),
     maximumFractionDigits: d.converted ? 0 : 2,
   }).format(d.amount);
 }
+
+/** 2 decimals when the amount has cents (1 182,50 MAD, never 1 182,5), none otherwise. */
+const cents = (amount: number, converted: boolean) => (!converted && Math.round(amount * 100) % 100 !== 0 ? 2 : 0);
 
 /** A real contact address, or null for the placeholders of records without app access. */
 export function displayEmail(email: string | null | undefined): string | null {
@@ -84,7 +87,7 @@ export function formatMoney(amount: number | null | undefined, currency = 'EUR')
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: d.currency,
-      minimumFractionDigits: 0,
+      minimumFractionDigits: cents(d.amount, d.converted),
       maximumFractionDigits: d.converted ? 0 : 2,
     }).format(d.amount);
   } catch {

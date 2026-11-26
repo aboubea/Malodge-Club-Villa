@@ -8,6 +8,8 @@ import { cn, formatDay, formatMoney } from '../../lib/utils';
 import { Account, AccountRole, AccountState, Options, ROLE_LABELS, STATE_BADGE, pct, useAccounts } from './api';
 import { SettlementFormModal, SettlementPreset } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, td, th } from './ui';
+import { mergeInDisplay } from '../../lib/display';
+import { useUIStore } from '../../store/uiStore';
 
 const PAY_KIND: Record<AccountRole, string> = {
   CLIENT: 'CLIENT_PAYMENT',
@@ -27,6 +29,7 @@ const STATES: AccountState[] = ['Non réglé', 'Partiel', 'Réglé', 'Avance', '
 
 export function AccountsTab({ options }: { options: Options | undefined }) {
   const [params, setParams] = useSearchParams();
+  useUIStore((s) => s.currency); // totals follow the MAD / € switch
   const role = (params.get('role') as AccountRole) || 'CLIENT';
   const [state, setState] = useState<string>('');
   const [stays, setStays] = useState<'active' | 'archived' | 'all'>('active');
@@ -104,7 +107,11 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
         </Select>
       </div>
 
-      {totals.map(([currency, t]) => (
+      {mergeInDisplay(
+        totals.map(([c, t]) => ({ currency: c, ...t })),
+        (t) => t.currency,
+        ['due', 'paid', 'balance'] as const,
+      ).map(({ row: t, currency }) => (
         <div key={currency} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-2xl bg-surface border border-line px-4 py-3.5">
             <p className="text-[12px] text-muted">{DUE_LABEL[role]}</p>

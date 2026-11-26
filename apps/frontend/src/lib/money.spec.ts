@@ -7,7 +7,7 @@ const q: FxQuote = { base: 'EUR', rates: { EUR: 1, MAD: 10.96 }, date: '2026-11-
 
 describe('money shown in the interface', () => {
   it('keeps the cents and the currency of each amount', () => {
-    expect(plain(formatCurrency(312.5, 'MAD'))).toBe('312,5 MAD');
+    expect(plain(formatCurrency(312.5, 'MAD'))).toBe('312,50 MAD');
     expect(plain(formatCurrency(18_700, 'MAD'))).toBe('18 700 MAD');
     expect(plain(formatCurrency(1_400, 'EUR'))).toBe('1 400 €');
     expect(formatMoney(null, 'MAD')).toBe('—');

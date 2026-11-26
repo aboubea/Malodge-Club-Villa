@@ -31,3 +31,21 @@ export function toDisplay(amount: number, currency: string): { amount: number; c
   if (!a || !b) return { amount, currency: from, converted: false };
   return { amount: (amount * b) / a, currency: display, converted: true };
 }
+
+/**
+ * Totals kept per currency → one set in the display currency (each converted at today's
+ * rate, then added; a converted total is rounded to the unit). Empty currencies are dropped.
+ * When a rate is missing, the currencies stay apart rather than being added wrongly.
+ */
+export function mergeInDisplay<T>(rows: T[], currencyOf: (r: T) => string, fields: readonly (keyof T)[]): { currency: string; row: T; converted: string[] }[] {
+  const used = rows.filter((r) => fields.some((k) => Number(r[k]) || 0));
+  if (!used.length) return [];
+  if (!used.every((r) => toDisplay(1, currencyOf(r)).currency === display)) return used.map((r) => ({ currency: currencyOf(r), row: r, converted: [] }));
+  const converted = used.map(currencyOf).filter((c) => c.toUpperCase() !== display);
+  const row = { ...used[0] } as T;
+  for (const k of fields) {
+    const v = used.reduce((sum, r) => sum + toDisplay(Number(r[k]) || 0, currencyOf(r)).amount, 0);
+    (row as Record<keyof T, unknown>)[k] = converted.length ? Math.round(v) : v;
+  }
+  return [{ currency: display, row, converted }];
+}

@@ -4,8 +4,13 @@ import { AlertTriangle, ArrowRight, Briefcase, Home, Landmark, UserRound, Users,
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
 import { formatDay, formatMoney } from '../../lib/utils';
-import { Account, Options, STATE_BADGE, useExtrasSummary } from './api';
+import { Account, Options, STATE_BADGE, Summary, useExtrasSummary } from './api';
+import { mergeInDisplay } from '../../lib/display';
+import { useUIStore } from '../../store/uiStore';
 import { EmptyState, Field, Money, StatTile, TextInput } from './ui';
+
+type Amounts = Summary['currencies'][number];
+const FIELDS = ['clientsToCollect', 'archivedToCollect', 'providersToPay', 'ownersToPay', 'employeesToPay', 'activeNet', 'treasury'] as const;
 
 function TopList({ title, accounts, to, columns }: { title: string; accounts: Account[]; to: string; columns: 'client' | 'payee' }) {
   return (
@@ -101,6 +106,8 @@ function ShareSimulator({ options }: { options: Options | undefined }) {
 
 export function OverviewTab({ options }: { options: Options | undefined }) {
   const { data, isLoading } = useExtrasSummary();
+  // Recomputed when the MAD / € switch changes.
+  useUIStore((s) => s.currency); // totals follow the MAD / € switch
 
   if (isLoading || !data) {
     return (
@@ -123,17 +130,18 @@ export function OverviewTab({ options }: { options: Options | undefined }) {
         </div>
       )}
 
-      {data.currencies.map((c) => (
-        <section key={c.currency} className="space-y-3">
-          {data.currencies.length > 1 && <p className="text-[13px] font-bold text-ink">Montants en {c.currency}</p>}
+      {mergeInDisplay<Amounts>(data.currencies, (c) => c.currency, FIELDS).map(({ row: c, currency, converted }, _i, blocks) => (
+        <section key={currency} className="space-y-3">
+          {blocks.length > 1 && <p className="text-[13px] font-bold text-ink">Montants en {currency}</p>}
+          {converted.length > 0 && <p className="text-[12px] text-muted">Montants en {converted.join(', ')} convertis en {currency} au taux du jour et ajoutés.</p>}
           <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatTile tone="peach" label="Clients actifs à encaisser" value={formatMoney(c.clientsToCollect, c.currency)} icon={Users}
-              hint={c.archivedToCollect > 0 ? `+ ${formatMoney(c.archivedToCollect, c.currency)} sur séjours archivés` : undefined} />
-            <StatTile label="À payer aux prestataires" value={formatMoney(c.providersToPay, c.currency)} icon={Briefcase} />
-            <StatTile label="Marge nette des séjours actifs" value={formatMoney(c.activeNet, c.currency)} icon={Wallet} />
-            <StatTile label="À verser aux propriétaires" value={formatMoney(c.ownersToPay, c.currency)} icon={Home} />
-            <StatTile label="À verser aux salariés" value={formatMoney(c.employeesToPay, c.currency)} icon={UserRound} />
-            <StatTile label="Trésorerie enregistrée" value={formatMoney(c.treasury, c.currency)} icon={Landmark} hint="Règlements validés" />
+            <StatTile tone="peach" label="Clients actifs à encaisser" value={formatMoney(c.clientsToCollect, currency)} icon={Users}
+              hint={c.archivedToCollect > 0 ? `+ ${formatMoney(c.archivedToCollect, currency)} sur séjours archivés` : undefined} />
+            <StatTile label="À payer aux prestataires" value={formatMoney(c.providersToPay, currency)} icon={Briefcase} />
+            <StatTile label="Marge nette des séjours actifs" value={formatMoney(c.activeNet, currency)} icon={Wallet} />
+            <StatTile label="À verser aux propriétaires" value={formatMoney(c.ownersToPay, currency)} icon={Home} />
+            <StatTile label="À verser aux salariés" value={formatMoney(c.employeesToPay, currency)} icon={UserRound} />
+            <StatTile label="Trésorerie enregistrée" value={formatMoney(c.treasury, currency)} icon={Landmark} hint="Règlements validés" />
           </div>
         </section>
       ))}
