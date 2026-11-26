@@ -6,7 +6,7 @@ import { apiClient } from '../../lib/apiClient';
 import { cn, formatDay } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { JourneyChips, STEP_LABEL, StayInvitePanel } from '../reservations/StayInvitePanel';
 
 type Step = 'welcome' | 'j7' | 'j1' | 'thanks';
@@ -160,9 +160,9 @@ export function OnboardingPage() {
         </div>
       )}
 
-      <SlideOver open={!!open} onClose={() => setOpen(null)} title={open?.guest ?? ''} description={open?.villa} size="sm">
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open?.guest ?? ''} description={open?.villa} size="lg">
         {open && <StayInvitePanel stayId={open.id} />}
-      </SlideOver>
+      </Modal>
     </div>
   );
 }

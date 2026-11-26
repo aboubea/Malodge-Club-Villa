@@ -9,7 +9,6 @@ import { cn, formatCurrency, formatDay } from '../../lib/utils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { SlideOver } from '../../components/ui/SlideOver';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StayInvitePanel } from './StayInvitePanel';
@@ -680,9 +679,12 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
       : s?.source?.startsWith('extras')
         ? 'Séjour du suivi des extras'
         : 'Réservation directe (saisie dans l’appli)';
+  // The guest's stay space, beside the stay (a centred window, easier to read than a side panel).
+  const invite = !!s && !s.live && !s.enquiry && s.status !== 'CANCELLED';
   return (
-    <SlideOver open={!!s} onClose={onClose} title={s ? guestName(s) : ''} description={s?.villa?.name} size="sm">
+    <Modal open={!!s} onClose={onClose} title={s ? guestName(s) : ''} description={s?.villa?.name} size={invite ? '2xl' : 'lg'}>
       {s && (
+        <div className={cn('grid gap-6', invite && 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={STATUS[s.status]?.badge ?? 'confirmed'}>{STATUS[s.status]?.label ?? s.status}</Badge>
@@ -744,9 +746,6 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
 
           {s.notes && <p className="text-[13px] text-ink-soft whitespace-pre-line">{s.notes}</p>}
 
-          {/* Invite the guest to their stay space (booklet + the villa's services). */}
-          {!s.live && !s.enquiry && s.status !== 'CANCELLED' && <StayInvitePanel stayId={s.id} />}
-
           {s.live && (
             <p className="text-[12px] text-muted">
               Lue directement dans Lodgify (rien n’y est modifié). Elle sera copiée dans l’appli à la prochaine synchronisation, pour y
@@ -760,8 +759,15 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
             </Button>
           )}
         </div>
+        {/* Invite the guest to their stay space (booklet + the villa's services). */}
+        {invite && (
+          <div>
+            <StayInvitePanel stayId={s.id} />
+          </div>
+        )}
+        </div>
       )}
-    </SlideOver>
+    </Modal>
   );
 }
 
