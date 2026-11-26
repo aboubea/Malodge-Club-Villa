@@ -80,7 +80,17 @@ export class StatementsService {
       })),
       extras: allLines
         .filter((l) => l.owner?.id === ownerId && !l.cancelled && l.date)
-        .map((l) => ({ date: l.date!, label: l.label, stay: l.stay?.label ?? null, villa: l.villa?.name ?? null, ownerShare: l.ownerShare, currency: l.currency || DEFAULT_CURRENCY })),
+        .map((l) => ({
+          date: l.date!,
+          label: l.label,
+          stay: l.stay?.label ?? null,
+          villa: l.villa?.name ?? null,
+          status: l.status,
+          price: l.total,
+          ownerShare: l.ownerShare,
+          issue: l.issue,
+          currency: l.currency || DEFAULT_CURRENCY,
+        })),
       payments: settlements.map((s) => ({ date: s.date!, kind: s.kind as 'OWNER_PAYOUT' | 'OWNER_REFUND', amount: s.amount, currency: s.currency, reference: s.reference })),
       toMad: (amount, currency) => {
         const f = this.fx.rateOf(q, currency || DEFAULT_CURRENCY, 'MAD');

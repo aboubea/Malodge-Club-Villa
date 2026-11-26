@@ -34,6 +34,15 @@ beforeAll(async () => {
     data: { clientId: client.id, villaId: house.id, status: 'COMPLETED', scheduledAt: d('2026-11-29'), totalAmount: 1_000, items: { create: [{ label: 'Quad', quantity: 2, unitPrice: 500, unitCost: 300, total: 1_000 }] } },
   });
   await prisma.settlement.create({ data: { kind: 'OWNER_PAYOUT', status: 'VALIDATED', personId: ownerId, date: d('2026-11-30'), amount: 1_000, currency: 'MAD', updatedAt: new Date() } });
+  // A formula keyed without owner: its extras belong to the owner of the house (2 × 100, cost 50 → share 50).
+  const bare = await prisma.villa.create({ data: { name: 'Villa 58 - 2 chambres', slug: 'v58-2', address: '-', city: 'Marrakech', country: 'Maroc', currency: 'MAD', parentVillaId: house.id } });
+  await prisma.order.create({
+    data: { clientId: client.id, villaId: bare.id, status: 'COMPLETED', scheduledAt: d('2026-11-20'), totalAmount: 200, items: { create: [{ label: 'Massage', quantity: 2, unitPrice: 100, unitCost: 50, total: 200 }] } },
+  });
+  // Never closed: listed, not counted.
+  await prisma.order.create({
+    data: { clientId: client.id, villaId: house.id, status: 'PENDING', scheduledAt: d('2026-11-25'), totalAmount: 300, items: { create: [{ label: 'Yoga', quantity: 1, unitPrice: 300, unitCost: 100, total: 300 }] } },
+  });
 });
 
 afterAll(async () => {
@@ -48,8 +57,17 @@ describe('owner statement', () => {
     expect(s.houses[0]).toMatchObject({ name: 'Villa 58', feeRate: 0.25, nights: 3, gross: 6_600, fee: 1_650, net: 4_950 });
     expect(s.houses[0].stays).toHaveLength(1);
     expect(s.houses[0].stays[0]).toMatchObject({ guest: 'Ana Voyageuse', nightsInMonth: 3, nights: 5, amountInMonth: 600, currency: 'EUR', amountInMonthMad: 6_600 });
-    expect(s.extras).toEqual([expect.objectContaining({ label: 'Quad', ownerShare: 200, ownerShareMad: 200 })]);
-    expect(s.totals).toEqual({ nights: 3, gross: 6_600, fee: 1_650, net: 4_950, extras: 200, due: 5_150, paid: 1_000, remaining: 4_150 });
+    expect(s.extras).toEqual([
+      expect.objectContaining({ label: 'Massage', price: 200, ownerShare: 50, ownerShareMad: 50, reason: null }),
+      expect.objectContaining({ label: 'Yoga', price: 300, ownerShare: null, incomplete: true, reason: 'À confirmer, pas réalisé' }),
+      expect.objectContaining({ label: 'Quad', price: 1_000, ownerShare: 200, ownerShareMad: 200, reason: null }),
+    ]);
+    expect(s.totals).toEqual({
+      nights: 3, gross: 6_600, fee: 1_650, net: 4_950,
+      extras: 250, extrasCount: 2, extrasSold: 1_200, extrasNotCounted: 1,
+      due: 5_200, paid: 1_000, remaining: 4_200,
+    });
+    expect(s.warnings).toContain('1 extra (300 MAD vendus) du mois pas encore passé en « Réalisée » : non compté.');
   });
 
   it('puts the rest of the stay on December', async () => {
@@ -73,7 +91,7 @@ describe('owner statement', () => {
     await expect(statements.recompute(draft.id)).rejects.toThrow(/déjà été envoyé/);
     await expect(statements.prepareMonth('2026-11')).resolves.toMatchObject({ prepared: 0, alreadySent: 1 });
 
-    expect(await statements.mine(ownerId)).toEqual([expect.objectContaining({ month: '2026-11', monthLabel: 'novembre 2026', totalDue: 5_150 })]);
+    expect(await statements.mine(ownerId)).toEqual([expect.objectContaining({ month: '2026-11', monthLabel: 'novembre 2026', totalDue: 5_200 })]);
     await expect(statements.pdf(draft.id, { id: ownerId, role: 'OWNER' })).resolves.toHaveProperty('buffer');
   });
 });

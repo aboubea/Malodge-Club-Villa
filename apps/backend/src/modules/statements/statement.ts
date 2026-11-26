@@ -6,8 +6,10 @@ import { stayNights, stayShare } from '../finance/performance';
  *  - Accommodation: each stay counts for its nights in the month (as revenue is
  *    dated on the day of the service), in its own currency and in dirhams.
  *  - Management fee: the house's rate on that accommodation revenue.
- *  - Extras: the owner's share of the extras done in the month (same formulas as
- *    the extras tracking); a line whose share is not known is listed, not added.
+ *  - Extras: the owner's share of the extras realised in the month (same formulas as
+ *    the extras tracking). Every extra of his villas is listed; one not realised yet,
+ *    or whose share cannot be computed (owner's rate or cost missing), is not added,
+ *    and says why.
  *  - Payments: what was paid to the owner (validated) in the month.
  * Everything is totalled in dirhams at the rate recorded in the statement.
  */
@@ -30,7 +32,20 @@ export interface StatementInput {
   month: string;
   houses: { id: string; name: string; feeRate: number }[];
   stays: { id: string; house: string; villa: string; guest: string; checkIn: Date | null; checkOut: Date | null; totalAmount: number; currency: string }[];
-  extras: { date: Date; label: string; stay: string | null; villa: string | null; ownerShare: number | null; currency: string }[];
+  extras: {
+    date: Date;
+    label: string;
+    stay: string | null;
+    villa: string | null;
+    /** Status of the extra: only realised ones (COMPLETED, IN_PROGRESS) count. */
+    status?: string;
+    /** Price billed to the guest (null when unknown). */
+    price?: number | null;
+    ownerShare: number | null;
+    /** Why the share is unknown (as in the extras tracking: "Taux propriétaire manquant"…). */
+    issue?: string | null;
+    currency: string;
+  }[];
   payments: { date: Date; kind: 'OWNER_PAYOUT' | 'OWNER_REFUND'; amount: number; currency: string; reference: string | null }[];
   /** Amount in dirhams, null when the rate is unknown. */
   toMad: (amount: number, currency: string) => number | null;
@@ -38,6 +53,9 @@ export interface StatementInput {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+const DONE = ['COMPLETED', 'IN_PROGRESS'];
+const NOT_DONE: Record<string, string> = { PENDING: 'À confirmer, pas réalisé', CONFIRMED: 'Confirmé, pas encore réalisé' };
+const NOT_DONE_REASONS = Object.values(NOT_DONE).concat('Pas encore réalisé');
 const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
 export function buildStatement(input: StatementInput) {
@@ -86,18 +104,49 @@ export function buildStatement(input: StatementInput) {
   const extras = input.extras
     .filter((e) => e.date >= range.start && e.date <= range.end)
     .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .map((e) => ({
-      date: day(e.date),
-      label: e.label,
-      stay: e.stay,
-      villa: e.villa,
-      ownerShare: e.ownerShare,
-      currency: e.currency,
-      ownerShareMad: e.ownerShare == null ? null : mad(e.ownerShare, e.currency),
-      incomplete: e.ownerShare == null,
-    }));
-  const incomplete = extras.filter((e) => e.incomplete).length;
-  if (incomplete) warnings.push(`${incomplete} extra(s) à compléter : leur part n’est pas comptée.`);
+    .map((e) => {
+      const done = !e.status || DONE.includes(e.status);
+      const counted = done && e.ownerShare != null;
+      const reason = !done ? NOT_DONE[e.status!] ?? 'Pas encore réalisé' : e.ownerShare == null ? e.issue || 'Part à calculer' : null;
+      return {
+        date: day(e.date),
+        label: e.label,
+        stay: e.stay,
+        villa: e.villa,
+        /** Realised (Réalisée / En cours). */
+        done,
+        price: e.price ?? null,
+        priceMad: done && e.price != null ? mad(e.price, e.currency) : null,
+        ownerShare: counted ? e.ownerShare : null,
+        currency: e.currency,
+        ownerShareMad: counted ? mad(e.ownerShare!, e.currency) : null,
+        /** Not added to the total: `reason` says why. */
+        incomplete: !counted,
+        reason,
+      };
+    });
+  // What is missing, grouped by cause, with what it concerns.
+  const byReason = new Map<string, { count: number; sold: number }>();
+  for (const e of extras.filter((x) => x.reason)) {
+    // "À confirmer" and "Confirmé" both mean not realised yet: one line.
+    const key = NOT_DONE_REASONS.includes(e.reason!) ? NOT_DONE_REASONS[0] : e.reason!;
+    const g = byReason.get(key) ?? { count: 0, sold: 0 };
+    g.count += 1;
+    g.sold += e.price != null ? (mad(e.price, e.currency) ?? 0) : 0;
+    byReason.set(key, g);
+  }
+  for (const [reason, g] of byReason) {
+    const what = `${g.count} extra${g.count > 1 ? 's' : ''}${g.sold ? ` (${Math.round(g.sold).toLocaleString('fr-FR')} MAD vendus)` : ''}`;
+    warnings.push(
+      reason === 'Taux propriétaire manquant'
+        ? `Taux de commission du propriétaire manquant : la part de ${what} n’est pas comptée (à renseigner dans Extras › Réglages).`
+        : reason === 'Coût à renseigner'
+          ? `Coût prestataire manquant sur ${what} : marge et part non comptées.`
+          : NOT_DONE_REASONS.includes(reason)
+            ? `${what} du mois pas encore passé${g.count > 1 ? 's' : ''} en « Réalisée » : non compté${g.count > 1 ? 's' : ''}.`
+            : `${reason} : ${what} non compté${g.count > 1 ? 's' : ''}.`,
+    );
+  }
 
   const payments = input.payments
     .filter((p) => p.date >= range.start && p.date <= range.end)
@@ -125,7 +174,21 @@ export function buildStatement(input: StatementInput) {
     houses,
     extras,
     payments,
-    totals: { nights: houses.reduce((t, h) => t + h.nights, 0), gross, fee, net, extras: extrasShare, due, paid: paidTotal, remaining: r2(due - paidTotal) },
+    totals: {
+      nights: houses.reduce((t, h) => t + h.nights, 0),
+      gross,
+      fee,
+      net,
+      extras: extrasShare,
+      /** Extras realised in his villas in the month: how many, and what they were sold. */
+      extrasCount: extras.filter((e) => e.done).length,
+      extrasSold: sum(extras.map((e) => e.priceMad)),
+      /** Extras of the month not added to his share (see their `reason`). */
+      extrasNotCounted: extras.filter((e) => e.incomplete).length,
+      due,
+      paid: paidTotal,
+      remaining: r2(due - paidTotal),
+    },
     warnings: [...new Set(warnings)],
     generatedAt: new Date().toISOString(),
   };

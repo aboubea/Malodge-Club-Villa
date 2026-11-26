@@ -155,17 +155,27 @@ export async function statementPdf(s: StatementData): Promise<Buffer> {
     doc.font('Helvetica').fontSize(9).fillColor(MUTED).text('Aucun extra ce mois-ci.');
     doc.moveDown(0.8);
   } else {
+    // Older statements (before the price and the reason were kept) still print.
+    const why = (e: (typeof s.extras)[number]) => ('reason' in e && e.reason ? String(e.reason) : 'à compléter');
     table(
       [
-        { title: 'Date', width: 62 },
-        { title: 'Prestation', width: 190 },
-        { title: 'Séjour', width: 120 },
-        { title: 'Votre part', width: width - 372 - 64, align: 'right' },
+        { title: 'Date', width: 58 },
+        { title: 'Prestation', width: 150 },
+        { title: 'Séjour', width: 100 },
+        { title: 'Prix', width: 70, align: 'right' },
+        { title: 'Votre part', width: width - 378 - 64, align: 'right' },
         { title: 'En MAD', width: 64, align: 'right' },
       ],
       [
-        ...s.extras.map((e) => [frDate(e.date), e.label, e.stay ?? '—', e.incomplete ? 'à compléter' : amount(e.ownerShare, e.currency), amount(e.ownerShareMad)]),
-        ['Total', '', '', '', amount(t.extras, 'MAD')],
+        ...s.extras.map((e) => [
+          frDate(e.date),
+          e.label,
+          e.stay ?? '—',
+          'price' in e && e.price != null ? amount(e.price, e.currency) : '—',
+          e.incomplete ? why(e) : amount(e.ownerShare, e.currency),
+          e.incomplete ? '—' : amount(e.ownerShareMad),
+        ]),
+        ['Total', '', '', '', '', amount(t.extras, 'MAD')],
       ],
       { bold: [s.extras.length] },
     );

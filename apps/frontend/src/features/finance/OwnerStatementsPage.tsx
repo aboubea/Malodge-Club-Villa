@@ -14,7 +14,13 @@ interface Totals {
   gross: number;
   fee: number;
   net: number;
+  /** The owner's share of the extras realised in his villas. */
   extras: number;
+  /** Realised extras of his villas in the month, and what they were sold (absent on older statements). */
+  extrasCount?: number;
+  extrasSold?: number;
+  /** Extras of the month not added to his share (rate or cost missing, not realised yet). */
+  extrasNotCounted?: number;
   due: number;
   paid: number;
   remaining: number;
@@ -200,20 +206,36 @@ export function OwnerStatementsPage() {
             <tbody className="divide-y divide-line">
               {data.map((r) => (
                 <tr key={r.id} className="align-top">
-                  <td className="px-3 py-2.5 text-[13px] max-w-[260px]">
+                  <td className="px-3 py-2.5 text-[13px] max-w-[290px]">
                     <p className="font-semibold text-ink">{r.owner.name}</p>
                     <p className="text-[11.5px] text-muted truncate">{r.houses.join(', ')}</p>
                     <p className={cn('text-[11.5px]', r.owner.email ? 'text-muted' : 'text-warning')}>{r.owner.email ?? 'pas d’e-mail : à remettre autrement'}</p>
                     {r.warnings.length > 0 && (
-                      <p className="mt-1 flex items-start gap-1 text-[11.5px] text-warning" title={r.warnings.join('\n')}>
-                        <TriangleAlert size={12} className="shrink-0 mt-0.5" /> {r.warnings.length} point{r.warnings.length > 1 ? 's' : ''} à vérifier
-                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {r.warnings.map((w) => (
+                          <li key={w} className="flex items-start gap-1 text-[11.5px] leading-snug text-warning whitespace-normal">
+                            <TriangleAlert size={12} className="shrink-0 mt-0.5" /> {w}
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </td>
                   <td className={td}>{r.totals.nights}</td>
                   <td className={td}>{mad(r.totals.gross)}</td>
                   <td className={td}>{mad(minus(r.totals.fee))}</td>
-                  <td className={td}>{mad(r.totals.extras)}</td>
+                  <td className={td}>
+                    {mad(r.totals.extras)}
+                    {r.totals.extrasCount != null && r.totals.extrasCount > 0 && (
+                      <span className="block text-[11px] text-muted whitespace-nowrap">
+                        sur {r.totals.extrasCount} extra{r.totals.extrasCount > 1 ? 's' : ''} · {mad(r.totals.extrasSold ?? 0)} vendus
+                      </span>
+                    )}
+                    {(r.totals.extrasNotCounted ?? 0) > 0 && (
+                      <span className="block text-[11px] text-warning whitespace-nowrap">
+                        {r.totals.extrasNotCounted} non compté{r.totals.extrasNotCounted! > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </td>
                   <td className={cn(td, 'font-semibold')}>{mad(r.totals.due)}</td>
                   <td className={td}>{mad(r.totals.paid)}</td>
                   <td className={cn(td, 'font-bold')}>{mad(r.totals.remaining)}</td>

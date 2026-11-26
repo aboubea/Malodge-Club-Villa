@@ -99,12 +99,14 @@ export class ExtrasService {
       }),
       this.prisma.villa.findMany({
         select: {
-          id: true, name: true, country: true, currency: true,
+          id: true, name: true, country: true, currency: true, parentVillaId: true,
           owner: { select: { id: true, firstName: true, lastName: true, commissionRate: true } },
         },
       }),
     ]);
-    const villaById = new Map(villas.map((v) => [v.id, v]));
+    const byId = new Map(villas.map((v) => [v.id, v]));
+    // A Lodgify formula belongs to the owner of its house (its own owner only if the house has none).
+    const villaById = new Map(villas.map((v) => [v.id, { ...v, owner: (v.parentVillaId && byId.get(v.parentVillaId)?.owner) || v.owner }]));
 
     const lines: ExtraLine[] = [];
     for (const order of orders) {
