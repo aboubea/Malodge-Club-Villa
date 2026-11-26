@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
+import { calendarDay,
   currencyForCountry,
   orderCurrency,
   pickCurrency,
@@ -133,5 +133,18 @@ describe('provider cost', () => {
   it('is the total minus the commission otherwise', () => {
     expect(providerCost({ totalAmount: 1_000, commission: 150, items: [{ quantity: 2, unitCost: 300 }, { quantity: 1, unitCost: null }] })).toBe(850);
     expect(providerCost({ totalAmount: 1_000, commission: 150 })).toBe(850);
+  });
+});
+
+describe('stay dates', () => {
+  it('keeps the calendar day written, whatever time or time zone comes with it', () => {
+    const nov26 = new Date(Date.UTC(2026, 10, 26));
+    expect(calendarDay('2026-11-26')).toEqual(nov26);
+    expect(calendarDay('2026-11-26T14:13:30.790Z')).toEqual(nov26);
+    expect(calendarDay('2026-11-26T23:30:00+01:00')).toEqual(nov26);
+    expect(calendarDay('2026-11-26T00:30:00+02:00')).toEqual(nov26);
+    expect(calendarDay(new Date('2026-11-26T14:13:30Z'))).toEqual(nov26);
+    expect(calendarDay(null)).toBeNull();
+    expect(calendarDay('')).toBeNull();
   });
 });

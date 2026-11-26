@@ -169,30 +169,26 @@ export function DashboardPage() {
                 {formatCurrency(kpis?.totalRevenue ?? 0, kpis?.revenueCurrency ?? 'EUR')}
               </BigNumber>
             )}
-            {kpis?.revenueConverted ? (
-              <p className="relative text-[13px] text-ink-soft mt-2 tabular">
-                dont{' '}
-                {kpis.revenueByCurrency!
-                  .filter((r) => r.currency !== 'MAD' && r.amount)
-                  .map((r) => formatCurrency(r.amount, r.currency))
-                  .join(' · ')}{' '}
-                converti(s) au taux du jour · <FxNote className="text-muted" />
+            {kpis?.accommodationRevenue != null && (
+              <p className="relative text-[13px] text-ink-soft mt-2 tabular flex flex-wrap gap-x-3">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-[2px] bg-chart-1" /> Hébergement {formatCurrency(Math.round(kpis.accommodationRevenue), kpis.revenueCurrency ?? 'MAD')}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-[2px] bg-chart-2" /> Extras {formatCurrency(Math.round(kpis.extrasRevenue ?? 0), kpis.revenueCurrency ?? 'MAD')}
+                </span>
               </p>
-            ) : (
-              (kpis?.revenueByCurrency?.length ?? 0) > 1 && (
-                <p className="relative text-[13px] font-semibold text-ink-soft mt-2 tabular">
-                  {kpis!.revenueByCurrency!
-                    .slice(1)
-                    .map((r) => `+ ${formatCurrency(r.amount, r.currency)}`)
-                    .join('  ·  ')}
-                  <span className="font-normal text-muted"> (non convertis)</span>
-                </p>
-              )
+            )}
+            {kpis?.revenueConverted && (
+              <p className="relative text-[12px] text-muted mt-1">
+                Euros convertis au taux du jour · <FxNote className="text-muted" />
+              </p>
             )}
             <p className="relative text-[13px] text-muted mt-4">
-              {kpis && kpis.revenueChange !== 0
-                ? `${kpis.revenueChange >= 0 ? 'En hausse' : 'En baisse'} par rapport au mois dernier`
-                : 'Prestations réalisées ce mois, comptées à leur date'}
+              {kpis && kpis.revenueChange !== 0 ? `${kpis.revenueChange >= 0 ? 'En hausse' : 'En baisse'} par rapport à ${kpis.previousMonth ?? 'le mois dernier'} · ` : ''}
+              <Link to="/finances" className="font-semibold text-accent hover:underline">
+                Détail dans Finances
+              </Link>
             </p>
           </Card>
         </motion.div>

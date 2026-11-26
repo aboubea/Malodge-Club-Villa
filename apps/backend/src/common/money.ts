@@ -76,6 +76,19 @@ export function providerCost(o: { totalAmount: number; commission: number; items
 
 const DAY = 86_400_000;
 
+/**
+ * A stay date as a calendar day (00:00 UTC): "2026-11-26", "2026-11-26T14:13:30Z" and
+ * "2026-11-26T23:30:00+01:00" are all 26 November (the day written, never shifted by a time zone).
+ */
+export function calendarDay(v: string | Date | null | undefined): Date | null {
+  if (v == null || v === '') return null;
+  const m = typeof v === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(v) : null;
+  if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return d;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 /** Prisma filter: stays with nights in [start, end] (a stay without dates cannot be dated). */
 export function stayNightsBetween(start: Date, end: Date) {
   return { checkIn: { lte: end }, checkOut: { gte: start } };

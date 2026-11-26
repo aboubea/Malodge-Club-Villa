@@ -121,6 +121,9 @@ async function bootstrap() {
     // One spelling per country: Lodgify's "Morocco" is the app's "Maroc".
     `UPDATE "Villa" SET "country" = 'Maroc' WHERE lower(trim("country")) IN ('morocco', 'ma', 'maroc') AND "country" <> 'Maroc'`,
     `UPDATE "User" SET "countries" = ARRAY(SELECT DISTINCT CASE WHEN lower(trim(c)) IN ('morocco', 'ma', 'maroc') THEN 'Maroc' ELSE c END FROM unnest("countries") AS c) WHERE EXISTS (SELECT 1 FROM unnest("countries") AS c WHERE lower(trim(c)) IN ('morocco', 'ma') OR c = 'maroc')`,
+    // Stay dates are calendar days (00:00 UTC): a time typed with them made the stay miss "today".
+    `UPDATE "Reservation" SET "checkIn" = date_trunc('day', "checkIn") WHERE "checkIn" IS NOT NULL AND "checkIn" <> date_trunc('day', "checkIn")`,
+    `UPDATE "Reservation" SET "checkOut" = date_trunc('day', "checkOut") WHERE "checkOut" IS NOT NULL AND "checkOut" <> date_trunc('day', "checkOut")`,
   ];
   for (const sql of dataFixes) {
     try {

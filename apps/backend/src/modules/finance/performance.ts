@@ -100,8 +100,11 @@ export function houseMetrics(stays: StayIn[], orders: OrderIn[], range: PeriodRa
       nights.forEach((d) => paidOccupied.add(d));
     }
   }
+  // Arrival and departure the same day (day use): its amount counts on that day, without a night.
+  const dayUse = stays.filter((s) => s.checkIn && s.checkOut && dayOf(s.checkOut) <= dayOf(s.checkIn) && (s.amount ?? 0) > 0 && stayShare(s, range) > 0);
+  for (const s of dayUse) accommodationRevenue += stayShare(s, range);
   // A stay without amount on nights already covered by a paid stay is the same stay keyed twice.
-  const staysCount = withNights.filter(({ s, nights }) => (s.amount ?? 0) > 0 || nights.some((d) => !paidOccupied.has(d))).length;
+  const staysCount = withNights.filter(({ s, nights }) => (s.amount ?? 0) > 0 || nights.some((d) => !paidOccupied.has(d))).length + dayUse.length;
 
   const extrasRevenue = orders.reduce((t, o) => t + o.revenue, 0);
   const extrasCost = orders.reduce((t, o) => t + o.cost, 0);

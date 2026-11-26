@@ -12,7 +12,8 @@ const prisma = testDb();
 const finance = new FinanceService(prisma as any, new FxService(prisma as any));
 
 const now = new Date();
-const startOfYear = new Date(now.getFullYear(), 0, 1);
+const startOfYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+const endOfYear = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1) - 1);
 /** A moment of this year, already past. */
 const thisYear = new Date(Math.max(startOfYear.getTime() + 60_000, now.getTime() - 2 * 3600_000));
 const lastYear = new Date(Date.UTC(now.getFullYear() - 1, 5, 15));
@@ -55,20 +56,22 @@ describe('revenue of the year', () => {
     const r = await finance.getDashboard('year');
     expect(r.converted).toBe(true);
     expect(r.currency).toBe('MAD');
-    expect(r.totalRevenue).toBeCloseTo(1_000 + 100 * 11);
+    expect(r.totals.extras).toBeCloseTo(1_000 + 100 * 11);
+    expect(r.totals.revenue).toBeCloseTo(r.totals.extras + r.totals.accommodation);
   });
 
   it('counts stays on their nights, not on the day they were booked', async () => {
     const r = await finance.getDashboard('year');
-    const expected = stayRevenueBetween(stayInYear, startOfYear, now) * 11;
-    expect(r.accommodationRevenue).toBeCloseTo(expected);
-    expect(r.accommodationRevenue).toBeLessThan(9_999);
+    const expected = stayRevenueBetween(stayInYear, startOfYear, endOfYear) * 11;
+    expect(r.totals.accommodation).toBeCloseTo(expected);
+    expect(r.totals.accommodation).toBeLessThan(9_999);
   });
 
   it('shows one currency alone, without conversion, when asked', async () => {
     const r = await finance.getDashboard('year', 'EUR');
     expect(r.converted).toBe(false);
     expect(r.currency).toBe('EUR');
-    expect(r.totalRevenue).toBe(100);
+    expect(r.totals.extras).toBe(100);
+    expect(r.totals.accommodation).toBeCloseTo(stayRevenueBetween(stayInYear, startOfYear, endOfYear));
   });
 });

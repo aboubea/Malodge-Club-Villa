@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DashboardService } from '../src/modules/dashboard/dashboard.service';
 import { FxService } from '../src/modules/fx/fx.service';
+import { FinanceService } from '../src/modules/finance/finance.service';
 import { seed, testDb, wipe } from './db';
 
 const prisma = testDb();
-const dashboard = new DashboardService(prisma as any, new FxService(prisma as any));
+const fx = new FxService(prisma as any);
+const dashboard = new DashboardService(prisma as any, new FinanceService(prisma as any, fx));
 const day = (offset: number) => {
   const n = new Date();
   return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + offset));

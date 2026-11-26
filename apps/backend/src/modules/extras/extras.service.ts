@@ -20,7 +20,7 @@ import { villaCandidates } from './villa-match';
 import { checkImportDates } from './extras-dates-check';
 import { coherenceReport } from './extras-coherence';
 import { FxService } from '../fx/fx.service';
-import { currencyForCountry } from '../../common/money';
+import { calendarDay, currencyForCountry } from '../../common/money';
 import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import { duplicatePeople, mergePeople, mergePeoplePreview } from './people-merge';
@@ -112,7 +112,8 @@ export class ExtrasService {
       for (const item of order.items) {
         const input: ExtraInput = {
           id: item.id,
-          date: order.scheduledAt ?? null,
+          // The day of the service; a completed extra without one is dated on the day it was completed.
+          date: order.scheduledAt ?? order.completedAt ?? null,
           status: order.status,
           notes: order.notes ?? item.notes ?? null,
           quantity: item.quantity,
@@ -856,8 +857,8 @@ export class ExtrasService {
     if (!villa) throw new BadRequestException('Villa introuvable');
     const clientId = dto.clientId ?? (await this.createRecordUser('CLIENT', dto.label)).id;
     // Stay dates are calendar days (00:00 UTC). A date nobody gave stays empty: never today's date.
-    const checkIn = toDate(dto.checkIn);
-    const checkOut = toDate(dto.checkOut);
+    const checkIn = calendarDay(dto.checkIn);
+    const checkOut = calendarDay(dto.checkOut);
     const stay = await this.prisma.reservation.create({
       data: {
         label: dto.label.trim(),
@@ -885,8 +886,8 @@ export class ExtrasService {
         ...(dto.label !== undefined && { label: dto.label.trim() }),
         ...(dto.villaId !== undefined && { villaId: dto.villaId }),
         // An emptied date is cleared, not kept.
-        ...(dto.checkIn !== undefined && { checkIn: toDate(dto.checkIn) }),
-        ...(dto.checkOut !== undefined && { checkOut: toDate(dto.checkOut) }),
+        ...(dto.checkIn !== undefined && { checkIn: calendarDay(dto.checkIn) }),
+        ...(dto.checkOut !== undefined && { checkOut: calendarDay(dto.checkOut) }),
         ...(dto.datesEstimated !== undefined && { datesEstimated: dto.datesEstimated }),
         ...(dto.archived !== undefined && { archived: dto.archived }),
         ...(dto.notes !== undefined && { notes: dto.notes }),

@@ -35,6 +35,8 @@ const config: Config = {
         info: token('info'),
         plum: token('plum'),
         copper: token('copper'),
+        'chart-1': token('chart-1'),
+        'chart-2': token('chart-2'),
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],

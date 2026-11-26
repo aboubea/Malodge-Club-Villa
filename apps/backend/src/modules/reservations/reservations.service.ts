@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { calendarDay } from '../../common/money';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -100,10 +101,11 @@ export class ReservationsService {
   }
 
   async create(dto: CreateReservationDto) {
-    const checkIn = new Date(dto.checkIn);
-    const checkOut = new Date(dto.checkOut);
+    // Calendar days (00:00 UTC), whatever time came with them.
+    const checkIn = calendarDay(dto.checkIn) as Date;
+    const checkOut = calendarDay(dto.checkOut) as Date;
 
-    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+    if (!checkIn || !checkOut || isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
       throw new BadRequestException('Invalid date format for checkIn or checkOut');
     }
     if (checkOut <= checkIn) {
@@ -140,8 +142,8 @@ export class ReservationsService {
   async update(id: string, dto: UpdateReservationDto) {
     await this.findOne(id);
     const data: any = { ...dto };
-    if (dto.checkIn) data.checkIn = new Date(dto.checkIn);
-    if (dto.checkOut) data.checkOut = new Date(dto.checkOut);
+    if (dto.checkIn) data.checkIn = calendarDay(dto.checkIn);
+    if (dto.checkOut) data.checkOut = calendarDay(dto.checkOut);
 
     return this.prisma.reservation.update({
       where: { id },

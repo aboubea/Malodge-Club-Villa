@@ -2,13 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 
 export interface DashboardKpis {
+  /** Revenue of the month, the same figure as on the Finances page: accommodation + extras. */
   totalRevenue: number;
-  /** Currency of totalRevenue; other currencies are listed apart (never added). */
+  accommodationRevenue?: number;
+  extrasRevenue?: number;
+  /** Currency of totalRevenue. */
   revenueCurrency?: string;
-  revenueByCurrency?: { currency: string; amount: number; previous: number; change: number }[];
-  /** True when totalRevenue adds every currency converted to MAD at today's rate. */
+  revenueByCurrency?: { currency: string; amount: number }[];
+  /** True when totalRevenue adds amounts of other currencies converted to MAD at today's rate. */
   revenueConverted?: boolean;
   revenueChange: number;
+  /** "octobre 2026": the month compared with. */
+  previousMonth?: string;
   activeReservations: number;
   pendingOrders: number;
   activeVillas: number;

@@ -50,7 +50,7 @@ export class StatementsService {
     const q = await this.fx.quote();
     const [reservations, settlements, allLines] = await Promise.all([
       this.prisma.reservation.findMany({
-        where: { villaId: { in: [...houseOf.keys()] }, status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] }, checkIn: { lte: range.end }, checkOut: { gt: range.start } },
+        where: { villaId: { in: [...houseOf.keys()] }, status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] }, checkIn: { lte: range.end }, checkOut: { gte: range.start } },
         select: {
           id: true, villaId: true, label: true, checkIn: true, checkOut: true, totalAmount: true, currency: true,
           villa: { select: { name: true, currency: true } },

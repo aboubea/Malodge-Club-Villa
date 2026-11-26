@@ -8,6 +8,11 @@ import { BadRequestException } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PerformanceService } from './performance.service';
 
+/** The day asked for (AAAA-MM-JJ), today otherwise. */
+const refDate = (date?: string) => (date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00.000Z`) : new Date());
+/** Managers and admins limited to some countries only see their villas. */
+const countriesOf = (user: { role: string; countries?: string[] }) => (user.role !== Role.SUPER_ADMIN && user.countries?.length ? user.countries : null);
+
 @ApiTags('Finance')
 @ApiBearerAuth()
 @Controller('finance')
@@ -26,17 +31,20 @@ export class FinanceController {
     @Query('date') date?: string,
   ) {
     if (!['month', 'quarter', 'year'].includes(period)) throw new BadRequestException('period : month, quarter ou year');
-    const ref = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00.000Z`) : new Date();
-    // Managers and admins limited to some countries only see their villas.
-    const countries = user.role !== Role.SUPER_ADMIN && user.countries?.length ? user.countries : null;
-    return this.performance.report(period, ref, countries);
+    return this.performance.report(period, refDate(date), countriesOf(user));
   }
 
   @Get('dashboard')
   @Roles(Role.MANAGER)
   @ApiOperation({ summary: 'Get finance dashboard KPIs — MANAGER+ only' })
-  getDashboard(@Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month', @Query('currency') currency?: string) {
-    return this.financeService.getDashboard(period, currency);
+  getDashboard(
+    @CurrentUser() user: { role: string; countries?: string[] },
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month',
+    @Query('currency') currency?: string,
+    @Query('date') date?: string,
+  ) {
+    if (!['day', 'week', 'month', 'year'].includes(period)) throw new BadRequestException('period : day, week, month ou year');
+    return this.financeService.getDashboard(period, currency, refDate(date), countriesOf(user));
   }
 
   @Get('provider-payouts')
@@ -81,7 +89,9 @@ export class FinanceController {
     @Query('format') format: 'pdf' | 'excel' | 'csv' = 'pdf',
     @Res() res: Response,
     @Query('currency') currency?: string,
+    @Query('date') date?: string,
+    @CurrentUser() user?: { role: string; countries?: string[] },
   ) {
-    return this.financeService.exportReport(period, format, res, currency);
+    return this.financeService.exportReport(period, format, res, currency, refDate(date), user ? countriesOf(user) : null);
   }
 }

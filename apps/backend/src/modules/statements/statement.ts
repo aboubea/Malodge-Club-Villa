@@ -73,7 +73,8 @@ export function buildStatement(input: StatementInput) {
           duplicate: !(s.totalAmount > 0) && stayNights(s, range).every((d) => paid.has(d)),
         };
       })
-      .filter((s) => s.nightsInMonth > 0 && !s.duplicate)
+      // A stay arriving and leaving the same day (day use) has no night but its amount counts.
+      .filter((s) => (s.nightsInMonth > 0 || (s.nights === 0 && s.amountInMonth > 0)) && !s.duplicate)
       .sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''));
     const gross = r2(stays.reduce((t, s) => t + (s.amountInMonthMad ?? 0), 0));
     const fee = r2(gross * h.feeRate);

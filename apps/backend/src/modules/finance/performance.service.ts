@@ -48,7 +48,7 @@ export class PerformanceService {
     });
     const houseOf = new Map(villas.map((v) => [v.id, v.parentVillaId ?? v.id]));
     const villaIds = villas.map((v) => v.id);
-    const overlap = (r: PeriodRange) => ({ checkIn: { lte: r.end }, checkOut: { gt: r.start } });
+    const overlap = (r: PeriodRange) => ({ checkIn: { lte: r.end }, checkOut: { gte: r.start } });
 
     const [reservations, orders] = await Promise.all([
       this.prisma.reservation.findMany({
