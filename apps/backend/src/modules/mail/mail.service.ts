@@ -181,6 +181,11 @@ export class MailService {
     );
   }
 
+  /** A message of the guest journey (welcome, J-7, J-1, thanks), with the link to their stay space. */
+  sendGuestMessage(to: string, subject: string, title: string, lines: string[], cta: { label: string; url: string }) {
+    return this.deliver(to, subject, this.layout(title, lines.map((l) => `<p>${esc(l)}</p>`).join(''), cta), 'Message voyageur');
+  }
+
   /** Monthly statement of an owner, as a PDF attachment. */
   sendOwnerStatement(to: string, firstName: string, monthLabel: string, pdf: Buffer, filename: string) {
     return this.deliver(

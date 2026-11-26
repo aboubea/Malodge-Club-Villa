@@ -27,6 +27,9 @@ beforeAll(async () => {
   const cat = await prisma.serviceCategory.create({ data: { name: 'Bien-être', slug: 'bien-etre' } });
   // Catalogue in euros, public price 40 € (= 440 MAD), cost 25 €.
   massageId = (await prisma.service.create({ data: { name: 'Massage 1 h', slug: 'massage', categoryId: cat.id, basePrice: 35, publicPrice: 40, unitCost: 25, currency: 'EUR' } })).id;
+  await prisma.villaService.create({ data: { villaId: villa.id, serviceId: massageId } });
+  // Not linked to the villa: not offered there.
+  await prisma.service.create({ data: { name: 'Yoga', slug: 'yoga', categoryId: cat.id, basePrice: 200, currency: 'MAD' } });
   // Price set for this villa, in MAD.
   transferId = (await prisma.service.create({ data: { name: 'Transfert aéroport', slug: 'transfert', categoryId: cat.id, basePrice: 300, currency: 'MAD' } })).id;
   await prisma.villaService.create({ data: { villaId: villa.id, serviceId: transferId, customPrice: 350 } });
@@ -50,6 +53,7 @@ describe('client requests', () => {
     expect(byName['Massage 1 h'].price).toBe(440);
     expect(byName['Transfert aéroport'].price).toBe(350);
     expect(byName['Golf']).toBeUndefined();
+    expect(byName['Yoga']).toBeUndefined();
     expect(JSON.stringify(c)).not.toContain('unitCost');
   });
 

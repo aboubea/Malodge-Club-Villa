@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/Badge';
 import { SlideOver } from '../../components/ui/SlideOver';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { StayInvitePanel } from './StayInvitePanel';
 
 /* ───────────────────────────── Types & helpers ───────────────────────────── */
 
@@ -625,6 +626,9 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
           )}
 
           {s.notes && <p className="text-[13px] text-ink-soft whitespace-pre-line">{s.notes}</p>}
+
+          {/* Invite the guest to their stay space (booklet + the villa's services). */}
+          {!s.live && !s.enquiry && s.status !== 'CANCELLED' && <StayInvitePanel stayId={s.id} />}
 
           {s.live && (
             <p className="text-[12px] text-muted">

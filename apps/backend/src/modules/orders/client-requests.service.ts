@@ -40,16 +40,29 @@ export class ClientRequestsService {
     return stay;
   }
 
-  /** Price of each service for a villa, in the villa's currency (null when not offered there). */
-  private async prices(villaId: string | null, serviceIds?: string[]) {
-    const villa = villaId ? await this.prisma.villa.findUnique({ where: { id: villaId }, select: { id: true, name: true, currency: true } }) : null;
+  /**
+   * The services a stay can ask for, priced in the villa's currency: for a villa, only
+   * the services the villa offers (its "Services disponibles", or its house's for a
+   * formula), at the price set for the villa, else the catalogue's public price.
+   * Without a villa: the whole catalogue at its public price.
+   */
+  async prices(villaId: string | null, serviceIds?: string[]) {
+    const villa = villaId
+      ? await this.prisma.villa.findUnique({ where: { id: villaId }, select: { id: true, name: true, currency: true, parentVillaId: true } })
+      : null;
     const currency = villa?.currency ?? DEFAULT_CURRENCY;
+    // The formula's own settings first, then its house's.
+    const offeredBy = villa ? [villa.id, ...(villa.parentVillaId ? [villa.parentVillaId] : [])] : [];
     const services = await this.prisma.service.findMany({
-      where: { isActive: true, ...(serviceIds ? { id: { in: serviceIds } } : {}) },
+      where: {
+        isActive: true,
+        ...(serviceIds ? { id: { in: serviceIds } } : {}),
+        ...(villa ? { villaServices: { some: { villaId: { in: offeredBy }, isActive: true } } } : {}),
+      },
       select: {
         id: true, name: true, description: true, basePrice: true, publicPrice: true, unitCost: true, unit: true, currency: true, duration: true,
         category: { select: { name: true } },
-        villaServices: villaId ? { where: { villaId }, select: { customPrice: true, isActive: true } } : false,
+        villaServices: villa ? { where: { villaId: { in: offeredBy } }, select: { villaId: true, customPrice: true, isActive: true } } : false,
       },
       orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
     });
@@ -63,9 +76,11 @@ export class ClientRequestsService {
       villa,
       currency,
       list: services
-        .filter((s) => !(s as any).villaServices?.some((vs: any) => vs.isActive === false))
+        // Switched off for the villa itself: not offered, even if the house offers it.
+        .filter((s) => !(s as any).villaServices?.some((vs: any) => vs.villaId === villa?.id && vs.isActive === false))
         .map((s) => {
-          const custom = (s as any).villaServices?.[0]?.customPrice as number | null | undefined;
+          const links = ((s as any).villaServices ?? []) as { villaId: string; customPrice: number | null }[];
+          const custom = offeredBy.map((id) => links.find((l) => l.villaId === id)?.customPrice).find((p) => p != null);
           // A price set for the villa is already in the villa's currency.
           const price = custom != null ? custom : convert(s.publicPrice ?? s.basePrice, s.currency);
           return {

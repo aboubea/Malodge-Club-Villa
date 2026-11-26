@@ -30,6 +30,8 @@ const ProvidersPage = lazy(() => import('../features/providers/ProvidersPage').t
 const ReservationsPage = lazy(() => import('../features/reservations/ReservationsPage').then((m) => ({ default: m.ReservationsPage })));
 const ServiceCataloguePage = lazy(() => import('../features/catalogue/ServiceCataloguePage').then((m) => ({ default: m.ServiceCataloguePage })));
 const CalendarPage = lazy(() => import('../features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })));
+const GuestStayPage = lazy(() => import('../features/stays/GuestStayPage').then((m) => ({ default: m.GuestStayPage })));
+const OnboardingPage = lazy(() => import('../features/stays/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 const ProviderSpacePage = lazy(() => import('../features/provider-space/ProviderSpacePage').then((m) => ({ default: m.ProviderSpacePage })));
 const ProviderConfirmPage = lazy(() => import('../features/confirm/ProviderConfirmPage').then((m) => ({ default: m.ProviderConfirmPage })));
 const ClientStaysPage = lazy(() => import('../features/stays/ClientStaysPage').then((m) => ({ default: m.ClientStaysPage })));
@@ -75,6 +77,9 @@ export function AppRouter() {
       <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
       <Route path="/confirmer" element={<ProviderConfirmPage />} />
       {/* Provider space: personal link (WhatsApp) or provider account, outside the app layout. */}
+      {/* Guest stay space: personal link from the booking, no account. */}
+      <Route path="/sejour" element={<GuestStayPage />} />
+      <Route path="/sejour/:token" element={<GuestStayPage />} />
       <Route path="/prestataire" element={<ProviderSpacePage />} />
       <Route path="/prestataire/:token" element={<ProviderSpacePage />} />
       <Route
@@ -86,6 +91,7 @@ export function AppRouter() {
               <Routes>
                 <Route path="/" element={<RoleGuard roles={STAFF} fallback="/catalogue"><DashboardPage /></RoleGuard>} />
                 <Route path="/reservations" element={<RoleGuard roles={STAFF}><ReservationsPage /></RoleGuard>} />
+                <Route path="/accueil" element={<RoleGuard roles={STAFF}><OnboardingPage /></RoleGuard>} />
                 <Route path="/mes-sejours" element={<RoleGuard roles={['CLIENT']} fallback="/"><ClientStaysPage /></RoleGuard>} />
                 <Route path="/catalogue" element={<RoleGuard roles={ALL_ROLES}><ServiceCataloguePage /></RoleGuard>} />
                 <Route path="/extras/*" element={<RoleGuard roles={STAFF}><ExtrasPage /></RoleGuard>} />

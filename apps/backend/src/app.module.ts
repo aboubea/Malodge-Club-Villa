@@ -26,6 +26,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { StatementsModule } from './modules/statements/statements.module';
 import { ProviderSpaceModule } from './modules/provider-space/provider-space.module';
+import { StaySpaceModule } from './modules/stay-space/stay-space.module';
+import { CronModule } from './modules/cron/cron.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -52,6 +54,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     MonitoringModule,
     StatementsModule,
     ProviderSpaceModule,
+    StaySpaceModule,
+    CronModule,
     CalendarModule,
     DashboardModule,
     LodgifyModule,

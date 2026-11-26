@@ -25,6 +25,7 @@ import {
   Gauge,
   FileText,
   Eraser,
+  HandHeart,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -86,6 +87,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/villas', label: 'Villas', icon: Building2, roles: STAFF },
       { path: '/reservations', label: 'Réservations', icon: CalendarDays, roles: STAFF },
+      { path: '/accueil', label: 'Accueil voyageurs', icon: HandHeart, roles: STAFF },
       { path: '/services', label: 'Catalogue', icon: Sparkles, roles: STAFF },
       { path: '/prestataires', label: 'Prestataires', icon: Briefcase, roles: STAFF },
       { path: '/documents', label: 'Documents', icon: FolderOpen, roles: STAFF },

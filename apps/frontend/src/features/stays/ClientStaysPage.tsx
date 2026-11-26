@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Building2, CalendarDays, Users, MapPin, Clock, Sparkles } from 'lucide-react';
+import { Building2, CalendarDays, Users, MapPin, Clock, Sparkles, BookOpen } from 'lucide-react';
+import { Modal } from '../../components/ui/Modal';
+import { GuideView, Booklet } from './GuideView';
 import { RequestExtraModal, StayRef } from './RequestExtraModal';
 import { activityKind } from '../calendar/agendaIcons';
 import { cn } from '../../lib/utils';
@@ -85,8 +87,27 @@ function StayRequests({ requests }: { requests: ExtraRequest[] }) {
   );
 }
 
+/** The villa's welcome booklet for one of the client's stays. */
+function GuideModal({ stay, onClose }: { stay: StayRef | null; onClose: () => void }) {
+  const { data } = useQuery({
+    queryKey: ['my-stay', 'guide', stay?.id],
+    queryFn: async () => {
+      const r = await apiClient.get('/my-stay/guide', { params: { reservationId: stay!.id } });
+      return (r.data?.data ?? r.data) as { booklet: Booklet; villa: { name: string; mapsUrl: string | null } };
+    },
+    enabled: !!stay,
+  });
+  if (!stay) return null;
+  return (
+    <Modal open={!!stay} onClose={onClose} title={`Livret d’accueil${data ? ` — ${data.villa.name}` : ''}`} size="lg">
+      {data ? <GuideView booklet={data.booklet} mapsUrl={data.villa.mapsUrl} /> : <p className="text-[13px] text-muted">Chargement…</p>}
+    </Modal>
+  );
+}
+
 export function ClientStaysPage() {
   const [requestFor, setRequestFor] = useState<StayRef | null>(null);
+  const [guideFor, setGuideFor] = useState<StayRef | null>(null);
   const { data: requests = [] } = useQuery({
     queryKey: ['my-stay', 'requests'],
     queryFn: async () => {
@@ -144,7 +165,7 @@ export function ClientStaysPage() {
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Séjour en cours
               </h2>
-              <StayCard reservation={active} isCurrent onRequest={() => setRequestFor(active)} />
+              <StayCard reservation={active} isCurrent onRequest={() => setRequestFor(active)} onGuide={() => setGuideFor(active)} />
               <StayRequests requests={requestsOf(active.id)} />
             </div>
           )}
@@ -159,7 +180,7 @@ export function ClientStaysPage() {
               <div className="space-y-3">
                 {upcoming.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <StayCard reservation={r} onRequest={() => setRequestFor(r)} />
+                    <StayCard reservation={r} onRequest={() => setRequestFor(r)} onGuide={() => setGuideFor(r)} />
                     <StayRequests requests={requestsOf(r.id)} />
                   </motion.div>
                 ))}
@@ -184,14 +205,16 @@ export function ClientStaysPage() {
         </>
       )}
       <RequestExtraModal stay={requestFor} onClose={() => setRequestFor(null)} />
+      <GuideModal stay={guideFor} onClose={() => setGuideFor(null)} />
     </div>
   );
 }
 
-function StayCard({ reservation: r, isCurrent, onRequest }: {
+function StayCard({ reservation: r, isCurrent, onRequest, onGuide }: {
   reservation: any;
   isCurrent?: boolean;
   onRequest?: () => void;
+  onGuide?: () => void;
 }) {
   const nights = nightsBetween(r.checkIn, r.checkOut);
 
@@ -237,6 +260,11 @@ function StayCard({ reservation: r, isCurrent, onRequest }: {
           <div className="flex items-center gap-2 shrink-0">
             {r.totalAmount > 0 && (
               <p className="text-sm font-normal text-accent">{formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}</p>
+            )}
+            {onGuide && (
+              <Button variant="secondary" size="sm" icon={<BookOpen size={13} />} onClick={onGuide}>
+                Livret
+              </Button>
             )}
             {onRequest && (
               <Button variant={isCurrent ? 'primary' : 'secondary'} size="sm" icon={<Sparkles size={13} />} onClick={onRequest}>

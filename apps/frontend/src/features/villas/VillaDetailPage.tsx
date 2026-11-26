@@ -32,6 +32,7 @@ import { formatCurrency } from '../../lib/utils';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 import { useAuthStore } from '../../store/authStore';
+import { WelcomeGuideEditor } from './WelcomeGuideEditor';
 
 export function VillaDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -529,6 +530,13 @@ export function VillaDetailPage() {
           )}
         </motion.div>
       </div>
+
+      {/* Welcome booklet for the guests — staff only */}
+      {isStaff && id && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+          <WelcomeGuideEditor villaId={id} />
+        </motion.div>
+      )}
 
       {/* Villa Services Section — staff only */}
       {isStaff && (

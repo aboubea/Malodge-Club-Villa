@@ -16,10 +16,17 @@ interface Service {
   unit: string | null;
   price: number;
 }
-interface Catalogue {
-  villa: { id: string; name: string } | null;
+export interface Catalogue {
+  villa?: { id: string; name: string } | null;
   currency: string;
   services: Service[];
+}
+
+export interface RequestBody {
+  reservationId?: string;
+  scheduledAt: string;
+  notes?: string;
+  items: { serviceId: string; quantity: number }[];
 }
 export interface StayRef {
   id: string;
@@ -39,8 +46,24 @@ function defaultDay(stay: StayRef) {
   return dateInput(arrival && arrival > tomorrow ? arrival : tomorrow);
 }
 
-/** The client asks for an extra for their stay; the team confirms it. */
-export function RequestExtraModal({ stay, onClose }: { stay: StayRef | null; onClose: () => void }) {
+/**
+ * The guest asks for an extra for their stay; the team confirms it. By default for a
+ * signed-in client (/my-stay); the guest stay space passes its own catalogue and sender.
+ */
+export function RequestExtraModal({
+  stay,
+  onClose,
+  catalogue,
+  sendRequest,
+  onSent,
+}: {
+  stay: StayRef | null;
+  onClose: () => void;
+  /** Catalogue already known (guest stay space); otherwise read from /my-stay. */
+  catalogue?: Catalogue;
+  sendRequest?: (body: RequestBody) => Promise<unknown>;
+  onSent?: () => void;
+}) {
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<Service | null>(null);
@@ -49,14 +72,16 @@ export function RequestExtraModal({ stay, onClose }: { stay: StayRef | null; onC
   const [time, setTime] = useState('10:00');
   const [notes, setNotes] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const fetched = useQuery({
     queryKey: ['my-stay', 'catalogue', stay?.id],
     queryFn: async () => {
       const r = await apiClient.get('/my-stay/catalogue', { params: { reservationId: stay!.id } });
       return (r.data?.data ?? r.data) as Catalogue;
     },
-    enabled: !!stay,
+    enabled: !!stay && !catalogue,
   });
+  const data = catalogue ?? fetched.data;
+  const isLoading = !catalogue && fetched.isLoading;
 
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -75,17 +100,24 @@ export function RequestExtraModal({ stay, onClose }: { stay: StayRef | null; onC
   };
 
   const send = useMutation({
-    mutationFn: () =>
-      apiClient.post('/my-stay/requests', {
+    mutationFn: () => {
+      const body: RequestBody = {
         reservationId: stay!.id,
         scheduledAt: new Date(`${day || defaultDay(stay!)}T${time || '10:00'}:00`).toISOString(),
         notes: notes.trim() || undefined,
         items: [{ serviceId: picked!.id, quantity }],
-      }),
+      };
+      return sendRequest ? sendRequest(body) : apiClient.post('/my-stay/requests', body);
+    },
     onSuccess: () => {
       toast.success('Demande envoyée : l’équipe vous confirme très vite.');
       qc.invalidateQueries({ queryKey: ['my-stay', 'requests'] });
+      onSent?.();
       close();
+    },
+    onError: (e: any) => {
+      // The guest space has no global error toast.
+      if (sendRequest) toast.error(e?.response?.data?.message || 'Demande non envoyée, réessayez.');
     },
   });
 
@@ -110,7 +142,7 @@ export function RequestExtraModal({ stay, onClose }: { stay: StayRef | null; onC
           {isLoading ? (
             <p className="text-[13px] text-muted">Chargement du catalogue…</p>
           ) : groups.length === 0 ? (
-            <p className="text-[13px] text-muted">Aucune prestation trouvée.</p>
+            <p className="text-[13px] text-muted">{q ? 'Aucune prestation trouvée.' : 'Les services de la villa arrivent bientôt : contactez votre conciergerie.'}</p>
           ) : (
             <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
               {groups.map(([category, services]) => (

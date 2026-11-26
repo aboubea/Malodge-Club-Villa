@@ -138,6 +138,8 @@ model Villa {
   parentVillaId String?
   /// Management fee on accommodation revenue (0.2 = 20 %), shown on the owner's monthly statement
   managementFeeRate Float @default(0.2)
+  /// Welcome booklet shown to the guests of the villa (arrival, access, Wi-Fi, rules, contact…)
+  welcomeGuide      Json  @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -272,6 +274,12 @@ model Reservation {
   source         String?           @default("manual")
   /// Stay label used by the extras tracking ("Client / séjour"); a returning guest gets a new label
   label          String?
+  /// Version of the guest's personal link to their stay space; +1 switches off the links sent
+  accessVersion  Int               @default(1)
+  /// When the guest was first invited to their stay space
+  invitedAt      DateTime?
+  /// Messages of the guest journey already sent: { welcome|j7|j1|thanks: { at, channel } }
+  journey        Json              @default("{}")
   /// Archived stays leave the extras overview; their accounts are kept
   archived       Boolean           @default(false)
   /// true when arrival/departure were deduced (e.g. from extras at import) and must be confirmed
