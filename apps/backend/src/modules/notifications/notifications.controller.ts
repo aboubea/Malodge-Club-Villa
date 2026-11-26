@@ -2,10 +2,12 @@ import { Controller, Get, Patch, Query, Param } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowRestrictedRoles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
 @Controller('notifications')
+@AllowRestrictedRoles()
 export class NotificationsController {
   constructor(private notificationsService: NotificationsService) {}
 

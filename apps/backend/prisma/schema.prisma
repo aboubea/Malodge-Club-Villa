@@ -14,6 +14,31 @@ enum Role {
   MANAGER
   PROVIDER
   CLIENT
+  OWNER
+  EMPLOYEE
+}
+
+/// Base used to compute an employee's commission on an extra.
+enum CommissionBase {
+  MALODGE_MARGIN // margin after the owner's share
+  TOTAL_MARGIN // gross margin
+}
+
+enum SettlementKind {
+  CLIENT_PAYMENT // Reçu client
+  CLIENT_REFUND // Remboursé au client
+  PROVIDER_PAYMENT // Payé au prestataire
+  PROVIDER_REFUND // Reçu du prestataire
+  OWNER_PAYOUT // Versé au propriétaire
+  OWNER_REFUND // Reçu du propriétaire
+  EMPLOYEE_PAYOUT // Versé au salarié
+  EMPLOYEE_REFUND // Reçu du salarié
+}
+
+enum SettlementStatus {
+  PENDING // À valider
+  VALIDATED // Validé
+  CANCELLED // Annulé
 }
 
 enum ReservationStatus {
@@ -47,68 +72,83 @@ enum PaymentStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  firstName     String
-  lastName      String
-  phone         String?
-  avatar        String?
-  role          Role      @default(CLIENT)
-  isActive      Boolean   @default(true)
-  countries     String[]  @default([])
-  lastLoginAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String          @id @default(cuid())
+  email          String          @unique
+  password       String
+  firstName      String
+  lastName       String
+  phone          String?
+  avatar         String?
+  role           Role            @default(CLIENT)
+  isActive       Boolean         @default(true)
+  countries      String[]        @default([])
+  /// false = internal record without app access (e.g. imported from the extras spreadsheet)
+  canLogin       Boolean         @default(true)
+  /// Owner: share of the gross margin. Employee: share of `commissionBase`. 0.25 = 25 %.
+  commissionRate Float?
+  commissionBase CommissionBase?
+  notes          String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  managedVillas VillaManager[]
-  reservations  Reservation[]
-  orders        Order[]
-  sentMessages  Message[]     @relation("SentMessages")
-  auditLogs     AuditLog[]
-  provider           Provider?
-  passwordResetTokens PasswordResetToken[]
-  aiQueries     AiQuery[]
-  notifications Notification[]
+  managedVillas              VillaManager[]
+  reservations               Reservation[]
+  orders                     Order[]
+  sentMessages               Message[]                 @relation("SentMessages")
+  auditLogs                  AuditLog[]
+  provider                   Provider?
+  passwordResetTokens        PasswordResetToken[]
+  aiQueries                  AiQuery[]
+  notifications              Notification[]
   conversationParticipations ConversationParticipant[]
-  createdCalendarEvents CalendarEvent[] @relation("CalendarEventCreator")
+  createdCalendarEvents      CalendarEvent[]           @relation("CalendarEventCreator")
+  ownedVillas                Villa[]                   @relation("VillaOwner")
+  soldOrders                 Order[]                   @relation("OrderSeller")
+  settlements                Settlement[]              @relation("SettlementPerson")
+  createdSettlements         Settlement[]              @relation("SettlementCreator")
+  validatedSettlements       Settlement[]              @relation("SettlementValidator")
 }
 
 model Villa {
-  id            String    @id @default(cuid())
-  name          String
-  slug          String    @unique
-  description   String?
-  address       String
-  city          String
-  country       String    @default("France")
-  latitude      Float?
-  longitude     Float?
-  coverImage    String?
-  images        String[]
-  amenities     Json      @default("[]")
-  rules         Json      @default("[]")
-  maxGuests     Int       @default(1)
-  bedrooms      Int       @default(1)
-  bathrooms     Int       @default(1)
-  isActive      Boolean   @default(true)
-  logifyId      String?   @unique
-  customFields  Json      @default("[]")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  address      String
+  city         String
+  country      String   @default("France")
+  latitude     Float?
+  longitude    Float?
+  coverImage   String?
+  images       String[]
+  amenities    Json     @default("[]")
+  rules        Json     @default("[]")
+  maxGuests    Int      @default(1)
+  bedrooms     Int      @default(1)
+  bathrooms    Int      @default(1)
+  isActive     Boolean  @default(true)
+  logifyId     String?  @unique
+  customFields Json     @default("[]")
+  /// ISO 4217 code used for extras at this villa (MAD in Morocco, EUR in France…)
+  currency     String   @default("EUR")
+  ownerId      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  managers        VillaManager[]
-  reservations    Reservation[]
-  villaServices   VillaService[]
-  documents       Document[]
-  calendarEvents  CalendarEvent[]
+  owner          User?           @relation("VillaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  managers       VillaManager[]
+  reservations   Reservation[]
+  villaServices  VillaService[]
+  documents      Document[]
+  calendarEvents CalendarEvent[]
 }
 
 model VillaManager {
-  villaId   String
-  userId    String
-  villa     Villa  @relation(fields: [villaId], references: [id], onDelete: Cascade)
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  villaId String
+  userId  String
+  villa   Villa  @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([villaId, userId])
 }
@@ -123,41 +163,50 @@ model Provider {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categories  ProviderCategory[]
-  orders      Order[]
-  services    ServiceProvider[]
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories         ProviderCategory[]
+  orders             Order[]
+  services           ServiceProvider[]
+  defaultForServices Service[]          @relation("ServiceDefaultProvider")
 }
 
 model ServiceCategory {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  icon        String?
-  color       String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  color     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
 
-  services    Service[]
-  providers   ProviderCategory[]
+  services  Service[]
+  providers ProviderCategory[]
 }
 
 model Service {
-  id              String    @id @default(cuid())
-  name            String
-  slug            String    @unique
-  description     String?
-  images          String[]
-  basePrice       Float
-  duration        Int?
-  isActive        Boolean   @default(true)
-  requiresDate    Boolean   @default(false)
-  requiresTime    Boolean   @default(false)
-  categoryId      String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  images            String[]
+  basePrice         Float
+  /// Purchase cost per unit (internal, never shown to clients)
+  unitCost          Float?
+  /// Public price entered by hand; when null the price is unitCost × (1 + catalogue markup)
+  publicPrice       Float?
+  unit              String?
+  currency          String   @default("EUR")
+  defaultProviderId String?
+  duration          Int?
+  isActive          Boolean  @default(true)
+  requiresDate      Boolean  @default(false)
+  requiresTime      Boolean  @default(false)
+  categoryId        String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  category        ServiceCategory  @relation(fields: [categoryId], references: [id])
+  category        ServiceCategory   @relation(fields: [categoryId], references: [id])
+  defaultProvider Provider?         @relation("ServiceDefaultProvider", fields: [defaultProviderId], references: [id], onDelete: SetNull)
   villaServices   VillaService[]
   providers       ServiceProvider[]
   orderItems      OrderItem[]
@@ -167,13 +216,13 @@ model VillaService {
   villaId      String
   serviceId    String
   customPrice  Float?
-  commission   Float?    @default(15)
-  isActive     Boolean   @default(true)
-  commissionTo String    @default("manager")   // "manager" | "owner" | "shared"
-  ownerShare   Float     @default(50)           // % going to owner when mode = "shared"
+  commission   Float?  @default(15)
+  isActive     Boolean @default(true)
+  commissionTo String  @default("manager") // "manager" | "owner" | "shared"
+  ownerShare   Float   @default(50) // % going to owner when mode = "shared"
 
-  villa        Villa     @relation(fields: [villaId], references: [id], onDelete: Cascade)
-  service      Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  villa   Villa   @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@id([villaId, serviceId])
 }
@@ -181,80 +230,121 @@ model VillaService {
 model ServiceProvider {
   serviceId   String
   providerId  String
-  isPreferred Boolean  @default(false)
+  isPreferred Boolean @default(false)
 
-  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@id([serviceId, providerId])
 }
 
 model ProviderCategory {
-  providerId  String
-  categoryId  String
-  provider    Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  category    ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  providerId String
+  categoryId String
+  provider   Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category   ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([providerId, categoryId])
 }
 
 model Reservation {
-  id            String             @id @default(cuid())
-  logifyId      String?            @unique
-  villaId       String
-  clientId      String
-  checkIn       DateTime
-  checkOut      DateTime
-  guests        Int                @default(1)
-  totalAmount   Float
-  status        ReservationStatus  @default(PENDING)
-  notes         String?
-  source        String?            @default("manual")
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id          String            @id @default(cuid())
+  logifyId    String?           @unique
+  villaId     String
+  clientId    String
+  checkIn     DateTime
+  checkOut    DateTime
+  guests      Int               @default(1)
+  totalAmount Float
+  status      ReservationStatus @default(PENDING)
+  notes       String?
+  source      String?           @default("manual")
+  /// Stay label used by the extras tracking ("Client / séjour"); a returning guest gets a new label
+  label       String?
+  /// Archived stays leave the extras overview; their accounts are kept
+  archived    Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  villa           Villa       @relation(fields: [villaId], references: [id])
-  client          User        @relation(fields: [clientId], references: [id])
-  orders          Order[]
-  conversations   Conversation[]
-  calendarEvents  CalendarEvent[]
+  villa          Villa           @relation(fields: [villaId], references: [id])
+  client         User            @relation(fields: [clientId], references: [id])
+  orders         Order[]
+  conversations  Conversation[]
+  calendarEvents CalendarEvent[]
+  settlements    Settlement[]
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  reservationId String?
-  clientId      String
-  providerId    String?
-  villaId       String?
-  status        OrderStatus @default(PENDING)
-  totalAmount   Float
-  commission    Float       @default(0)
-  notes            String?
-  scheduledAt      DateTime?
-  completedAt      DateTime?
-  providerStatus   String      @default("PENDING")
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  reservationId  String?
+  clientId       String
+  providerId     String?
+  villaId        String?
+  /// Employee who sold the extra (earns a commission)
+  sellerId       String?
+  status         OrderStatus @default(PENDING)
+  totalAmount    Float
+  commission     Float       @default(0)
+  notes          String?
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  providerStatus String      @default("PENDING")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  reservation     Reservation?  @relation(fields: [reservationId], references: [id])
-  client          User          @relation(fields: [clientId], references: [id])
-  provider        Provider?     @relation(fields: [providerId], references: [id])
-  items           OrderItem[]
-  payment         Payment?
-  calendarEvents  CalendarEvent[]
+  reservation    Reservation?    @relation(fields: [reservationId], references: [id])
+  client         User            @relation(fields: [clientId], references: [id])
+  provider       Provider?       @relation(fields: [providerId], references: [id])
+  seller         User?           @relation("OrderSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  payment        Payment?
+  calendarEvents CalendarEvent[]
 }
 
 model OrderItem {
-  id          String   @id @default(cuid())
-  orderId     String
-  serviceId   String
-  quantity    Int      @default(1)
-  unitPrice   Float
-  total       Float
-  notes       String?
+  id        String  @id @default(cuid())
+  orderId   String
+  /// null for an off-catalogue extra (see `label`)
+  serviceId String?
+  label     String?
+  quantity  Float   @default(1)
+  unitPrice Float
+  /// Purchase cost per unit (internal)
+  unitCost  Float?
+  total     Float
+  notes     String?
 
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service     Service  @relation(fields: [serviceId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id])
+}
+
+/// Money movement on a person's extras account (client stay, provider, owner, employee).
+model Settlement {
+  id            String           @id @default(cuid())
+  kind          SettlementKind
+  status        SettlementStatus @default(PENDING)
+  personId      String
+  /// Client payments are attached to a stay
+  reservationId String?
+  date          DateTime?
+  amount        Float
+  currency      String           @default("EUR")
+  method        PaymentMethod?
+  reference     String?
+  note          String?
+  createdById   String?
+  validatedById String?
+  validatedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  person      User         @relation("SettlementPerson", fields: [personId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  createdBy   User?        @relation("SettlementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  validatedBy User?        @relation("SettlementValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+
+  @@index([personId])
+  @@index([status])
 }
 
 model Payment {
@@ -268,20 +358,20 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  order           Order         @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 }
 
 model Conversation {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   reservationId String?
   topic         String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  reservation   Reservation? @relation(fields: [reservationId], references: [id])
-  participants  ConversationParticipant[]
-  messages      Message[]
+  reservation  Reservation?              @relation(fields: [reservationId], references: [id])
+  participants ConversationParticipant[]
+  messages     Message[]
 }
 
 model ConversationParticipant {
@@ -303,50 +393,50 @@ model Message {
   readAt         DateTime?
   createdAt      DateTime  @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
 }
 
 model Document {
-  id          String   @id @default(cuid())
-  villaId     String?
-  name        String
-  type        String
-  fileUrl     String
-  fileSize    Int?
-  version     Int      @default(1)
-  category    String   @default("general")
-  uploadedBy  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  villaId    String?
+  name       String
+  type       String
+  fileUrl    String
+  fileSize   Int?
+  version    Int      @default(1)
+  category   String   @default("general")
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  villa       Villa?   @relation(fields: [villaId], references: [id])
+  villa       Villa?  @relation(fields: [villaId], references: [id])
   textContent String?
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  action     String
-  entity     String
-  entityId   String?
-  changes    Json?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  changes   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
 
-  user       User?    @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AppSetting {
@@ -365,7 +455,7 @@ model AiQuery {
   hasAnswer Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Notification {
@@ -381,27 +471,27 @@ model Notification {
   createdAt  DateTime  @default(now())
   readAt     DateTime?
 
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CalendarEvent {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   description   String?
   startAt       DateTime
   endAt         DateTime
-  allDay        Boolean   @default(false)
-  type          String    @default("event")
+  allDay        Boolean  @default(false)
+  type          String   @default("event")
   color         String?
   villaId       String?
   reservationId String?
   orderId       String?
   createdBy     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  villa         Villa?       @relation(fields: [villaId], references: [id])
-  reservation   Reservation? @relation(fields: [reservationId], references: [id])
-  order         Order?       @relation(fields: [orderId], references: [id])
-  creator       User?        @relation("CalendarEventCreator", fields: [createdBy], references: [id])
+  villa       Villa?       @relation(fields: [villaId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+  order       Order?       @relation(fields: [orderId], references: [id])
+  creator     User?        @relation("CalendarEventCreator", fields: [createdBy], references: [id])
 }

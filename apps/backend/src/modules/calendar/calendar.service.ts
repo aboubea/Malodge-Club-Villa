@@ -119,7 +119,7 @@ export class CalendarService {
       })),
       ...orders.map((o) => ({
         id: `ord-${o.id}`,
-        title: o.items.length > 0 ? o.items[0].service.name : 'Commande',
+        title: o.items.length > 0 ? (o.items[0].service?.name ?? o.items[0].label ?? 'Extra') : 'Commande',
         description: `${o.items.length} service(s) · ${o.status}`,
         startAt: o.scheduledAt!.toISOString(),
         endAt: new Date(o.scheduledAt!.getTime() + 2 * 60 * 60 * 1000).toISOString(),

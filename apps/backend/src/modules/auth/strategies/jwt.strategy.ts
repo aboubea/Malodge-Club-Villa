@@ -36,6 +36,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    return user;
+    // Several controllers read `@CurrentUser('sub')`; expose it so they get the
+    // real user id instead of `undefined` (which Prisma treats as "no filter").
+    return { ...user, sub: user.id };
   }
 }

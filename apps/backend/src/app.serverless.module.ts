@@ -15,6 +15,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { AiModule } from './modules/ai/ai.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ExtrasModule } from './modules/extras/extras.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ChatRestModule } from './modules/chat/chat.rest.module';
@@ -41,6 +42,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AiModule,
     DocumentsModule,
     NotificationsModule,
+    ExtrasModule,
     SettingsModule,
     DashboardModule,
     ChatRestModule,

@@ -8,6 +8,8 @@ export enum Role {
   MANAGER = 'MANAGER',
   PROVIDER = 'PROVIDER',
   CLIENT = 'CLIENT',
+  OWNER = 'OWNER',
+  EMPLOYEE = 'EMPLOYEE',
 }
 
 export enum ReservationStatus {

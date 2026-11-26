@@ -7,6 +7,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { AllowRestrictedRoles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -37,6 +38,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @AllowRestrictedRoles()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user' })
   getMe(@CurrentUser('id') userId: string) {

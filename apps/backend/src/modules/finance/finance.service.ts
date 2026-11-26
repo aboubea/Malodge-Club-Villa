@@ -98,13 +98,15 @@ export class FinanceService {
     const revenueByServiceMap = new Map<string, { serviceId: string; name: string; amount: number }>();
     for (const order of completedOrders) {
       for (const item of order.items) {
-        const existing = revenueByServiceMap.get(item.serviceId) || {
-          serviceId: item.serviceId,
-          name: item.service.name,
+        // Off-catalogue extras have no service: group them by their free-text label.
+        const key = item.serviceId ?? `label:${item.label ?? 'Autre'}`;
+        const existing = revenueByServiceMap.get(key) || {
+          serviceId: item.serviceId ?? key,
+          name: item.service?.name ?? item.label ?? 'Prestation hors catalogue',
           amount: 0,
         };
         existing.amount += item.total;
-        revenueByServiceMap.set(item.serviceId, existing);
+        revenueByServiceMap.set(key, existing);
       }
     }
     const revenueByService = Array.from(revenueByServiceMap.values())
