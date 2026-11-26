@@ -65,6 +65,39 @@ describe('Lodgify is read-only', () => {
   });
 });
 
+describe('Lodgify bookings read in full', () => {
+  afterEach(() => request.mockReset());
+
+  it('reads every page of past stays, so one that ended yesterday is never cut off', async () => {
+    // 380 past stays listed oldest first: the one that ended yesterday is on the 8th and last page.
+    const historic: any[] = Array.from({ length: 380 }, (_, i) => ({ id: 1000 + i, status: 'Booked', arrival: '2026-01-01', departure: '2026-01-05', property_id: 7 }));
+    historic[379] = { id: 'yesterday', status: 'Booked', arrival: '2026-11-21', departure: '2026-11-25', property_id: 58 };
+    const paths: string[] = [];
+    request.mockImplementation((options: any, cb: (res: any) => void) => {
+      paths.push(options.path);
+      const q = new URLSearchParams(options.path.split('?')[1]);
+      const page = Number(q.get('page'));
+      const body = q.get('stayFilter') === 'Historic' ? { items: historic.slice((page - 1) * 50, page * 50), count: historic.length } : { items: [], count: 0 };
+      const res: any = new EventEmitter();
+      res.statusCode = 200;
+      const req: any = new EventEmitter();
+      req.setTimeout = () => req;
+      req.destroy = () => undefined;
+      req.end = () => {
+        cb(res);
+        res.emit('data', JSON.stringify(body));
+        res.emit('end');
+      };
+      return req;
+    });
+    const service = new LodgifyService({} as any, {} as any) as any;
+    const all = await service.fetchBookings('test-key');
+    expect(all).toHaveLength(380);
+    expect(all.some((b: any) => b.id === 'yesterday')).toBe(true);
+    expect(paths.filter((p) => p.includes('stayFilter=Historic'))).toHaveLength(8);
+  });
+});
+
 describe('Lodgify booking in the app', () => {
   const service = new LodgifyService({} as any, {} as any) as any;
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);

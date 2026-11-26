@@ -77,6 +77,13 @@ export class LodgifyController {
     return this.lodgifyService.calendarBookings(a, b, restricted, refresh === 'true');
   }
 
+  @Get('find')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Lodgify bookings of a guest and why each is (not) on the calendar (read-only on Lodgify)' })
+  find(@Query('q') q = '', @Query('refresh') refresh?: string) {
+    return this.lodgifyService.findBookings(String(q).slice(0, 80), refresh === 'true');
+  }
+
   @Get('properties/missing')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Lodgify listings not in the app yet (read-only on Lodgify)' })

@@ -143,21 +143,36 @@ export class LodgifyService {
     const all: any[] = [];
     // Bookings from Airbnb, Booking.com… ("external") are included; current, upcoming and past
     // stays are read separately so the upcoming ones are never cut off by older pages.
+    // Every page is read, whatever order Lodgify lists the bookings in: a stay that ended
+    // yesterday must never fall off the end of the list (past stays used to be cut at 300).
     const pass = async (filter: string, maxPages: number) => {
-      const got: any[] = [];
-      for (let page = 1; page <= maxPages; page++) {
-        const data = await this.lodgifyGetAny(
-          `/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true&includeExternal=true&stayFilter=${filter}`,
-          apiKey,
-        );
-        const items = this.itemsOf(data);
-        got.push(...items);
-        if (items.length < SIZE) break;
+      const url = (page: number) => `/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true&includeExternal=true&stayFilter=${filter}`;
+      const first = await this.lodgifyGetAny(url(1), apiKey);
+      const got: any[] = [...this.itemsOf(first)];
+      const count = Number(first?.count);
+      if (Number.isFinite(count) && count > SIZE) {
+        const pages = Math.ceil(count / SIZE);
+        // Beyond the limit, both ends of the list (the newest are at one of them).
+        const wanted =
+          pages <= maxPages
+            ? Array.from({ length: pages - 1 }, (_, i) => i + 2)
+            : [...Array.from({ length: maxPages / 2 - 1 }, (_, i) => i + 2), ...Array.from({ length: maxPages / 2 }, (_, i) => pages - maxPages / 2 + 1 + i)];
+        for (let i = 0; i < wanted.length; i += 6) {
+          const batch = await Promise.all(wanted.slice(i, i + 6).map((p) => this.lodgifyGetAny(url(p), apiKey)));
+          batch.forEach((d) => got.push(...this.itemsOf(d)));
+        }
+      } else if (!Number.isFinite(count)) {
+        // No count given: page by page until a short page.
+        let last = this.itemsOf(first);
+        for (let page = 2; page <= maxPages && last.length === SIZE; page++) {
+          last = this.itemsOf(await this.lodgifyGetAny(url(page), apiKey));
+          got.push(...last);
+        }
       }
       return got;
     };
     try {
-      const passes = await Promise.all([pass('Current', 4), pass('Upcoming', 16), pass('Historic', 6)]);
+      const passes = await Promise.all([pass('Current', 4), pass('Upcoming', 30), pass('Historic', 40)]);
       for (const b of passes.flat()) {
         if (b?.id == null || seen.has(String(b.id))) continue;
         seen.add(String(b.id));
@@ -743,6 +758,55 @@ export class LodgifyService {
     }
     this.bookingCache = null;
     return this.copyBookings(bookings);
+  }
+
+  /**
+   * "A booking is missing": the Lodgify bookings of a guest (name or Lodgify number), with
+   * where each one is in the app or why it is not shown. Read from Lodgify, nothing written there.
+   */
+  async findBookings(q: string, force = false) {
+    const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const needle = norm(q);
+    if (needle.length < 2) return { query: q, results: [] };
+    const bookings = await this.cachedBookings(force);
+    const hits = bookings.filter((b) => b.id === q.trim() || norm(b.guestName).includes(needle)).slice(0, 30);
+    const [villas, copies, names] = await Promise.all([
+      this.prisma.villa.findMany({ where: { logifyId: { in: hits.map((b) => b.propertyId) } }, select: { id: true, name: true, logifyId: true, isActive: true, parentVillaId: true } }),
+      this.prisma.reservation.findMany({ where: { logifyId: { in: hits.map((b) => b.id) } }, select: { id: true, logifyId: true, status: true } }),
+      this.listingNames(),
+    ]);
+    const villaOf = new Map(villas.map((v) => [v.logifyId!, v]));
+    const copyOf = new Map(copies.map((r) => [r.logifyId!, r]));
+    const results = hits
+      .map((b) => {
+        const villa = villaOf.get(b.propertyId) ?? null;
+        const copy = copyOf.get(b.id) ?? null;
+        const reason = !villa
+          ? 'listing'
+          : b.enquiry
+            ? 'enquiry'
+            : b.status === 'CANCELLED'
+              ? 'cancelled'
+              : villa && !villa.isActive && !villa.parentVillaId
+                ? 'inactive'
+                : null;
+        return {
+          id: b.id,
+          guest: b.guestName,
+          channel: b.channel,
+          checkIn: b.checkIn?.toISOString() ?? null,
+          checkOut: b.checkOut?.toISOString() ?? null,
+          lodgifyStatus: b.lodgifyStatus,
+          listing: { id: b.propertyId, name: b.propertyName ?? names[b.propertyId] ?? `Annonce ${b.propertyId}` },
+          villa: villa ? { id: villa.id, name: villa.name } : null,
+          /** Copied into the app (extras can be attached to it). */
+          inApp: !!copy,
+          /** Why it is not on the calendar: listing not in the app, enquiry, cancelled, villa switched off. */
+          reason,
+        };
+      })
+      .sort((a, b) => (b.checkIn ?? '').localeCompare(a.checkIn ?? ''));
+    return { query: q, readAt: this.bookingCache?.at ? new Date(this.bookingCache.at).toISOString() : null, total: bookings.length, results };
   }
 
   /** Copies bookings into the app (local copy only, Lodgify is never written to). */

@@ -10,6 +10,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
+import { FindBooking } from './FindBooking';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StayInvitePanel } from './StayInvitePanel';
 
@@ -124,6 +125,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   const [showEnquiries, setShowEnquiries] = useState(false);
   const [onlyBooked, setOnlyBooked] = useState(false);
   const [selected, setSelected] = useState<TimelineStay | null>(null);
+  const [finding, setFinding] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   /** Scroll to apply once the new days are rendered. */
   const pending = useRef<{ left: number; smooth: boolean } | null>({ left: LEAD * COL, smooth: false });
@@ -443,6 +445,9 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
           >
             {refreshing ? 'Lecture de Lodgify…' : 'Actualiser'}
           </button>
+          <button type="button" onClick={() => setFinding(true)} className="font-semibold text-accent hover:underline">
+            Une réservation manque ?
+          </button>
         </p>
       )}
 
@@ -646,6 +651,8 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
           </div>
         </div>
       )}
+
+      <FindBooking open={finding} onClose={() => setFinding(false)} onJump={(d) => goTo(utcDay(new Date(d)) - 3 * DAY)} />
 
       <StayPanel
         stay={selected}
