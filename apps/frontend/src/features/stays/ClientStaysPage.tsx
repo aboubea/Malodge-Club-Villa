@@ -26,7 +26,8 @@ const STATUS_VARIANT: Record<string, any> = {
   CANCELLED: 'cancelled',
 };
 
-function nightsBetween(checkIn: string, checkOut: string) {
+function nightsBetween(checkIn: string | null, checkOut: string | null) {
+  if (!checkIn || !checkOut) return 0;
   const d1 = new Date(checkIn);
   const d2 = new Date(checkOut);
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
@@ -46,14 +47,16 @@ export function ClientStaysPage() {
   const reservations: any[] = data?.data ?? data ?? [];
 
   const now = new Date();
+  // A stay whose dates are not known yet counts as upcoming, never as past.
+  const time = (d: string | null) => (d ? new Date(d).getTime() : Infinity);
   const active = reservations.find(
-    (r) => r.status === 'ACTIVE' || (r.status === 'CONFIRMED' && new Date(r.checkIn) <= now && new Date(r.checkOut) >= now),
+    (r) => r.status === 'ACTIVE' || (r.status === 'CONFIRMED' && r.checkIn && r.checkOut && new Date(r.checkIn) <= now && new Date(r.checkOut) >= now),
   );
   const upcoming = reservations
-    .filter((r) => (r.status === 'CONFIRMED' || r.status === 'PENDING') && new Date(r.checkIn) > now)
-    .sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+    .filter((r) => r !== active && (r.status === 'CONFIRMED' || r.status === 'PENDING') && time(r.checkIn) > now.getTime())
+    .sort((a, b) => time(a.checkIn) - time(b.checkIn));
   const past = reservations.filter(
-    (r) => r.status === 'COMPLETED' || r.status === 'CANCELLED' || new Date(r.checkOut) < now,
+    (r) => r.status === 'COMPLETED' || r.status === 'CANCELLED' || (r.checkOut && new Date(r.checkOut) < now),
   );
 
   return (
@@ -157,9 +160,9 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
               <div className="flex items-center gap-4 mt-2 text-xs text-muted">
                 <span className="flex items-center gap-1">
                   <CalendarDays size={10} />
-                  {formatDate(r.checkIn)} → {formatDate(r.checkOut)}
+                  {r.checkIn || r.checkOut ? `${formatDate(r.checkIn)} → ${formatDate(r.checkOut)}` : 'Dates à venir'}
                 </span>
-                <span>{nights} nuit{nights > 1 ? 's' : ''}</span>
+                {nights > 0 && <span>{nights} nuit{nights > 1 ? 's' : ''}</span>}
                 <span className="flex items-center gap-1">
                   <Users size={10} /> {r.guests} voyageur{r.guests > 1 ? 's' : ''}
                 </span>

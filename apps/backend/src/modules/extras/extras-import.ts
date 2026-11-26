@@ -31,7 +31,7 @@ export interface ImportReport {
   people: Record<Role, { created: number; reused: number }>;
   villas: { created: string[]; updated: string[]; matched: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
-  stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
+  stays: { created: number; fromExtras: string[]; datesMissing: string[]; skipped: string[] };
   adjusted: string[];
   extras: number;
   settlements: { validated: number; pending: number; cancelled: number };
@@ -365,27 +365,18 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     if (stays.has(k)) return stays.get(k)!;
     const villaId = villaIds.get(key(villaName));
     if (!villaId) return null;
-    // Dates are never invented: they come from the settings, otherwise from the stay's
-    // own extras (then payments) and are flagged "to confirm"; with nothing, no stay.
-    const known = info?.arrival && info?.departure;
-    const own = data.extras.filter((e) => key(e.stay) === k && e.date).map((e) => e.date!.getTime());
-    const paid = data.settlements.filter((st) => key(st.person) === k && st.date).map((st) => st.date!.getTime());
-    const hints = own.length ? own : paid;
-    if (!known && !info?.arrival && !info?.departure && hints.length === 0) {
-      report.stays.skipped.push(label);
-      warn(`Séjour « ${label} » non importé : ni dates ni extras dans l'Excel.`);
-      return null;
-    }
-    const checkIn = info?.arrival ?? new Date(Math.min(...(hints.length ? hints : [info!.departure!.getTime()])));
-    const checkOut = info?.departure ?? new Date(Math.max(...(hints.length ? hints : [checkIn.getTime()])));
+    // Dates come from the file and nowhere else: a stay without dates in the
+    // spreadsheet has none in the app ("dates non renseignées"), even if it has extras.
+    const checkIn = info?.arrival ?? null;
+    const checkOut = info?.departure ?? null;
     const clientId = person('CLIENT', label, info?.contact ? { phone: info.contact } : {});
-    if (!known) {
-      report.stays.datesEstimated.push(label);
-      warn(`Séjour « ${label} » : dates absentes de l'Excel, déduites ${own.length ? 'des extras' : 'des règlements'} (${checkIn.toISOString().slice(0, 10)} → ${checkOut.toISOString().slice(0, 10)}) — à confirmer.`);
+    if (!checkIn || !checkOut) {
+      report.stays.datesMissing.push(label);
+      warn(`Séjour « ${label} » : ${!checkIn && !checkOut ? 'aucune date' : !checkIn ? "pas de date d'arrivée" : 'pas de date de départ'} dans l'Excel, laissé « dates non renseignées ».`);
     }
     const id = newId();
     newStays.push({
-      id, label, villaId, clientId, checkIn, checkOut, datesEstimated: !known, totalAmount: 0, status: 'CONFIRMED',
+      id, label, villaId, clientId, checkIn, checkOut, datesEstimated: false, totalAmount: 0, status: 'CONFIRMED',
       archived: info?.archived ?? false, source: 'extras-import', notes: info?.notes || null,
     });
     const entry = { id, clientId, villaId };
@@ -551,7 +542,7 @@ export async function importExtrasWorkbook(
     people: { CLIENT: emptyPeople(), PROVIDER: emptyPeople(), OWNER: emptyPeople(), EMPLOYEE: emptyPeople() },
     villas: { created: [], updated: [], matched: [] },
     catalogue: { created: 0, updated: 0, categoriesCreated: [] },
-    stays: { created: 0, fromExtras: [], datesEstimated: [], skipped: [] },
+    stays: { created: 0, fromExtras: [], datesMissing: [], skipped: [] },
     adjusted: [],
     extras: 0,
     settlements: { validated: 0, pending: 0, cancelled: 0 },

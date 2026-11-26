@@ -66,8 +66,8 @@ function fromReservation(r: Reservation): FormState {
   return {
     villaId: r.villa.id,
     clientId: r.client.id,
-    checkIn: r.checkIn.slice(0, 10),
-    checkOut: r.checkOut.slice(0, 10),
+    checkIn: r.checkIn?.slice(0, 10) ?? '',
+    checkOut: r.checkOut?.slice(0, 10) ?? '',
     guests: String(r.guests ?? 1),
     totalAmount: String(r.totalAmount),
     status: r.status,

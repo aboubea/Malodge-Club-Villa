@@ -35,13 +35,15 @@ const fadeUp = (delay = 0) => ({
   transition: { delay, duration: 0.35, ease: [0.22, 1, 0.36, 1] },
 });
 
-function shortDate(value: string) {
+function shortDate(value: string | null) {
+  if (!value) return '—';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function nights(from: string, to: string) {
+function nights(from: string | null, to: string | null) {
+  if (!from || !to) return null;
   const n = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
   return Number.isFinite(n) && n > 0 ? n : null;
 }

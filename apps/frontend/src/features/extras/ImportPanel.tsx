@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CheckCircle2, FileSpreadsheet, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { apiClient } from '../../lib/apiClient';
-import { cn } from '../../lib/utils';
+import { cn, formatDay } from '../../lib/utils';
 
 interface ImportReport {
   dryRun: boolean;
@@ -13,7 +13,7 @@ interface ImportReport {
   people: Record<'CLIENT' | 'PROVIDER' | 'OWNER' | 'EMPLOYEE', { created: number; reused: number }>;
   villas: { created: string[]; updated: string[]; matched?: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
-  stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
+  stays: { created: number; fromExtras: string[]; datesMissing?: string[]; datesEstimated?: string[]; skipped: string[] };
   adjusted: string[];
   extras: number;
   settlements: { validated: number; pending: number; cancelled: number };
@@ -73,11 +73,12 @@ function ReportView({ r }: { r: ImportReport }) {
           </ul>
         </div>
       )}
-      {(r.stays.datesEstimated.length > 0 || r.stays.skipped.length > 0) && (
+      {(!!r.stays.datesMissing?.length || r.stays.skipped.length > 0) && (
         <p className="text-[12.5px] text-muted">
-          {r.stays.datesEstimated.length > 0 && (
+          {!!r.stays.datesMissing?.length && (
             <>
-              Séjours sans dates dans l’Excel, dates déduites et marquées « à confirmer » : <b className="text-ink-soft">{r.stays.datesEstimated.join(', ')}</b>.{' '}
+              Séjours sans dates dans l’Excel, laissés « dates non renseignées » (aucune date n’est déduite) :{' '}
+              <b className="text-ink-soft">{r.stays.datesMissing.join(', ')}</b>.{' '}
             </>
           )}
           {r.stays.skipped.length > 0 && (
@@ -257,6 +258,8 @@ export function ImportPanel() {
               </Button>
             </div>
           )}
+
+          <DatesCheck />
         </div>
       ) : (
         <>
@@ -304,6 +307,179 @@ export function ImportPanel() {
             </Button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────── Dates: app vs spreadsheet ───────────────────── */
+
+interface DateDiff {
+  id: string;
+  kind: 'stay' | 'extra' | 'settlement';
+  label: string;
+  where: string;
+  app: string | null;
+  file: string | null;
+  app2?: string | null;
+  file2?: string | null;
+}
+interface DatesCheckReport {
+  checked: { stays: number; extras: number; settlements: number };
+  diffs: DateDiff[];
+  unmatched: string[];
+  applied: number;
+}
+
+const KIND_LABEL = { stay: 'Séjour', extra: 'Extra', settlement: 'Règlement' } as const;
+
+function showDates(d: DateDiff, side: 'app' | 'file') {
+  const a = side === 'app' ? d.app : d.file;
+  const b = side === 'app' ? d.app2 : d.file2;
+  if (d.kind !== 'stay') return a ? formatDay(a) : 'sans date';
+  if (!a && !b) return 'non renseignées';
+  return `${a ? formatDay(a) : '—'} → ${b ? formatDay(b) : '—'}`;
+}
+
+/** Compares every imported date with the spreadsheet and puts the file's dates back on request. */
+function DatesCheck() {
+  const qc = useQueryClient();
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [report, setReport] = useState<DatesCheckReport | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<'check' | 'apply' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (apply: string[] = []) => {
+    if (!file) return;
+    setError(null);
+    setBusy(apply.length ? 'apply' : 'check');
+    const body = new FormData();
+    body.append('file', file);
+    if (apply.length) body.append('apply', JSON.stringify(apply));
+    try {
+      const r = await apiClient.post('/extras/import/check-dates', body, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 });
+      const rep = (r.data?.data ?? r.data) as DatesCheckReport;
+      setReport(rep);
+      setChosen(new Set(rep.diffs.map((d) => d.id)));
+      if (apply.length) {
+        qc.invalidateQueries({ queryKey: ['extras'] });
+        toast.success(`${rep.applied} date(s) remise(s) comme dans le fichier`);
+      }
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggle = (id: string) =>
+    setChosen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="rounded-xl border border-line px-4 py-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <span className="w-9 h-9 rounded-full bg-peach flex items-center justify-center shrink-0">
+          <CalendarCheck size={17} className="text-accent" />
+        </span>
+        <div>
+          <p className="text-[14px] font-bold text-ink">Vérifier les dates avec le fichier</p>
+          <p className="text-[12.5px] text-muted mt-0.5 max-w-2xl">
+            Chaque date de séjour, d’extra et de règlement importée est comparée au fichier Excel. Une date absente du fichier doit
+            être absente de l’appli. Rien n’est modifié sans votre accord.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" size="sm" icon={<FileSpreadsheet size={13} />} onClick={() => input.current?.click()}>
+          {file ? file.name : 'Choisir le fichier .xlsx'}
+        </Button>
+        <input
+          ref={input}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setReport(null);
+            setError(null);
+          }}
+        />
+        <Button size="sm" disabled={!file || !!busy} loading={busy === 'check'} onClick={() => run()}>
+          Comparer
+        </Button>
+      </div>
+
+      {error && <p className="rounded-xl bg-danger/10 text-danger text-[13px] px-4 py-3">{error}</p>}
+
+      {report && (
+        <div className="space-y-3">
+          <p className="text-[12.5px] text-muted">
+            Comparés : {report.checked.stays} séjours, {report.checked.extras} extras, {report.checked.settlements} règlements.
+          </p>
+          {report.diffs.length === 0 ? (
+            <p className="flex items-center gap-2 rounded-xl bg-success/10 text-success text-[13px] font-semibold px-4 py-3">
+              <CheckCircle2 size={16} /> Toutes les dates comparées sont identiques au fichier.
+            </p>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border border-line">
+                <table className="w-full min-w-[640px] text-[12.5px]">
+                  <thead className="bg-surface-2/60 text-muted">
+                    <tr>
+                      <th className="w-9 px-3 py-2" />
+                      <th className="text-left font-semibold px-3 py-2">Élément</th>
+                      <th className="text-left font-semibold px-3 py-2">Dans l’appli</th>
+                      <th className="text-left font-semibold px-3 py-2">Dans le fichier</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {report.diffs.map((d) => (
+                      <tr key={d.id}>
+                        <td className="px-3 py-2">
+                          <input type="checkbox" checked={chosen.has(d.id)} onChange={() => toggle(d.id)} aria-label={`Corriger ${d.label}`} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <p className="font-semibold text-ink">
+                            {KIND_LABEL[d.kind]} · {d.label}
+                          </p>
+                          <p className="text-muted">{d.where}</p>
+                        </td>
+                        <td className="px-3 py-2 text-danger tabular">{showDates(d, 'app')}</td>
+                        <td className="px-3 py-2 text-ink font-semibold tabular">{showDates(d, 'file')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12px] text-muted">Décochez une ligne si la date de l’appli a été corrigée volontairement depuis l’import.</p>
+                <Button size="sm" disabled={!chosen.size || !!busy} loading={busy === 'apply'} onClick={() => run([...chosen])}>
+                  Remettre les dates du fichier ({chosen.size})
+                </Button>
+              </div>
+            </>
+          )}
+          {report.unmatched.length > 0 && (
+            <details className="text-[12.5px] text-muted">
+              <summary className="cursor-pointer">
+                {report.unmatched.length} ligne(s) du fichier non retrouvée(s) dans l’appli (supprimées, renommées ou ajoutées à la main)
+              </summary>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                {report.unmatched.map((u) => (
+                  <li key={u}>{u}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
       )}
     </div>
   );

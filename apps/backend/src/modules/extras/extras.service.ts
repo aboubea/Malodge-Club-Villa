@@ -17,6 +17,7 @@ import {
 } from './extras.calc';
 import { ImportAlreadyDoneError, VILLA_ALIASES_KEY, importExtrasWorkbook, undoImport } from './extras-import';
 import { villaCandidates } from './villa-match';
+import { checkImportDates } from './extras-dates-check';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import {
   CreatePersonDto,
@@ -395,7 +396,10 @@ export class ExtrasService {
       alerts: {
         incompleteExtras: lines.filter((l) => !l.cancelled && l.issue).length,
         dateWarnings: lines.filter((l) => !l.cancelled && l.warning).length,
-        staysToDate: seeds.filter((s) => s.role === 'CLIENT' && !s.archived && (s.meta as { datesEstimated?: boolean })?.datesEstimated).length,
+        staysToDate: seeds.filter((s) => {
+          const m = s.meta as { datesEstimated?: boolean; checkIn?: Date | null; checkOut?: Date | null } | undefined;
+          return s.role === 'CLIENT' && !s.archived && (m?.datesEstimated || !m?.checkIn || !m?.checkOut);
+        }).length,
         pendingSettlements: settlements.filter((s) => s.status === 'PENDING').length,
         settingsToCheck: people.filter((p) => p.commissionRate == null).length,
       },
@@ -631,7 +635,13 @@ export class ExtrasService {
         archived: s.archived,
         datesEstimated: s.datesEstimated,
         notes: s.notes,
-        issue: s.checkOut < s.checkIn ? 'Dates à vérifier' : s.datesEstimated ? 'Dates à confirmer' : null,
+        issue: !s.checkIn || !s.checkOut
+          ? 'Dates non renseignées'
+          : s.checkOut < s.checkIn
+            ? 'Dates à vérifier'
+            : s.datesEstimated
+              ? 'Dates à confirmer'
+              : null,
       })),
     };
   }
@@ -782,10 +792,9 @@ export class ExtrasService {
     const villa = await this.prisma.villa.findUnique({ where: { id: dto.villaId }, select: { id: true } });
     if (!villa) throw new BadRequestException('Villa introuvable');
     const clientId = dto.clientId ?? (await this.createRecordUser('CLIENT', dto.label)).id;
-    // Stay dates are calendar days: store them at 00:00 UTC.
-    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
-    const checkIn = toDate(dto.checkIn) ?? today;
-    const checkOut = toDate(dto.checkOut) ?? checkIn;
+    // Stay dates are calendar days (00:00 UTC). A date nobody gave stays empty: never today's date.
+    const checkIn = toDate(dto.checkIn);
+    const checkOut = toDate(dto.checkOut);
     const stay = await this.prisma.reservation.create({
       data: {
         label: dto.label.trim(),
@@ -796,7 +805,7 @@ export class ExtrasService {
         totalAmount: 0,
         status: 'CONFIRMED',
         archived: dto.archived ?? false,
-        datesEstimated: !dto.checkIn || !dto.checkOut,
+        datesEstimated: false,
         notes: dto.notes ?? null,
         source: 'extras',
       },
@@ -812,8 +821,9 @@ export class ExtrasService {
       data: {
         ...(dto.label !== undefined && { label: dto.label.trim() }),
         ...(dto.villaId !== undefined && { villaId: dto.villaId }),
-        ...(dto.checkIn !== undefined && dto.checkIn && { checkIn: new Date(dto.checkIn) }),
-        ...(dto.checkOut !== undefined && dto.checkOut && { checkOut: new Date(dto.checkOut) }),
+        // An emptied date is cleared, not kept.
+        ...(dto.checkIn !== undefined && { checkIn: toDate(dto.checkIn) }),
+        ...(dto.checkOut !== undefined && { checkOut: toDate(dto.checkOut) }),
         ...(dto.datesEstimated !== undefined && { datesEstimated: dto.datesEstimated }),
         ...(dto.archived !== undefined && { archived: dto.archived }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
@@ -943,6 +953,15 @@ export class ExtrasService {
         throw new BadRequestException(`Le fichier de suivi a déjà été importé (${prev.file ?? 'fichier'} — ${when}). Un second import créerait des doublons.`);
       }
       throw new BadRequestException(e instanceof Error ? e.message : 'Import impossible');
+    }
+  }
+
+  async checkImportDates(buffer: Buffer, apply: string[]) {
+    try {
+      return await checkImportDates(this.prisma as any, buffer, { apply });
+    } catch (e: any) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(e?.message ?? 'Vérification impossible');
     }
   }
 

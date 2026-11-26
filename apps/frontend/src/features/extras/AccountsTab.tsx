@@ -61,9 +61,10 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
 
   const detail = (a: Account) => {
     if (role === 'CLIENT') {
-      const dates = a.meta?.checkIn
-        ? `${formatDay(a.meta.checkIn)} → ${formatDay(a.meta.checkOut)}${a.meta.datesEstimated ? ' (dates à confirmer)' : ''}`
-        : null;
+      const dates =
+        a.meta?.checkIn || a.meta?.checkOut
+          ? `${formatDay(a.meta.checkIn)} → ${formatDay(a.meta.checkOut)}${a.meta.datesEstimated ? ' (dates à confirmer)' : ''}`
+          : 'dates non renseignées';
       return [a.meta?.villa, dates].filter(Boolean).join(' · ');
     }
     if (role === 'OWNER') return [a.meta?.villas?.join(' · ') || 'Aucune villa', a.meta?.rate != null ? `${pct(a.meta.rate)} de la marge` : 'Taux à renseigner'].join(' · ');

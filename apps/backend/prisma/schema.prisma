@@ -252,8 +252,8 @@ model Reservation {
   logifyId       String?           @unique
   villaId        String
   clientId       String
-  checkIn        DateTime
-  checkOut       DateTime
+  checkIn        DateTime?
+  checkOut       DateTime?
   guests         Int               @default(1)
   totalAmount    Float
   status         ReservationStatus @default(PENDING)

@@ -145,6 +145,9 @@ async function bootstrap() {
       `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "unitCost" DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "serviceId" DROP NOT NULL`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "unitPrice" DROP NOT NULL`,
+      // A stay whose dates are not known has none (never an invented date).
+      `ALTER TABLE "Reservation" ALTER COLUMN "checkIn" DROP NOT NULL`,
+      `ALTER TABLE "Reservation" ALTER COLUMN "checkOut" DROP NOT NULL`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DATA TYPE DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DEFAULT 1`,
       `CREATE TABLE IF NOT EXISTS "Settlement" (

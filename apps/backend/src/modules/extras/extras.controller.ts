@@ -212,6 +212,28 @@ export class ExtrasController {
     return this.extras.importWorkbook(file.buffer, { dryRun: dryRun !== 'false', fileName: file.originalname });
   }
 
+  @Post('import/check-dates')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Compare the app dates with the extras spreadsheet; `apply` (JSON list of ids) puts the file dates back' })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 4 * 1024 * 1024, files: 1 } }))
+  checkImportDates(
+    @UploadedFile() file: { buffer: Buffer; originalname: string; size: number } | undefined,
+    @Body('apply') apply?: string,
+  ) {
+    if (!file?.buffer?.length) throw new BadRequestException('Aucun fichier reçu.');
+    if (!/\.xlsx$/i.test(file.originalname)) throw new BadRequestException('Format attendu : classeur Excel .xlsx');
+    let ids: string[] = [];
+    if (apply) {
+      try {
+        ids = JSON.parse(apply);
+      } catch {
+        throw new BadRequestException('Liste des corrections illisible.');
+      }
+      if (!Array.isArray(ids) || ids.some((x) => typeof x !== 'string')) throw new BadRequestException('Liste des corrections illisible.');
+    }
+    return this.extras.checkImportDates(file.buffer, ids);
+  }
+
   /* Catalogue */
   @Get('catalogue')
   @Roles(Role.MANAGER)
