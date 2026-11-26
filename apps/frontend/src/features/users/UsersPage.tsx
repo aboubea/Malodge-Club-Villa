@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -63,6 +63,18 @@ export function UsersPage() {
     },
   });
 
+  // (Re)send the e-mail that lets the user choose their password; says why if it did not leave.
+  const inviteMutation = useMutation({
+    mutationFn: async (row: UserDto) => {
+      const r = await apiClient.post(`/users/${row.id}/invite`);
+      return { row, result: (r.data?.data ?? r.data) as { sent: boolean; error?: string } };
+    },
+    onSuccess: ({ row, result }) => {
+      if (result.sent) toast.success(`Invitation envoyée à ${row.email}`);
+      else toast.error(`Invitation non envoyée : ${result.error ?? 'raison inconnue'}`, { duration: 10000 });
+    },
+  });
+
   const columns: Column<UserDto>[] = [
     {
       key: 'user',
@@ -74,6 +86,17 @@ export function UsersPage() {
             <p className="text-sm text-ink">{row.firstName} {row.lastName}</p>
             <p className="text-xs text-muted">{row.email.endsWith('@fiche.malodge.invalid') ? 'Fiche sans accès à l’application' : row.email}</p>
           </div>
+          {!/\.(invalid|local)$/i.test(row.email) && (
+            <button
+              type="button"
+              onClick={() => inviteMutation.mutate(row)}
+              disabled={inviteMutation.isPending}
+              className="ml-auto h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-line text-[11.5px] text-ink-soft hover:text-ink hover:border-line-strong disabled:opacity-50"
+              title="Envoyer un e-mail pour choisir son mot de passe"
+            >
+              <Mail size={12} /> Inviter
+            </button>
+          )}
         </div>
       ),
     },

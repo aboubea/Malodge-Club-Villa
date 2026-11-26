@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import * as crypto from 'crypto';
+import { MailService } from '../mail/mail.service';
 import { canonicalCountries } from '../../common/geo';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -8,7 +10,24 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mail: MailService,
+  ) {}
+
+  /**
+   * E-mails the user a link to choose their password (valid 7 days). Returns
+   * whether it left, and why not otherwise, so the screen can say so.
+   */
+  async sendInvitation(userId: string, invitedBy?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, firstName: true, canLogin: true } });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    if (!user.canLogin) return { sent: false, error: 'Fiche sans accès à l’application' };
+    await this.prisma.passwordResetToken.updateMany({ where: { userId, usedAt: null, expiresAt: { gt: new Date() } }, data: { expiresAt: new Date() } });
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.passwordResetToken.create({ data: { userId, token, expiresAt: new Date(Date.now() + 7 * 24 * 3600_000) } });
+    return this.mail.sendInvitation(user.email, user.firstName, token, invitedBy);
+  }
 
   async findAll(params: {
     page?: number;
@@ -82,7 +101,7 @@ export class UsersService {
     return user;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, invitedBy?: string) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -108,7 +127,9 @@ export class UsersService {
         updatedAt: true,
       },
     });
-    return user;
+    // A user who can log in gets an e-mail to choose their password.
+    const invitation = user && dto.canLogin !== false ? await this.sendInvitation(user.id, invitedBy) : null;
+    return { ...user, invitation };
   }
 
   async update(id: string, dto: UpdateUserDto) {

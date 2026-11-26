@@ -13,6 +13,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@malodge/shared';
 
 @ApiTags('Users')
@@ -50,8 +51,15 @@ export class UsersController {
   @Post()
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Create new user' })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@Body() dto: CreateUserDto, @CurrentUser() me: { firstName?: string; lastName?: string }) {
+    return this.usersService.create(dto, [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined);
+  }
+
+  @Post(':id/invite')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'E-mail the user a link to choose their password' })
+  invite(@Param('id') id: string, @CurrentUser() me: { firstName?: string; lastName?: string }) {
+    return this.usersService.sendInvitation(id, [me?.firstName, me?.lastName].filter(Boolean).join(' ') || undefined);
   }
 
   @Patch(':id')

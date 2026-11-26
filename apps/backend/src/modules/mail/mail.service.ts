@@ -2,287 +2,171 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 
+export interface MailResult {
+  sent: boolean;
+  id?: string;
+  /** Why the e-mail did not leave (missing key, unverified domain, refused address…). */
+  error?: string;
+}
+
+const esc = (s: string | null | undefined) =>
+  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+/**
+ * E-mails sent through Resend. Every send is awaited and its outcome checked:
+ * Resend does not throw when it refuses an e-mail (unverified domain, bad
+ * sender…), it returns an error, which is logged and handed back.
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly apiKey: string;
   private readonly from: string;
-  private readonly appUrl: string;
+  readonly appUrl: string;
 
   constructor(private config: ConfigService) {
-    this.apiKey = config.get('RESEND_API_KEY', '');
-    this.from = config.get('MAIL_FROM', 'Malodge Club Villa <noreply@malodge.com>');
-    this.appUrl = config.get('APP_URL', 'http://localhost:5173');
+    this.apiKey = (config.get<string>('RESEND_API_KEY') ?? '').trim();
+    this.from = (config.get<string>('MAIL_FROM') ?? '').trim() || 'Malodge Club <onboarding@resend.dev>';
+    // Links in e-mails must point to the live site, never to localhost.
+    const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+    this.appUrl = ((config.get<string>('APP_URL') ?? '').trim() || (vercelUrl ? `https://${vercelUrl}` : 'http://localhost:5173')).replace(/\/+$/, '');
+    if (!this.apiKey) this.logger.warn('RESEND_API_KEY absente : aucun e-mail ne peut partir');
+  }
+
+  /** Configuration as the server sees it (no secret). */
+  status() {
+    const domain = this.from.match(/@([^>\s]+)/)?.[1] ?? null;
+    return {
+      configured: !!this.apiKey,
+      keyLooksValid: /^re_[A-Za-z0-9_]{10,}$/.test(this.apiKey),
+      from: this.from,
+      fromDomain: domain,
+      fromIsDefault: !(this.config.get<string>('MAIL_FROM') ?? '').trim(),
+      appUrl: this.appUrl,
+      appUrlIsDefault: !(this.config.get<string>('APP_URL') ?? '').trim(),
+    };
+  }
+
+  private async deliver(to: string, subject: string, html: string, what: string): Promise<MailResult> {
     if (!this.apiKey) {
-      this.logger.warn('RESEND_API_KEY not set — email sending disabled');
+      this.logger.warn(`${what} non envoyé à ${to} : RESEND_API_KEY absente`);
+      return { sent: false, error: 'RESEND_API_KEY absente dans les variables d’environnement du serveur' };
     }
-  }
-
-  private getClient(): Resend | null {
-    if (!this.apiKey) return null;
-    return new Resend(this.apiKey);
-  }
-
-  async sendPasswordReset(to: string, firstName: string, token: string): Promise<void> {
-    const client = this.getClient();
-    if (!client) return;
-    const resetUrl = `${this.appUrl}/reinitialiser-mot-de-passe?token=${token}`;
-
+    if (!to || /\.(invalid|local)$/i.test(to)) return { sent: false, error: 'Pas d’adresse e-mail réelle pour ce destinataire' };
     try {
-      await client.emails.send({
-        from: this.from,
-        to,
-        subject: 'Réinitialisation de votre mot de passe — Malodge Club Villa',
-        html: this.buildPasswordResetHtml(firstName, resetUrl),
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send password reset email to ${to}`, err);
+      const { data, error } = await new Resend(this.apiKey).emails.send({ from: this.from, to, subject, html });
+      if (error) {
+        const reason = `${(error as any).name ?? 'erreur'} : ${error.message}`;
+        this.logger.error(`${what} refusé par Resend pour ${to} — ${reason}`);
+        return { sent: false, error: reason };
+      }
+      return { sent: true, id: data?.id };
+    } catch (e: any) {
+      this.logger.error(`${what} : envoi impossible à ${to} — ${e?.message ?? e}`);
+      return { sent: false, error: e?.message ?? String(e) };
     }
   }
 
-  async sendPasswordChanged(to: string, firstName: string): Promise<void> {
-    const client = this.getClient();
-    if (!client) return;
-    try {
-      await client.emails.send({
-        from: this.from,
-        to,
-        subject: 'Votre mot de passe a été modifié — Malodge Club Villa',
-        html: this.buildPasswordChangedHtml(firstName),
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send password changed email to ${to}`, err);
-    }
+  sendPasswordReset(to: string, firstName: string, token: string) {
+    const url = `${this.appUrl}/reinitialiser-mot-de-passe?token=${token}`;
+    return this.deliver(
+      to,
+      'Réinitialisation de votre mot de passe — Malodge Club',
+      this.layout(
+        'Réinitialisation du mot de passe',
+        `<p>Bonjour ${esc(firstName)},</p><p>Nous avons reçu une demande de réinitialisation du mot de passe de votre compte. Ce lien est valable <b>1 heure</b>.</p>`,
+        { label: 'Choisir un nouveau mot de passe', url },
+        'Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.',
+      ),
+      'E-mail de réinitialisation',
+    );
   }
 
-  async sendWelcome(to: string, firstName: string, tempPassword?: string): Promise<void> {
-    const client = this.getClient();
-    if (!client) return;
-    try {
-      await client.emails.send({
-        from: this.from,
-        to,
-        subject: 'Bienvenue sur Malodge Club Villa',
-        html: this.buildWelcomeHtml(firstName, tempPassword),
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send welcome email to ${to}`, err);
-    }
+  sendPasswordChanged(to: string, firstName: string) {
+    return this.deliver(
+      to,
+      'Votre mot de passe a été modifié — Malodge Club',
+      this.layout(
+        'Mot de passe modifié',
+        `<p>Bonjour ${esc(firstName)},</p><p>Le mot de passe de votre compte vient d’être modifié.</p>`,
+        { label: 'Se connecter', url: `${this.appUrl}/login` },
+        'Si vous n’êtes pas à l’origine de ce changement, contactez-nous immédiatement.',
+      ),
+      'E-mail de confirmation de mot de passe',
+    );
   }
 
-  // ─── Email templates ────────────────────────────────────────────────────────
+  sendWelcome(to: string, firstName: string) {
+    return this.deliver(
+      to,
+      'Bienvenue sur Malodge Club',
+      this.layout(
+        'Bienvenue',
+        `<p>Bonjour ${esc(firstName)},</p><p>Votre compte Malodge Club est prêt.</p>`,
+        { label: 'Se connecter', url: `${this.appUrl}/login` },
+      ),
+      'E-mail de bienvenue',
+    );
+  }
 
-  private buildPasswordResetHtml(firstName: string, resetUrl: string): string {
+  /** Invitation of a user created by an administrator: a link to choose their password (valid 7 days). */
+  sendInvitation(to: string, firstName: string, token: string, invitedBy?: string) {
+    const url = `${this.appUrl}/reinitialiser-mot-de-passe?token=${token}&invitation=1`;
+    return this.deliver(
+      to,
+      'Votre accès à Malodge Club',
+      this.layout(
+        'Votre accès à Malodge Club',
+        `<p>Bonjour ${esc(firstName)},</p><p>${invitedBy ? `${esc(invitedBy)} vous a ouvert` : 'Un accès vous a été ouvert'} un compte sur l’application Malodge Club. Choisissez votre mot de passe pour vous connecter. Ce lien est valable <b>7 jours</b>.</p><p>Votre identifiant : <b>${esc(to)}</b></p>`,
+        { label: 'Choisir mon mot de passe', url },
+      ),
+      'Invitation',
+    );
+  }
+
+  sendNotification(to: string, firstName: string, title: string, body: string) {
+    return this.deliver(
+      to,
+      `${title} — Malodge Club`,
+      this.layout(title, `<p>Bonjour ${esc(firstName)},</p><p>${esc(body).replace(/\n/g, '<br/>')}</p>`, { label: 'Ouvrir l’application', url: this.appUrl }),
+      'Notification',
+    );
+  }
+
+  sendTest(to: string) {
+    return this.deliver(
+      to,
+      'Test d’envoi — Malodge Club',
+      this.layout(
+        'Les e-mails fonctionnent',
+        `<p>Cet e-mail de test confirme que l’application peut envoyer des e-mails.</p><p>Expéditeur : <b>${esc(this.from)}</b><br/>Liens vers : <b>${esc(this.appUrl)}</b></p>`,
+      ),
+      'E-mail de test',
+    );
+  }
+
+  // ─── Layout (MALODGE CLUB, light) ────────────────────────────────────────────
+
+  private layout(title: string, body: string, cta?: { label: string; url: string }, footnote?: string) {
     return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Réinitialisation du mot de passe</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0A0A0B;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0B;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-
-          <!-- Logo -->
-          <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-                <tr>
-                  <td style="width:36px;height:36px;background:#C9A96E;border-radius:10px;text-align:center;vertical-align:middle;">
-                    <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
-                  </td>
-                  <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
-                    <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Card -->
-          <tr>
-            <td style="background:#111113;border:1px solid #242428;border-radius:16px;padding:40px;">
-
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:300;color:#F5F0EB;letter-spacing:-0.3px;">
-                Réinitialisation du mot de passe
-              </h1>
-              <p style="margin:0 0 28px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Bonjour ${firstName},
-              </p>
-              <p style="margin:0 0 28px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte.
-                Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe.
-                Ce lien est valable <strong style="color:#F5F0EB;">1 heure</strong>.
-              </p>
-
-              <!-- CTA Button -->
-              <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-                <tr>
-                  <td style="background:#C9A96E;border-radius:10px;">
-                    <a href="${resetUrl}" style="display:inline-block;padding:14px 28px;font-size:14px;font-weight:500;color:#0A0A0B;text-decoration:none;letter-spacing:0.1px;">
-                      Réinitialiser mon mot de passe
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:0 0 8px;font-size:12px;color:#6B6B6F;line-height:1.6;">
-                Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :
-              </p>
-              <p style="margin:0 0 28px;font-size:11px;color:#C9A96E;word-break:break-all;">
-                ${resetUrl}
-              </p>
-
-              <hr style="border:none;border-top:1px solid #242428;margin:0 0 20px;" />
-
-              <p style="margin:0;font-size:12px;color:#6B6B6F;line-height:1.6;">
-                Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
-                Votre mot de passe restera inchangé.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding-top:24px;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-  }
-
-  private buildPasswordChangedHtml(firstName: string): string {
-    return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8" /><title>Mot de passe modifié</title></head>
-<body style="margin:0;padding:0;background-color:#0A0A0B;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0B;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-          <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-                <tr>
-                  <td style="width:36px;height:36px;background:#C9A96E;border-radius:10px;text-align:center;vertical-align:middle;">
-                    <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
-                  </td>
-                  <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
-                    <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#111113;border:1px solid #242428;border-radius:16px;padding:40px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:300;color:#F5F0EB;">
-                Mot de passe modifié
-              </h1>
-              <p style="margin:0 0 20px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Bonjour ${firstName},
-              </p>
-              <p style="margin:0 0 20px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Votre mot de passe a été modifié avec succès le
-                <strong style="color:#F5F0EB;">${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>.
-              </p>
-              <p style="margin:0;font-size:13px;color:#6B6B6F;line-height:1.6;">
-                Si vous n'êtes pas à l'origine de cette modification, contactez immédiatement
-                votre administrateur.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-top:24px;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-  }
-
-  private buildWelcomeHtml(firstName: string, tempPassword?: string): string {
-    return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8" /><title>Bienvenue</title></head>
-<body style="margin:0;padding:0;background-color:#0A0A0B;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0B;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-          <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-                <tr>
-                  <td style="width:36px;height:36px;background:#C9A96E;border-radius:10px;text-align:center;vertical-align:middle;">
-                    <span style="font-size:18px;color:#0A0A0B;font-weight:700;">M</span>
-                  </td>
-                  <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-size:15px;color:#F5F0EB;font-weight:500;">Malodge</span>
-                    <span style="font-size:11px;color:#C9A96E;display:block;margin-top:1px;">Club Villa</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#111113;border:1px solid #242428;border-radius:16px;padding:40px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:300;color:#F5F0EB;">
-                Bienvenue, ${firstName} !
-              </h1>
-              <p style="margin:0 0 20px;font-size:14px;color:#6B6B6F;line-height:1.6;">
-                Votre compte Malodge Club Villa a été créé. Vous pouvez dès maintenant
-                vous connecter à la plateforme.
-              </p>
-              ${tempPassword ? `
-              <div style="background:#1A1A1D;border:1px solid #242428;border-radius:10px;padding:16px;margin-bottom:24px;">
-                <p style="margin:0 0 6px;font-size:12px;color:#6B6B6F;text-transform:uppercase;letter-spacing:0.5px;">
-                  Mot de passe temporaire
-                </p>
-                <p style="margin:0;font-size:16px;color:#C9A96E;font-family:monospace;letter-spacing:1px;">
-                  ${tempPassword}
-                </p>
-              </div>
-              <p style="margin:0 0 20px;font-size:13px;color:#6B6B6F;line-height:1.6;">
-                Pensez à modifier votre mot de passe dès votre première connexion.
-              </p>
-              ` : ''}
-              <p style="margin:0;font-size:13px;color:#6B6B6F;">
-                Pour toute question, contactez votre administrateur.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-top:24px;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#6B6B6F;">
-                © ${new Date().getFullYear()} Malodge Club Villa. Tous droits réservés.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+<html lang="fr"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${esc(title)}</title></head>
+<body style="margin:0;padding:0;background:#F7F7F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1C1D29;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F9;padding:32px 16px;"><tr><td align="center">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+      <tr><td style="padding-bottom:24px;">
+        <span style="font-size:17px;font-weight:800;letter-spacing:3px;color:#1C1D29;">MALODGE</span><br/>
+        <span style="font-size:10px;font-weight:700;letter-spacing:6px;color:#B2593A;">CLUB</span>
+      </td></tr>
+      <tr><td style="background:#FFFFFF;border:1px solid #E9E9EE;border-radius:18px;padding:32px;font-size:14px;line-height:1.6;color:#4C4E5E;">
+        <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1C1D29;">${esc(title)}</h1>
+        ${body}
+        ${cta ? `<p style="margin:28px 0 8px;"><a href="${esc(cta.url)}" style="display:inline-block;background:#1F2130;color:#FFFFFF;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;">${esc(cta.label)}</a></p>
+        <p style="margin:0;font-size:12px;color:#707282;">Ou copiez ce lien : <a href="${esc(cta.url)}" style="color:#B2593A;word-break:break-all;">${esc(cta.url)}</a></p>` : ''}
+        ${footnote ? `<p style="margin:24px 0 0;font-size:12px;color:#707282;">${esc(footnote)}</p>` : ''}
+      </td></tr>
+      <tr><td style="padding-top:18px;font-size:11px;color:#707282;text-align:center;">Malodge Club · Conciergerie de luxe</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
   }
 }

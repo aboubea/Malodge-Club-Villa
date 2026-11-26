@@ -361,6 +361,7 @@ export function SettingsPage() {
 
             {activeTab === 'integrations' && (
               <div className="space-y-4">
+                <MailCard />
                 {/* Lodgify */}
                 <Card>
                   <CardHeader>
@@ -436,5 +437,79 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** E-mail sending (Resend): configuration seen by the server and a test that shows the exact refusal, if any. */
+function MailCard() {
+  const { data: status } = useQuery({
+    queryKey: ['settings-mail'],
+    queryFn: async () => {
+      const r = await apiClient.get('/settings/mail');
+      return (r.data?.data ?? r.data) as { configured: boolean; keyLooksValid: boolean; from: string; fromDomain: string | null; fromIsDefault: boolean; appUrl: string; appUrlIsDefault: boolean };
+    },
+  });
+  const [to, setTo] = useState('');
+  const [result, setResult] = useState<{ sent: boolean; error?: string; to: string } | null>(null);
+  const test = useMutation({
+    mutationFn: async () => {
+      const r = await apiClient.post('/settings/mail/test', to ? { to } : {});
+      return (r.data?.data ?? r.data) as { sent: boolean; error?: string; to: string };
+    },
+    onSuccess: (r) => setResult(r),
+  });
+  const advice = (err?: string) => {
+    const e = (err ?? '').toLowerCase();
+    if (e.includes('resend_api_key')) return 'Ajoutez RESEND_API_KEY dans Vercel (Settings › Environment Variables), puis redéployez : Vercel ne prend une variable en compte qu’au déploiement suivant.';
+    if (e.includes('domain') || e.includes('verify') || e.includes('not verified')) return `Le domaine de l’expéditeur (${status?.fromDomain ?? '—'}) doit être vérifié dans Resend (Domains), ou MAIL_FROM doit utiliser un domaine déjà vérifié.`;
+    if (e.includes('testing emails') || e.includes('own email')) return 'Avec l’expéditeur de test de Resend, seuls des envois vers l’adresse du compte Resend sont possibles : vérifiez votre domaine et renseignez MAIL_FROM.';
+    if (e.includes('api key') || e.includes('unauthorized') || e.includes('restricted')) return 'La clé RESEND_API_KEY est refusée : recopiez une clé valide (avec le droit « Sending access ») puis redéployez.';
+    return null;
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span>✉️</span> E-mails (Resend)
+          <Badge variant={status?.configured ? 'active' : 'inactive'} className="ml-2">
+            {status?.configured ? 'Clé présente' : 'Clé absente'}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <div className="px-6 pb-6 space-y-3 text-[13px]">
+        <ul className="space-y-1 text-ink-soft">
+          <li>
+            Expéditeur (MAIL_FROM) : <b className="text-ink">{status?.from ?? '…'}</b>
+            {status?.fromIsDefault && <span className="text-warning"> — valeur par défaut : renseignez MAIL_FROM avec une adresse de votre domaine vérifié</span>}
+          </li>
+          <li>
+            Liens des e-mails vers (APP_URL) : <b className="text-ink">{status?.appUrl ?? '…'}</b>
+            {status?.appUrlIsDefault && <span className="text-muted"> (déduit de Vercel)</span>}
+          </li>
+          {status?.configured && !status.keyLooksValid && <li className="text-warning">La clé ne ressemble pas à une clé Resend (re_…).</li>}
+        </ul>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="email"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder="Votre adresse (par défaut celle de votre compte)"
+            className="h-9 min-w-[260px] flex-1 rounded-full border border-line bg-surface px-3 text-[13px] text-ink"
+          />
+          <Button size="sm" loading={test.isPending} onClick={() => test.mutate()}>
+            Envoyer un e-mail de test
+          </Button>
+        </div>
+        {result &&
+          (result.sent ? (
+            <p className="rounded-xl bg-success/10 text-success px-3 py-2 font-semibold">E-mail de test envoyé à {result.to}. Vérifiez la boîte de réception (et les indésirables).</p>
+          ) : (
+            <div className="rounded-xl bg-danger/10 text-danger px-3 py-2">
+              <p className="font-semibold">Refusé : {result.error}</p>
+              {advice(result.error) && <p className="mt-1 text-ink-soft">{advice(result.error)}</p>}
+            </div>
+          ))}
+      </div>
+    </Card>
   );
 }

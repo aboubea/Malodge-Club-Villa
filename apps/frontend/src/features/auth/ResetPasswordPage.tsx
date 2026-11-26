@@ -110,7 +110,7 @@ export function ResetPasswordPage() {
 
         <div className="mb-9">
           <h1 className="font-display font-semibold text-[30px] leading-[1.02] tracking-tight text-ink">
-            Nouveau mot de passe
+            {searchParams.get('invitation') ? 'Choisissez votre mot de passe' : 'Nouveau mot de passe'}
           </h1>
           <p className="text-[14.5px] text-muted mt-3">
             Choisissez un mot de passe sécurisé d'au moins 8 caractères.

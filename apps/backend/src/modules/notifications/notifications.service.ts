@@ -40,8 +40,8 @@ export class NotificationsService {
     if (channel === 'email') {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (user) {
-        // Use mail service generic send - stub approach
-        this.mailService.sendWelcome(user.email, user.firstName).catch(() => {});
+        // Awaited: on the server the request may be frozen once answered, so a send left running would never leave.
+        await this.mailService.sendNotification(user.email, user.firstName, title, body ?? '');
       }
     }
 

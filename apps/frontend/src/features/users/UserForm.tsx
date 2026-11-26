@@ -50,8 +50,13 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       }
       return apiClient.post('/users', payload);
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       toast.success(user ? 'Utilisateur modifié' : 'Utilisateur créé');
+      const invitation = (res?.data?.data ?? res?.data)?.invitation;
+      if (!user && invitation) {
+        if (invitation.sent) toast.success('Invitation envoyée par e-mail');
+        else toast.error(`Invitation non envoyée : ${invitation.error ?? 'raison inconnue'}`, { duration: 10000 });
+      }
       qc.invalidateQueries({ queryKey: ['users'] });
       onSuccess();
     },
