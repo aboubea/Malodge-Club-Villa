@@ -315,7 +315,8 @@ model OrderItem {
   notes     String?
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service Service? @relation(fields: [serviceId], references: [id])
+  /// Restrict: a catalogue item already used by extras cannot be deleted (history is kept)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 }
 
 /// Money movement on a person's extras account (client stay, provider, owner, employee).
