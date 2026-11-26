@@ -153,7 +153,7 @@ export function ImportPanel() {
     queryKey: ['extras', 'import-status'],
     queryFn: async () => {
       const r = await apiClient.get('/extras/import');
-      return (r.data?.data ?? r.data) as { imported: boolean; details: { file?: string; at?: string; extras?: number } | null };
+      return (r.data?.data ?? r.data) as { imported: boolean; details: { file?: string; at?: string; extras?: number } | null; retired?: { at: string } | null };
     },
   });
 
@@ -182,6 +182,23 @@ export function ImportPanel() {
       setBusy(null);
     }
   };
+
+  // Lodgify is the only source now: the file can no longer be imported.
+  if (status?.retired) {
+    return (
+      <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6 space-y-2">
+        <p className="text-[15px] font-bold text-ink">Import Excel retiré</p>
+        <p className="text-[13px] text-ink-soft">
+          Depuis le {new Date(status.retired.at).toLocaleDateString('fr-FR')}, villas et séjours viennent de Lodgify et les extras se saisissent dans l’appli. Pour réimporter un
+          fichier, réactivez l’import dans{' '}
+          <a href="/nettoyage" className="font-semibold text-accent">
+            Nettoyage des données
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
 
   if (done) {
     return (

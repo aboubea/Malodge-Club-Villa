@@ -14,6 +14,7 @@ const VillasPage = lazy(() => import('../features/villas/VillasPage').then((m) =
 const VillaDetailPage = lazy(() => import('../features/villas/VillaDetailPage').then((m) => ({ default: m.VillaDetailPage })));
 const ServicesPage = lazy(() => import('../features/services/ServicesPage').then((m) => ({ default: m.ServicesPage })));
 const UsersPage = lazy(() => import('../features/users/UsersPage').then((m) => ({ default: m.UsersPage })));
+const CleanupPage = lazy(() => import('../features/coherence/CleanupPage').then((m) => ({ default: m.CleanupPage })));
 const CoherencePage = lazy(() => import('../features/coherence/CoherencePage').then((m) => ({ default: m.CoherencePage })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const OrdersPage = lazy(() => import('../features/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })));
@@ -105,6 +106,7 @@ export function AppRouter() {
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/utilisateurs" element={<RoleGuard roles={ADMIN_UP}><UsersPage /></RoleGuard>} />
                 <Route path="/controle" element={<RoleGuard roles={ADMIN_UP}><CoherencePage /></RoleGuard>} />
+                <Route path="/nettoyage" element={<RoleGuard roles={ADMIN_UP}><CleanupPage /></RoleGuard>} />
                 <Route path="/parametres" element={<RoleGuard roles={STAFF}><SettingsPage /></RoleGuard>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

@@ -89,3 +89,18 @@ describe('merge of two records of the same person', () => {
     expect(Object.values(aliases)).toContain('Marc brunet');
   });
 });
+
+describe('Lodgify as the only source', () => {
+  it('refuses the Excel import once retired, and accepts it again once reactivated', async () => {
+    const { ExtrasService } = await import('../src/modules/extras/extras.service');
+    const { FxService } = await import('../src/modules/fx/fx.service');
+    const extras = new ExtrasService(prisma as any, new FxService(prisma as any));
+    await extras.setExcelImportRetired(true, 'admin');
+    await expect(extras.importWorkbook(await workbook(), { dryRun: true })).rejects.toThrow(/retiré/);
+    expect((await extras.importStatus()).retired).toMatchObject({ by: 'admin' });
+    await extras.setExcelImportRetired(false, 'admin');
+    expect((await extras.importStatus()).retired).toBeNull();
+    // Back to the usual answer (the file was already imported above).
+    await expect(extras.importWorkbook(await workbook(), { dryRun: true })).rejects.not.toThrow(/retiré/);
+  });
+});

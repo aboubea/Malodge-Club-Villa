@@ -610,6 +610,19 @@ export class LodgifyService {
     };
   }
 
+  /** Lodgify listings not in the app yet (names read with GET, cached 6 h). */
+  async missingListings() {
+    const configured = !!(await this.getApiKey());
+    if (!configured) return { configured, listings: [] as { id: string; name: string }[] };
+    const [names, synced] = await Promise.all([this.listingNames(), this.getSyncedIds()]);
+    const have = new Set(synced);
+    const listings = Object.entries(names)
+      .filter(([id]) => !have.has(id))
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    return { configured, listings };
+  }
+
   async getSyncedIds(): Promise<string[]> {
     const villas = await this.prisma.villa.findMany({ where: { logifyId: { not: null } }, select: { logifyId: true } });
     return villas.map((v) => v.logifyId!);

@@ -37,6 +37,8 @@ import {
   UpsertStayDto,
 } from './extras.dto';
 
+const EXCEL_RETIRED_KEY = 'extras.excelImportRetired';
+
 const MARKUP_KEY = 'extras.catalogMarkup';
 const DEFAULT_MARKUP = 0.25;
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
@@ -1005,6 +1007,10 @@ export class ExtrasService {
   /* ─────────────────────────── Spreadsheet import ────────────────────── */
 
   async importWorkbook(buffer: Buffer, opts: { dryRun: boolean; fileName?: string }) {
+    const retired = await this.excelImportRetired();
+    if (retired) {
+      throw new BadRequestException('L’import Excel est retiré : Lodgify est la source unique. Réactivez-le dans « Nettoyage des données » si besoin.');
+    }
     try {
       return await importExtrasWorkbook(this.prisma as any, buffer, opts);
     } catch (e) {
@@ -1073,7 +1079,23 @@ export class ExtrasService {
 
   async importStatus() {
     const row = await this.prisma.appSetting.findUnique({ where: { key: 'extras.spreadsheetImport' } });
-    return { imported: !!row, details: row?.value ?? null };
+    return { imported: !!row, details: row?.value ?? null, retired: await this.excelImportRetired() };
+  }
+
+  /** Once the data is clean, Lodgify is the only source: the Excel import is switched off (reversible). */
+  private async excelImportRetired(): Promise<{ at: string; by: string | null } | null> {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: EXCEL_RETIRED_KEY } });
+    return (row?.value as { at: string; by: string | null } | null) ?? null;
+  }
+
+  async setExcelImportRetired(retired: boolean, actorId: string) {
+    if (retired) {
+      const value = { at: new Date().toISOString(), by: actorId };
+      await this.prisma.appSetting.upsert({ where: { key: EXCEL_RETIRED_KEY }, update: { value }, create: { key: EXCEL_RETIRED_KEY, value } });
+    } else {
+      await this.prisma.appSetting.deleteMany({ where: { key: EXCEL_RETIRED_KEY } });
+    }
+    return { retired: await this.excelImportRetired() };
   }
 
   /* ───────────────────────────── My account ──────────────────────────── */

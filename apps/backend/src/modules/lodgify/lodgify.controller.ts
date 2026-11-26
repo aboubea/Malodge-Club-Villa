@@ -77,6 +77,13 @@ export class LodgifyController {
     return this.lodgifyService.calendarBookings(a, b, restricted, refresh === 'true');
   }
 
+  @Get('properties/missing')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Lodgify listings not in the app yet (read-only on Lodgify)' })
+  missingListings() {
+    return this.lodgifyService.missingListings();
+  }
+
   @Post('properties/import')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Add chosen Lodgify listings to the app (read-only on Lodgify)' })

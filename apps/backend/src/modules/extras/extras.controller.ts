@@ -1,3 +1,4 @@
+import { IsBoolean } from 'class-validator';
 import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -22,6 +23,11 @@ import {
   UpsertStayDto,
 } from './extras.dto';
 import { AccountRole } from './extras.calc';
+
+class RetireImportDto {
+  @IsBoolean()
+  retired: boolean;
+}
 
 @ApiTags('Extras')
 @ApiBearerAuth()
@@ -235,6 +241,13 @@ export class ExtrasController {
   @Roles(Role.ADMIN)
   importStatus() {
     return this.extras.importStatus();
+  }
+
+  @Post('import/retire')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Switch the Excel import off (Lodgify only) or back on' })
+  retireImport(@Body() dto: RetireImportDto, @CurrentUser('id') actorId: string) {
+    return this.extras.setExcelImportRetired(dto.retired, actorId);
   }
 
   @Post('import/undo')
