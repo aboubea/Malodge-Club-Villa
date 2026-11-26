@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { VillaOwnerPicker } from './VillaOwner';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -371,6 +372,10 @@ export function VillaDetailPage() {
                   <p className="font-display font-semibold text-[22px] leading-none text-ink tabular mt-1">{villa.bathrooms > 0 ? villa.bathrooms : '—'}</p>
                   <p className="text-[10px] text-muted">SDB</p>
                 </div>
+              </div>
+
+              <div className="pt-3 border-t border-line">
+                <VillaOwnerPicker villa={villa} />
               </div>
 
               {(villa.latitude || villa.longitude) && (

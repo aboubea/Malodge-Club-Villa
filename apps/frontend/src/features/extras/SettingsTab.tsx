@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Archive, ArchiveRestore, Pencil, Plus } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,12 +13,32 @@ import { ImportPanel } from './ImportPanel';
 
 const ROLE_NAMES: Record<string, string> = { OWNER: 'Propriétaire', EMPLOYEE: 'Salarié', PROVIDER: 'Prestataire', CLIENT: 'Client' };
 
-function PersonModal({ person, open, onClose, isAdmin }: { person: Person | null; open: boolean; onClose: () => void; isAdmin: boolean }) {
+function PersonModal({
+  person,
+  open,
+  onClose,
+  isAdmin,
+  villas = [],
+  people = [],
+}: {
+  person: Person | null;
+  open: boolean;
+  onClose: () => void;
+  isAdmin: boolean;
+  villas?: VillaRef[];
+  people?: Person[];
+}) {
   const [f, setF] = useState({ role: 'PROVIDER', name: '', contact: '', rate: '', base: 'MALODGE_MARGIN', notes: '' });
   const [error, setError] = useState<string | null>(null);
+  // Villas of an owner, ticked in the form and saved on the villas themselves.
+  const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [savingVillas, setSavingVillas] = useState(false);
+  const qc = useQueryClient();
+  const ownerName = (id: string | null) => people.find((p) => p.id === id)?.name;
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setOwned(new Set(person ? villas.filter((v) => v.ownerId === person.id).map((v) => v.id) : []));
     setF({
       role: person?.role ?? 'PROVIDER',
       name: person?.name ?? '',
@@ -41,7 +62,33 @@ function PersonModal({ person, open, onClose, isAdmin }: { person: Person | null
       body.commissionRate = rate;
       if (f.role === 'EMPLOYEE') body.commissionBase = f.base;
     }
-    save.mutate({ id: person?.id, body }, { onSuccess: onClose });
+    const isOwner = (person?.role ?? f.role) === 'OWNER';
+    save.mutate(
+      { id: person?.id, body },
+      {
+        onSuccess: async (res) => {
+          if (isOwner && isAdmin) {
+            const id = person?.id ?? ((res as { data?: { data?: { id?: string }; id?: string } })?.data?.data?.id ?? (res as any)?.data?.id);
+            const before = new Set(person ? villas.filter((v) => v.ownerId === person.id).map((v) => v.id) : []);
+            const changes = [
+              ...[...owned].filter((v) => !before.has(v)).map((v) => ({ v, ownerId: id })),
+              ...[...before].filter((v) => !owned.has(v)).map((v) => ({ v, ownerId: null })),
+            ];
+            if (id && changes.length) {
+              setSavingVillas(true);
+              try {
+                for (const c of changes) await api.updateVilla({ id: c.v, body: { ownerId: c.ownerId } });
+              } finally {
+                setSavingVillas(false);
+                qc.invalidateQueries({ queryKey: ['extras'] });
+                qc.invalidateQueries({ queryKey: ['villas'] });
+              }
+            }
+          }
+          onClose();
+        },
+      },
+    );
   };
 
   return (
@@ -55,7 +102,7 @@ function PersonModal({ person, open, onClose, isAdmin }: { person: Person | null
           <Button variant="secondary" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="submit" form="person-form" loading={save.isPending}>
+          <Button type="submit" form="person-form" loading={save.isPending || savingVillas}>
             Enregistrer
           </Button>
         </div>
@@ -98,6 +145,35 @@ function PersonModal({ person, open, onClose, isAdmin }: { person: Person | null
         <Field label="Notes" className="sm:col-span-2">
           <TextInput value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} maxLength={1000} />
         </Field>
+        {(person?.role ?? f.role) === 'OWNER' && isAdmin && villas.length > 0 && (
+          <Field label="Villas de ce propriétaire" className="sm:col-span-2" hint="Sa part de la marge est calculée sur les extras de ces villas.">
+            <div className="max-h-52 overflow-y-auto rounded-xl border border-line divide-y divide-line">
+              {villas.map((v) => {
+                const other = v.ownerId && v.ownerId !== person?.id ? ownerName(v.ownerId) : null;
+                return (
+                  <label key={v.id} className="flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer hover:bg-surface-2/50">
+                    <input
+                      type="checkbox"
+                      checked={owned.has(v.id)}
+                      onChange={() =>
+                        setOwned((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(v.id)) next.delete(v.id);
+                          else next.add(v.id);
+                          return next;
+                        })
+                      }
+                    />
+                    <span className="flex-1 min-w-0 truncate text-ink">{v.name}</span>
+                    {v.lodgify && <span className="text-[11px] font-semibold text-accent">Lodgify</span>}
+                    {other && !owned.has(v.id) && <span className="text-[11.5px] text-muted">à {other}</span>}
+                    {other && owned.has(v.id) && <span className="text-[11.5px] text-warning">reprise à {other}</span>}
+                  </label>
+                );
+              })}
+            </div>
+          </Field>
+        )}
         {error && <p className="sm:col-span-2 text-[13px] text-danger">{error}</p>}
       </form>
     </Modal>
@@ -528,7 +604,14 @@ export function SettingsTab() {
       {section === 'import' && isAdmin && <ImportPanel />}
 
       <MergeVillaModal villa={mergeVilla} villas={data.villas} onClose={() => setMergeVilla(null)} />
-      <PersonModal open={person !== null} person={person === 'new' ? null : person} onClose={() => setPerson(null)} isAdmin={isAdmin} />
+      <PersonModal
+        open={person !== null}
+        person={person === 'new' ? null : person}
+        onClose={() => setPerson(null)}
+        isAdmin={isAdmin}
+        villas={data.villas}
+        people={data.people}
+      />
       <StayModal open={stay !== null} stay={stay === 'new' ? null : stay} onClose={() => setStay(null)} villas={data.villas} />
     </div>
   );

@@ -19,6 +19,7 @@ import { cn } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { VillaOwnerPicker } from './VillaOwner';
 
 function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
@@ -273,6 +274,8 @@ function VillaPreview({
           )}
         </AnimatePresence>
       </div>
+
+      <VillaOwnerPicker villa={villa} className="mb-3" />
 
       {onMergeWith && others && others.length > 0 && (
         <label className="mb-4 flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
