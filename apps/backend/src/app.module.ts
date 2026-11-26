@@ -18,6 +18,10 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ExtrasModule } from './modules/extras/extras.module';
 import { FxModule } from './modules/fx/fx.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { LodgifyModule } from './modules/lodgify/lodgify.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -42,6 +46,10 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     NotificationsModule,
     ExtrasModule,
     FxModule,
+    CalendarModule,
+    DashboardModule,
+    LodgifyModule,
+    SettingsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

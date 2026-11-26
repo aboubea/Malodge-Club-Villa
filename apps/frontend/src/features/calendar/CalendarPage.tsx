@@ -1,35 +1,20 @@
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Plus, X, Building2, ShoppingBag, Calendar } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, ChevronLeft, ChevronRight, LogIn, LogOut, Plus, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
+import { activityKind, chipLabel, EVENT_ICON, MAINTENANCE_ICON, STAY_ICON } from './agendaIcons';
 
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-const TYPE_COLORS: Record<string, string> = {
-  reservation: 'bg-accent/20 text-accent border-accent/30',
-  order: 'bg-plum/10 text-plum border-plum/25',
-  activity: 'bg-info/10 text-info border-info/25',
-  maintenance: 'bg-copper/10 text-copper border-copper/25',
-  event: 'bg-success/10 text-success border-success/25',
-};
-
-const TYPE_ICONS: Record<string, React.ElementType> = {
-  reservation: Building2,
-  order: ShoppingBag,
-  activity: Calendar,
-  event: Calendar,
-  maintenance: Calendar,
-};
+const DAY = 86_400_000;
 
 interface CalendarEvent {
   id: string;
@@ -39,13 +24,28 @@ interface CalendarEvent {
   endAt: string;
   allDay: boolean;
   type: string;
-  color?: string;
-  villaId?: string;
   villa?: { id: string; name: string; city?: string };
   reservationId?: string;
   orderId?: string;
-  client?: { id: string; firstName: string; lastName: string };
+  client?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone?: string | null;
+  };
   source: string;
+  // Stays
+  guest?: string;
+  status?: string;
+  guests?: number | null;
+  lodgify?: boolean;
+  extras?: number;
+  house?: string | null;
+  formula?: string | null;
+  // Activities
+  category?: string | null;
+  quantity?: number | null;
+  provider?: string | null;
 }
 
 interface NewEventForm {
@@ -68,14 +68,58 @@ const DEFAULT_FORM: NewEventForm = {
   color: '#22c55e',
 };
 
+const STAY_TONE: Record<string, string> = {
+  CONFIRMED: 'bg-primary text-on-primary',
+  PENDING: 'bg-peach text-ink ring-1 ring-inset ring-accent/40',
+  ACTIVE: 'bg-success text-white',
+  COMPLETED: 'bg-surface-2 text-ink-soft ring-1 ring-inset ring-line-strong',
+};
+const ORDER_STATUS: Record<string, string> = {
+  PENDING: 'À confirmer',
+  CONFIRMED: 'Confirmée',
+  IN_PROGRESS: 'En cours',
+  COMPLETED: 'Réalisée',
+  CANCELLED: 'Annulée',
+};
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const localKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Stays are calendar days (stored 00:00 UTC); timed events are read in local time. */
+const dayKeyOf = (iso: string, allDay: boolean) => (allDay ? iso.slice(0, 10) : localKey(new Date(iso)));
+const keyToUtc = (k: string) => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
+/** Imported activities carry a date only (00:00 UTC): no time is shown for them. */
+const timeOf = (iso: string) => {
+  const d = new Date(iso);
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+};
+const shortName = (s: string) => s.replace(/\s+[-–—]\s+.*$/, '').trim();
+const nightsOf = (s: CalendarEvent) => Math.round((keyToUtc(dayKeyOf(s.endAt, true)) - keyToUtc(dayKeyOf(s.startAt, true))) / DAY);
+
+function iconFor(e: CalendarEvent) {
+  if (e.type === 'maintenance')
+    return {
+      icon: MAINTENANCE_ICON,
+      tone: 'bg-copper/10 text-copper border-copper/25',
+      label: 'Maintenance',
+    };
+  if (e.type === 'event')
+    return {
+      icon: EVENT_ICON,
+      tone: 'bg-success/10 text-success border-success/25',
+      label: 'Événement',
+    };
+  const k = activityKind(e.title, e.category);
+  return { icon: k.icon, tone: k.tone, label: k.label };
+}
+
 export function CalendarPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const isStaff = user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
-  const isClient = user?.role === 'CLIENT';
+  const isStaff = !!user?.role && ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user.role);
 
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedKey, setSelectedKey] = useState(localKey(new Date()));
   const [typeFilter, setTypeFilter] = useState('all');
   const [newEventOpen, setNewEventOpen] = useState(false);
   const [form, setForm] = useState<NewEventForm>(DEFAULT_FORM);
@@ -83,23 +127,43 @@ export function CalendarPage() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const from = new Date(year, month, 1).toISOString();
-  const to = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+  // Weeks shown (Monday first), with the days of the neighbouring months that complete them.
+  const weeks = useMemo(() => {
+    const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+    const count = Math.ceil((lead + new Date(year, month + 1, 0).getDate()) / 7);
+    return Array.from({ length: count }, (_, w) => Array.from({ length: 7 }, (_, i) => new Date(year, month, 1 - lead + w * 7 + i)));
+  }, [year, month]);
+
+  const from = new Date(weeks[0][0].getFullYear(), weeks[0][0].getMonth(), weeks[0][0].getDate()).toISOString();
+  const lastDay = weeks[weeks.length - 1][6];
+  const to = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate(), 23, 59, 59).toISOString();
 
   const { data, isLoading } = useQuery<{ data: CalendarEvent[] }>({
-    queryKey: ['calendar', year, month, typeFilter],
+    queryKey: ['calendar', from, to, typeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({ from, to });
       if (typeFilter !== 'all') params.set('type', typeFilter);
       const res = await apiClient.get(`/calendar?${params}`);
       return res.data.data ?? res.data;
     },
+    placeholderData: (prev) => prev,
   });
   const events: CalendarEvent[] = data?.data ?? [];
 
+  const stays = useMemo(() => events.filter((e) => e.type === 'reservation' && e.status !== 'CANCELLED'), [events]);
+  const others = useMemo(() => events.filter((e) => e.type !== 'reservation'), [events]);
+  const othersByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const e of others) {
+      const k = dayKeyOf(e.startAt, e.allDay);
+      map.set(k, [...(map.get(k) ?? []), e]);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.startAt.localeCompare(b.startAt));
+    return map;
+  }, [others]);
+
   const createMutation = useMutation({
-    mutationFn: (payload: Omit<NewEventForm, 'allDay'> & { allDay: boolean }) =>
-      apiClient.post('/calendar', payload),
+    mutationFn: (payload: NewEventForm) => apiClient.post('/calendar', payload),
     onSuccess: () => {
       toast.success('Événement créé');
       qc.invalidateQueries({ queryKey: ['calendar'] });
@@ -108,7 +172,6 @@ export function CalendarPage() {
     },
     onError: () => toast.error('Erreur lors de la création'),
   });
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/calendar/${id}`),
     onSuccess: () => {
@@ -117,293 +180,396 @@ export function CalendarPage() {
     },
   });
 
-  // Build calendar grid
-  const firstDayOfMonth = new Date(year, month, 1);
-  const startDay = (firstDayOfMonth.getDay() + 6) % 7; // Monday-based
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
-  const days = Array.from({ length: totalCells }, (_, i) => {
-    const dayNum = i - startDay + 1;
-    if (dayNum < 1 || dayNum > daysInMonth) return null;
-    return new Date(year, month, dayNum);
-  });
-
-  const localKey = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
-
-  const eventsByDay = useMemo(() => {
-    const map: Record<string, CalendarEvent[]> = {};
-    events.forEach((e) => {
-      const start = new Date(e.startAt);
-      const end = new Date(e.endAt);
-      let cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-      while (cur <= endDay) {
-        const key = localKey(cur);
-        if (!map[key]) map[key] = [];
-        map[key].push(e);
-        cur = new Date(cur.getTime() + 24 * 60 * 60 * 1000);
-      }
+  function openNewEvent(dayKey?: string) {
+    const base = dayKey ? new Date(`${dayKey}T09:00:00`) : new Date();
+    const toLocal = (dt: Date) => `${localKey(dt)}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    setForm({
+      ...DEFAULT_FORM,
+      startAt: toLocal(base),
+      endAt: toLocal(new Date(base.getTime() + 3600_000)),
     });
-    return map;
-  }, [events]);
-
-  const selectedDayKey = selectedDay ? localKey(selectedDay) : null;
-  const selectedDayEvents = selectedDayKey ? (eventsByDay[selectedDayKey] || []) : [];
-
-  const today = new Date();
-  const todayKey = localKey(today);
-
-  function prevMonth() { setCurrentDate(new Date(year, month - 1, 1)); }
-  function nextMonth() { setCurrentDate(new Date(year, month + 1, 1)); }
-  function openNewEvent(day?: Date) {
-    const d = day || new Date();
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0); // 09:00
-    const end = new Date(start.getTime() + 60 * 60 * 1000); // 10:00
-    const toLocal = (dt: Date) => {
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-    };
-    setForm({ ...DEFAULT_FORM, startAt: toLocal(start), endAt: toLocal(end) });
     setNewEventOpen(true);
   }
 
+  // The selected day at a glance.
+  const day = useMemo(() => {
+    const k = selectedKey;
+    const t = keyToUtc(k);
+    const arrivals = stays.filter((s) => dayKeyOf(s.startAt, true) === k);
+    const departures = stays.filter((s) => dayKeyOf(s.endAt, true) === k && nightsOf(s) > 0);
+    const staying = stays.filter((s) => keyToUtc(dayKeyOf(s.startAt, true)) < t && keyToUtc(dayKeyOf(s.endAt, true)) > t);
+    const activities = othersByDay.get(k) ?? [];
+    return { arrivals, departures, staying, activities };
+  }, [selectedKey, stays, othersByDay]);
+
+  const todayKey = localKey(new Date());
+  const selectedDate = new Date(`${selectedKey}T12:00:00`);
+  const kindsThisMonth = useMemo(() => {
+    const seen = new Map<string, ReturnType<typeof iconFor>>();
+    for (const e of others) {
+      const k = iconFor(e);
+      if (!seen.has(k.label)) seen.set(k.label, k);
+    }
+    return [...seen.values()];
+  }, [others]);
+
   const TYPE_OPTIONS = [
     { value: 'all', label: 'Tous' },
-    { value: 'reservation', label: 'Réservations' },
-    { value: 'order', label: 'Commandes' },
-    { value: 'activity', label: 'Activités' },
+    { value: 'reservation', label: 'Séjours' },
+    { value: 'order', label: 'Activités & extras' },
     { value: 'event', label: 'Événements' },
     { value: 'maintenance', label: 'Maintenance' },
   ];
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      <PageHeader
-        title="Agenda"
-        description={`${events.length} événement${events.length !== 1 ? 's' : ''} ce mois`}
-      >
+    <div className="space-y-5 max-w-[1500px]">
+      <PageHeader title="Agenda" description="Séjours et activités de vos villas, jour par jour">
         {isStaff && (
-          <Button variant="primary" icon={<Plus size={14} />} onClick={() => openNewEvent()}>
+          <Button variant="primary" icon={<Plus size={14} />} onClick={() => openNewEvent(selectedKey)}>
             Nouvel événement
           </Button>
         )}
       </PageHeader>
 
-      {/* Filters */}
+      {/* The selected day at a glance */}
+      <div>
+        <p className="text-[12.5px] font-semibold text-ink-soft mb-2">
+          {selectedKey === todayKey ? 'Aujourd’hui,' : 'Le'}{' '}
+          {selectedDate.toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            {
+              label: 'Arrivées',
+              icon: LogIn,
+              n: day.arrivals.length,
+              tone: 'text-success',
+            },
+            {
+              label: 'Départs',
+              icon: LogOut,
+              n: day.departures.length,
+              tone: 'text-accent',
+            },
+            {
+              label: 'En séjour',
+              icon: STAY_ICON,
+              n: day.staying.length,
+              tone: 'text-ink',
+            },
+            {
+              label: 'Activités',
+              icon: activityKind('excursion').icon,
+              n: day.activities.length,
+              tone: 'text-plum',
+            },
+          ].map((c) => (
+            <div key={c.label} className="rounded-2xl border border-line bg-surface px-4 py-3 flex items-center gap-3">
+              <span className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center shrink-0">
+                <c.icon size={17} className={c.tone} />
+              </span>
+              <div>
+                <p className="text-[12px] text-muted">{c.label}</p>
+                <p className="text-[20px] font-bold text-ink leading-tight tabular">{c.n}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 flex-wrap">
         {TYPE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             onClick={() => setTypeFilter(opt.value)}
-            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${typeFilter === opt.value ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+            className={cn(
+              'inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all',
+              typeFilter === opt.value ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink',
+            )}
           >
             {opt.label}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6">
-        {/* Calendar grid */}
-        <Card>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+        {/* Month */}
+        <div className="rounded-2xl border border-line bg-surface overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <button onClick={prevMonth} className="p-1.5 text-muted hover:text-ink transition-colors">
+            <button
+              onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2"
+              aria-label="Mois précédent"
+            >
               <ChevronLeft size={16} />
             </button>
-            <h2 className="text-sm font-medium text-ink">
-              {MONTHS_FR[month]} {year}
-            </h2>
-            <button onClick={nextMonth} className="p-1.5 text-muted hover:text-ink transition-colors">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[15px] font-bold text-ink">
+                {MONTHS_FR[month]} {year}
+              </h2>
+              <button
+                onClick={() => {
+                  setCurrentDate(new Date());
+                  setSelectedKey(todayKey);
+                }}
+                className="h-7 px-3 rounded-full border border-line text-[12px] font-semibold text-ink-soft hover:text-ink"
+              >
+                Aujourd’hui
+              </button>
+            </div>
+            <button
+              onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2"
+              aria-label="Mois suivant"
+            >
               <ChevronRight size={16} />
             </button>
           </div>
 
-          {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-line">
-            {DAYS_FR.map((d) => (
-              <div key={d} className="px-2 py-2 text-center text-[10px] font-medium text-muted uppercase tracking-wider">
-                {d}
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-7 border-b border-line">
+                {DAYS_FR.map((d) => (
+                  <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold text-muted uppercase tracking-wide">
+                    {d}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Days grid */}
-          {isLoading ? (
-            <div className="py-16 text-center">
-              <div className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin mx-auto" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-7">
-              {days.map((day, idx) => {
-                if (!day) return <div key={idx} className="h-24 border-b border-r border-surface-2 last:border-r-0" />;
-                const key = localKey(day);
-                const dayEvents = eventsByDay[key] || [];
-                const isToday = key === todayKey;
-                const isSelected = selectedDayKey === key;
-                const isCurrentMonth = day.getMonth() === month;
-
-                return (
-                  <div
-                    key={key}
-                    onClick={() => setSelectedDay(day)}
-                    className={cn(
-                      'h-24 border-b border-r border-surface-2 p-1.5 cursor-pointer transition-colors overflow-hidden',
-                      'hover:bg-surface',
-                      isSelected && 'bg-accent/5 border-accent/20',
-                      !isCurrentMonth && 'opacity-30',
-                    )}
-                  >
-                    <div className={cn(
-                      'w-6 h-6 rounded-full flex items-center justify-center text-xs mb-1 font-medium transition-colors',
-                      isToday ? 'bg-primary text-on-primary' : 'text-muted',
-                      isSelected && !isToday && 'text-ink',
-                    )}>
-                      {day.getDate()}
-                    </div>
-                    <div className="space-y-0.5">
-                      {dayEvents.slice(0, 3).map((e) => (
-                        <div
-                          key={e.id}
+              {isLoading && !events.length ? (
+                <div className="py-20 text-center">
+                  <div className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : (
+                weeks.map((week) => {
+                  const ws = keyToUtc(localKey(week[0]));
+                  // Stays of the week as bars from arrival (afternoon) to departure (morning), on as few lines as possible.
+                  const placed: {
+                    s: CalendarEvent;
+                    a: number;
+                    b: number;
+                    lane: number;
+                    cutL: boolean;
+                    cutR: boolean;
+                  }[] = [];
+                  const ends: number[] = [];
+                  for (const s of [...stays].sort((x, y) => x.startAt.localeCompare(y.startAt))) {
+                    let a0 = (keyToUtc(dayKeyOf(s.startAt, true)) - ws) / DAY + 0.5;
+                    let b0 = (keyToUtc(dayKeyOf(s.endAt, true)) - ws) / DAY + 0.5;
+                    // Arrival and departure the same day: a pill across that day.
+                    if (b0 - a0 < 0.5) [a0, b0] = [a0 - 0.45, b0 + 0.45];
+                    if (b0 <= 0 || a0 >= 7) continue;
+                    const a = Math.max(a0, 0);
+                    const b = Math.min(b0, 7);
+                    let lane = ends.findIndex((e) => e <= a);
+                    if (lane === -1) lane = ends.push(0) - 1;
+                    ends[lane] = b;
+                    placed.push({ s, a, b, lane, cutL: a0 < 0, cutR: b0 > 7 });
+                  }
+                  const lanes = ends.length;
+                  const top = 30 + lanes * 26;
+                  return (
+                    <div key={ws} className="relative grid grid-cols-7 border-b border-line last:border-b-0">
+                      {week.map((d) => {
+                        const k = localKey(d);
+                        const inMonth = d.getMonth() === month;
+                        const list = othersByDay.get(k) ?? [];
+                        const selected = k === selectedKey;
+                        return (
+                          <button
+                            key={k}
+                            type="button"
+                            onClick={() => setSelectedKey(k)}
+                            style={{ paddingTop: top }}
+                            className={cn(
+                              'relative text-left min-h-[124px] border-r border-line last:border-r-0 px-1.5 pb-1.5 transition-colors',
+                              !inMonth && 'bg-surface-2/40',
+                              selected ? 'bg-accent/[0.06]' : 'hover:bg-surface-2/50',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'absolute top-1.5 left-1.5 w-7 h-7 rounded-full flex items-center justify-center text-[12.5px] font-semibold tabular',
+                                k === todayKey ? 'bg-accent text-on-accent' : selected ? 'bg-primary text-on-primary' : inMonth ? 'text-ink' : 'text-muted',
+                              )}
+                            >
+                              {d.getDate()}
+                            </span>
+                            <span className="space-y-1 block">
+                              {list.slice(0, 3).map((e) => {
+                                const k2 = iconFor(e);
+                                const time = timeOf(e.startAt);
+                                return (
+                                  <span
+                                    key={e.id}
+                                    className={cn('flex items-center gap-1 h-[22px] px-1.5 rounded-md border text-[11px] font-medium', k2.tone)}
+                                    title={`${e.title}${e.guest ? ` · ${e.guest}` : ''}`}
+                                  >
+                                    <k2.icon size={12} className="shrink-0" />
+                                    {time && <span className="tabular shrink-0">{time}</span>}
+                                    <span className="truncate">{e.type === 'order' ? chipLabel(e.title) : e.title}</span>
+                                  </span>
+                                );
+                              })}
+                              {list.length > 3 && <span className="block px-1 text-[11px] font-semibold text-muted">+ {list.length - 3} autre(s)</span>}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {/* Stay bars, over the day cells */}
+                      {placed.map(({ s, a, b, lane, cutL, cutR }) => (
+                        <button
+                          key={`${s.id}-${ws}`}
+                          type="button"
+                          onClick={() => setSelectedKey(dayKeyOf(s.startAt, true))}
+                          title={`${s.guest ?? s.title} · ${s.house ?? s.villa?.name ?? ''}`}
+                          style={{
+                            left: `calc(${(a / 7) * 100}% + 2px)`,
+                            width: `calc(${((b - a) / 7) * 100}% - 4px)`,
+                            top: 32 + lane * 26,
+                          }}
                           className={cn(
-                            'text-[9px] px-1 py-0.5 rounded truncate border',
-                            TYPE_COLORS[e.type] || 'bg-surface-2 text-muted border-line',
+                            'absolute h-[22px] flex items-center gap-1 px-2 text-[11px] font-semibold shadow-sm',
+                            STAY_TONE[s.status ?? 'CONFIRMED'] ?? STAY_TONE.CONFIRMED,
+                            cutL ? 'rounded-l-sm' : 'rounded-l-full',
+                            cutR ? 'rounded-r-sm' : 'rounded-r-full',
                           )}
                         >
-                          {e.title}
-                        </div>
+                          <STAY_ICON size={12} className="shrink-0 opacity-80" />
+                          <span className="truncate">
+                            {s.guest ?? s.title}
+                            <span className="font-normal opacity-75"> · {shortName(s.house ?? s.villa?.name ?? '')}</span>
+                          </span>
+                        </button>
                       ))}
-                      {dayEvents.length > 3 && (
-                        <div className="text-[9px] text-muted px-1">+{dayEvents.length - 3}</div>
-                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
-          )}
-        </Card>
+          </div>
 
-        {/* Day detail panel */}
-        <div className="space-y-4">
-          {selectedDay ? (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedDayKey}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15 }}
-                className="space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-ink">
-                      {selectedDay.getDate()} {MONTHS_FR[selectedDay.getMonth()]}
-                    </p>
-                    <p className="text-xs text-muted">{selectedDayEvents.length} événement(s)</p>
-                  </div>
-                  {isStaff && (
-                    <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => openNewEvent(selectedDay)}>
-                      Ajouter
-                    </Button>
-                  )}
-                </div>
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-3 border-t border-line text-[12px] text-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-6 h-3 rounded-full bg-primary" /> Séjour confirmé
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-6 h-3 rounded-full bg-peach ring-1 ring-inset ring-accent/40" /> En attente
+            </span>
+            {kindsThisMonth.map((k) => (
+              <span key={k.label} className="inline-flex items-center gap-1">
+                <k.icon size={13} /> {k.label}
+              </span>
+            ))}
+          </div>
+        </div>
 
-                {selectedDayEvents.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-center">
-                      <p className="text-xs text-muted">Aucun événement ce jour</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  selectedDayEvents.map((e) => {
-                    const Icon = TYPE_ICONS[e.type] || Calendar;
-                    const isCustom = e.source === 'custom';
-                    return (
-                      <Card key={e.id} className={cn('border', TYPE_COLORS[e.type]?.split(' ').find(c => c.startsWith('border-')) || '')}>
-                        <CardContent className="py-3">
-                          <div className="flex items-start gap-2.5">
-                            <Icon size={14} className={TYPE_COLORS[e.type]?.split(' ').find(c => c.startsWith('text-')) || 'text-muted'} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-ink font-medium leading-snug">{e.title}</p>
-                              {e.description && <p className="text-xs text-muted mt-0.5">{e.description}</p>}
-                              {e.villa && <p className="text-[11px] text-muted mt-1">📍 {e.villa.name}</p>}
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-muted">
-                                  {e.allDay ? 'Toute la journée' : (
-                                    <>
-                                      {new Date(e.startAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                      {' → '}
-                                      {new Date(e.endAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                    </>
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            {isStaff && isCustom && (
-                              <button
-                                onClick={() => deleteMutation.mutate(e.id)}
-                                className="text-muted hover:text-danger transition-colors shrink-0"
-                              >
-                                <X size={12} />
-                              </button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <Calendar size={24} className="mx-auto text-line-strong mb-2" />
-                <p className="text-xs text-muted">Cliquez sur un jour pour voir les événements</p>
-              </CardContent>
-            </Card>
+        {/* Day detail */}
+        <div className="rounded-2xl border border-line bg-surface p-4 space-y-4 xl:sticky xl:top-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[16px] font-bold text-ink first-letter:uppercase">
+                {selectedDate.toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </p>
+              <p className="text-[12px] text-muted">
+                {day.arrivals.length + day.departures.length + day.staying.length + day.activities.length === 0 ? 'Rien de prévu' : 'Programme du jour'}
+              </p>
+            </div>
+            {isStaff && (
+              <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => openNewEvent(selectedKey)}>
+                Ajouter
+              </Button>
+            )}
+          </div>
+
+          <StaySection title="Arrivées" icon={LogIn} tone="text-success" list={day.arrivals} />
+          <StaySection title="Départs" icon={LogOut} tone="text-accent" list={day.departures} />
+
+          {day.activities.length > 0 && (
+            <section>
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-muted mb-2">Activités ({day.activities.length})</p>
+              <div className="space-y-2">
+                {day.activities.map((e) => {
+                  const k = iconFor(e);
+                  const time = timeOf(e.startAt);
+                  return (
+                    <div key={e.id} className="flex gap-3 rounded-xl border border-line p-3">
+                      <span className={cn('w-9 h-9 rounded-xl border flex items-center justify-center shrink-0', k.tone)}>
+                        <k.icon size={17} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-ink leading-snug">
+                          {e.title}
+                          {e.quantity && e.quantity > 1 ? <span className="text-muted font-normal"> × {e.quantity}</span> : null}
+                        </p>
+                        <p className="text-[12px] text-ink-soft mt-0.5">{[time, e.guest, e.house && shortName(e.house)].filter(Boolean).join(' · ') || k.label}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11.5px]">
+                          {e.status && <span className="h-5 px-2 inline-flex items-center rounded-full bg-surface-2 text-ink-soft">{ORDER_STATUS[e.status] ?? e.status}</span>}
+                          {e.provider && <span className="text-muted">par {e.provider}</span>}
+                          {e.orderId && (
+                            <Link to={`/commandes/${e.orderId}`} className="ml-auto inline-flex items-center gap-0.5 font-semibold text-accent hover:underline">
+                              Détail <ArrowRight size={12} />
+                            </Link>
+                          )}
+                          {isStaff && e.source === 'custom' && (
+                            <button onClick={() => deleteMutation.mutate(e.id)} className="ml-auto text-muted hover:text-danger" aria-label="Supprimer">
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           )}
+
+          <StaySection title="En séjour" icon={STAY_ICON} tone="text-ink" list={day.staying} compact />
         </div>
       </div>
 
-      {/* New event modal */}
       {isStaff && (
-        <Modal open={newEventOpen} onClose={() => { setNewEventOpen(false); setForm(DEFAULT_FORM); }} title="Nouvel événement" size="lg">
+        <Modal
+          open={newEventOpen}
+          onClose={() => {
+            setNewEventOpen(false);
+            setForm(DEFAULT_FORM);
+          }}
+          title="Nouvel événement"
+          size="lg"
+        >
           <form
             className="space-y-4"
-            onSubmit={(e) => { e.preventDefault(); if (!form.title || !form.startAt || !form.endAt) return; createMutation.mutate(form); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!form.title || !form.startAt || !form.endAt) return;
+              createMutation.mutate(form);
+            }}
           >
-            <Input
-              label="Titre"
-              placeholder="Maintenance piscine, Activité yoga..."
-              value={form.title}
-              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            />
-
+            <Input label="Titre" placeholder="Maintenance piscine, activité yoga…" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[12.5px] font-medium text-ink-soft">Début</label>
-                <input
-                  type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
-                  value={form.startAt}
-                  onChange={(e) => setForm((p) => ({ ...p, startAt: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-[12.5px] font-medium text-ink-soft">Fin</label>
-                <input
-                  type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
-                  value={form.endAt}
-                  onChange={(e) => setForm((p) => ({ ...p, endAt: e.target.value }))}
-                />
-              </div>
+              {(['startAt', 'endAt'] as const).map((f) => (
+                <div key={f}>
+                  <label className="text-[12.5px] font-medium text-ink-soft">{f === 'startAt' ? 'Début' : 'Fin'}</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
+                    value={form[f]}
+                    onChange={(e) => setForm((p) => ({ ...p, [f]: e.target.value }))}
+                  />
+                </div>
+              ))}
             </div>
-
             <div>
               <label className="text-[12.5px] font-medium text-ink-soft">Type</label>
               <select
@@ -416,14 +582,7 @@ export function CalendarPage() {
                 <option value="maintenance">Maintenance</option>
               </select>
             </div>
-
-            <Input
-              label="Description (optionnel)"
-              placeholder="Détails de l'événement..."
-              value={form.description}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            />
-
+            <Input label="Description (optionnel)" placeholder="Détails…" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
@@ -433,19 +592,44 @@ export function CalendarPage() {
               />
               <span className="text-sm text-ink">Toute la journée</span>
             </label>
-
-            <Button
-              type="submit"
-              variant="primary"
-              loading={createMutation.isPending}
-              className="w-full"
-              disabled={!form.title || !form.startAt || !form.endAt}
-            >
-              Créer l'événement
+            <Button type="submit" variant="primary" loading={createMutation.isPending} className="w-full" disabled={!form.title || !form.startAt || !form.endAt}>
+              Créer l’événement
             </Button>
           </form>
         </Modal>
       )}
     </div>
+  );
+}
+
+function StaySection({ title, icon: Icon, tone, list, compact }: { title: string; icon: React.ElementType; tone: string; list: CalendarEvent[]; compact?: boolean }) {
+  if (!list.length) return null;
+  return (
+    <section>
+      <p className="text-[12px] font-semibold uppercase tracking-wide text-muted mb-2 flex items-center gap-1.5">
+        <Icon size={13} className={tone} /> {title} ({list.length})
+      </p>
+      <div className={compact ? 'space-y-1' : 'space-y-2'}>
+        {list.map((s) => (
+          <div key={s.id} className={cn('rounded-xl border border-line', compact ? 'px-3 py-2' : 'p-3')}>
+            <p className="text-[13px] font-semibold text-ink truncate">
+              {s.guest ?? s.title}
+              {s.lodgify && <span className="ml-1.5 text-[11px] font-semibold text-accent">Lodgify</span>}
+            </p>
+            <p className="text-[12px] text-ink-soft truncate">
+              {shortName(s.house ?? s.villa?.name ?? '')}
+              {s.formula ? ` · ${shortName(s.formula)}` : ''} · {nightsOf(s) ? `${nightsOf(s)} nuit${nightsOf(s) > 1 ? 's' : ''}` : 'arrivée et départ le même jour'}
+              {s.guests ? (
+                <>
+                  {' · '}
+                  <Users size={11} className="inline -mt-0.5" /> {s.guests}
+                </>
+              ) : null}
+              {s.extras ? ` · ${s.extras} extra${s.extras > 1 ? 's' : ''}` : ''}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
