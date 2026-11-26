@@ -241,7 +241,7 @@ export function OrderDetailPage() {
                   {order.items?.map((item: any) => (
                     <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       <td className="px-5 py-3">
-                        <p className="text-sm text-ink">{item.service?.name}</p>
+                        <p className="text-sm text-ink">{item.service?.name ?? item.label ?? 'Prestation hors catalogue'}</p>
                         {item.service?.category && (
                           <p className="text-xs text-muted">{item.service.category.name}</p>
                         )}

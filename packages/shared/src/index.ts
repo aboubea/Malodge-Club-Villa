@@ -333,12 +333,16 @@ export interface UpdateProviderDto {
 export interface OrderItemDto {
   id: string;
   orderId: string;
-  serviceId: string;
+  /** null for an off-catalogue extra (see `label`) */
+  serviceId: string | null;
+  label?: string | null;
   quantity: number;
   unitPrice: number;
+  /** Internal purchase cost per unit (staff only) */
+  unitCost?: number | null;
   total: number;
   notes?: string | null;
-  service?: ServiceDto;
+  service?: ServiceDto | null;
 }
 
 export interface OrderDto {

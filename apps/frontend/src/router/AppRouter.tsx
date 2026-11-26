@@ -25,11 +25,16 @@ import { ServiceCataloguePage } from '../features/catalogue/ServiceCataloguePage
 import { CalendarPage } from '../features/calendar/CalendarPage';
 import { ProviderConfirmPage } from '../features/confirm/ProviderConfirmPage';
 import { ClientStaysPage } from '../features/stays/ClientStaysPage';
+import { ExtrasPage } from '../features/extras/ExtrasPage';
+import { MyAccountPage } from '../features/extras/MyAccountPage';
 import { useAuthStore } from '../store/authStore';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
 const ADMIN_UP = ['SUPER_ADMIN', 'ADMIN'];
 const ALL_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'PROVIDER', 'CLIENT'];
+/** Owners and employees only have their extras account (and notifications). */
+const RESTRICTED = ['OWNER', 'EMPLOYEE'];
+const ACCOUNT_HOLDERS = ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'];
 
 function RoleGuard({ roles, children, fallback = '/villas' }: {
   roles: string[];
@@ -38,7 +43,7 @@ function RoleGuard({ roles, children, fallback = '/villas' }: {
 }) {
   const { user } = useAuthStore();
   const role = user?.role || '';
-  if (!roles.includes(role)) return <Navigate to={fallback} replace />;
+  if (!roles.includes(role)) return <Navigate to={RESTRICTED.includes(role) ? '/mon-compte' : fallback} replace />;
   return <>{children}</>;
 }
 
@@ -59,18 +64,20 @@ export function AppRouter() {
                 <Route path="/" element={<RoleGuard roles={STAFF} fallback="/catalogue"><DashboardPage /></RoleGuard>} />
                 <Route path="/reservations" element={<RoleGuard roles={STAFF}><ReservationsPage /></RoleGuard>} />
                 <Route path="/mes-sejours" element={<RoleGuard roles={['CLIENT']} fallback="/"><ClientStaysPage /></RoleGuard>} />
-                <Route path="/catalogue" element={<ServiceCataloguePage />} />
+                <Route path="/catalogue" element={<RoleGuard roles={ALL_ROLES}><ServiceCataloguePage /></RoleGuard>} />
+                <Route path="/extras/*" element={<RoleGuard roles={STAFF}><ExtrasPage /></RoleGuard>} />
+                <Route path="/mon-compte" element={<RoleGuard roles={ACCOUNT_HOLDERS} fallback="/extras"><MyAccountPage /></RoleGuard>} />
                 <Route path="/agenda" element={<RoleGuard roles={STAFF}><CalendarPage /></RoleGuard>} />
                 <Route path="/villas" element={<RoleGuard roles={STAFF} fallback="/catalogue"><VillasPage /></RoleGuard>} />
                 <Route path="/villas/:id" element={<RoleGuard roles={STAFF} fallback="/catalogue"><VillaDetailPage /></RoleGuard>} />
                 <Route path="/services" element={<RoleGuard roles={STAFF}><ServicesPage /></RoleGuard>} />
-                <Route path="/commandes" element={<OrdersPage />} />
-                <Route path="/commandes/:id" element={<OrderDetailPage />} />
+                <Route path="/commandes" element={<RoleGuard roles={ALL_ROLES}><OrdersPage /></RoleGuard>} />
+                <Route path="/commandes/:id" element={<RoleGuard roles={ALL_ROLES}><OrderDetailPage /></RoleGuard>} />
                 <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />
                 <Route path="/finances" element={<RoleGuard roles={STAFF}><FinancePage /></RoleGuard>} />
                 <Route path="/documents" element={<RoleGuard roles={STAFF}><DocumentsPage /></RoleGuard>} />
-                <Route path="/messages" element={<ChatPage />} />
-                <Route path="/concierge-ia" element={<AiConciergePage />} />
+                <Route path="/messages" element={<RoleGuard roles={ALL_ROLES}><ChatPage /></RoleGuard>} />
+                <Route path="/concierge-ia" element={<RoleGuard roles={ALL_ROLES}><AiConciergePage /></RoleGuard>} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/utilisateurs" element={<RoleGuard roles={ADMIN_UP}><UsersPage /></RoleGuard>} />
                 <Route path="/parametres" element={<RoleGuard roles={STAFF}><SettingsPage /></RoleGuard>} />

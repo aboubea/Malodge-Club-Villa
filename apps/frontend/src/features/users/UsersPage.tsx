@@ -22,6 +22,8 @@ const ROLE_FILTER_OPTIONS = [
   { label: 'Manager', value: Role.MANAGER },
   { label: 'Prestataire', value: Role.PROVIDER },
   { label: 'Client', value: Role.CLIENT },
+  { label: 'Propriétaire', value: Role.OWNER },
+  { label: 'Salarié', value: Role.EMPLOYEE },
 ];
 
 const ROLE_BADGE_MAP: Record<string, any> = {
@@ -30,6 +32,8 @@ const ROLE_BADGE_MAP: Record<string, any> = {
   MANAGER: 'manager',
   PROVIDER: 'provider',
   CLIENT: 'client',
+  OWNER: 'gold',
+  EMPLOYEE: 'admin',
 };
 
 export function UsersPage() {
@@ -68,7 +72,7 @@ export function UsersPage() {
           <Avatar firstName={row.firstName} lastName={row.lastName} src={row.avatar} size="sm" />
           <div>
             <p className="text-sm text-ink">{row.firstName} {row.lastName}</p>
-            <p className="text-xs text-muted">{row.email}</p>
+            <p className="text-xs text-muted">{row.email.endsWith('@fiche.malodge.invalid') ? 'Fiche sans accès à l’application' : row.email}</p>
           </div>
         </div>
       ),

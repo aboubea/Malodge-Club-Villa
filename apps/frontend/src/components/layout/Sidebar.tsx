@@ -20,6 +20,7 @@ import {
   CalendarRange,
   X,
   LogOut,
+  Wallet,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -28,7 +29,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Logo, LogoMark } from '../brand/Logo';
 import { apiClient } from '../../lib/apiClient';
 
-type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT';
+type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT' | 'OWNER' | 'EMPLOYEE';
 
 interface NavDef {
   path: string;
@@ -46,6 +47,9 @@ interface NavSection {
 const STAFF: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'];
 const ADMIN_UP: RoleKey[] = ['SUPER_ADMIN', 'ADMIN'];
 const CLIENT: RoleKey[] = ['CLIENT'];
+/** Everyone except owners and employees, who only have their extras account. */
+const APP_USERS: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'PROVIDER', 'CLIENT'];
+const ACCOUNT_HOLDERS: RoleKey[] = ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'];
 
 const NAV_SECTIONS: NavSection[] = [
   {
@@ -54,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true, roles: STAFF },
       { path: '/agenda', label: 'Agenda', icon: CalendarRange, roles: STAFF },
       { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
+      { path: '/extras', label: 'Suivi des extras', icon: Wallet, roles: STAFF },
     ],
   },
   {
@@ -62,6 +67,10 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/mes-sejours', label: 'Mes séjours', icon: Building2, roles: CLIENT },
       { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
     ],
+  },
+  {
+    title: 'Mon espace',
+    items: [{ path: '/mon-compte', label: 'Mon compte', icon: Wallet, roles: ACCOUNT_HOLDERS }],
   },
   {
     title: 'Gestion',
@@ -76,9 +85,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Conciergerie',
     items: [
-      { path: '/commandes', label: 'Commandes', icon: ShoppingBag },
-      { path: '/messages', label: 'Messages', icon: MessageSquare },
-      { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit },
+      { path: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: APP_USERS },
+      { path: '/messages', label: 'Messages', icon: MessageSquare, roles: APP_USERS },
+      { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit, roles: APP_USERS },
       { path: '/notifications', label: 'Notifications', icon: Bell },
     ],
   },
@@ -263,7 +272,7 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
           {!collapsed && 'Se déconnecter'}
         </button>
 
-        {!collapsed && (
+        {!collapsed && role && APP_USERS.includes(role as RoleKey) && (
           <div className="hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center">
             <span className="mx-auto mb-2.5 w-9 h-9 rounded-full bg-surface flex items-center justify-center shadow-card">
               <BrainCircuit size={17} className="text-accent" />

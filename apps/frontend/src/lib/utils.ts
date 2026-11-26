@@ -65,3 +65,18 @@ export function formatDistanceToNow(date: string | Date): string {
   if (days < 7) return `il y a ${days}j`;
   return formatDate(date);
 }
+
+/** Money with up to 2 decimals, in the given ISO currency (MAD, EUR…). */
+export function formatMoney(amount: number | null | undefined, currency = 'EUR'): string {
+  if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
+  try {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${currency}`;
+  }
+}

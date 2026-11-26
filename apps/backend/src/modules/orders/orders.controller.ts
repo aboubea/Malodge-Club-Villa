@@ -17,6 +17,23 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role, OrderStatus } from '@malodge/shared';
 
+/** Internal extras data (purchase cost, seller) never leaves the staff side. */
+function stripInternal<T>(data: T, role: string): T {
+  if ([Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER].includes(role as Role)) return data;
+  const clean = (order: any) => {
+    if (!order || typeof order !== 'object') return order;
+    const { sellerId: _seller, ...rest } = order;
+    if (Array.isArray(rest.items)) {
+      rest.items = rest.items.map(({ unitCost: _cost, ...item }: any) => item);
+    }
+    return rest;
+  };
+  const anyData = data as any;
+  if (Array.isArray(anyData)) return anyData.map(clean) as T;
+  if (anyData && Array.isArray(anyData.data)) return { ...anyData, data: anyData.data.map(clean) };
+  return clean(anyData);
+}
+
 @ApiTags('Orders')
 @ApiBearerAuth()
 @Controller('orders')
@@ -62,13 +79,13 @@ export class OrdersController {
       country,
       userRole: user.role,
       userCountries: user.countries || [],
-    });
+    }).then((r) => stripInternal(r, user.role));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get order by ID with all relations' })
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: { role: string }) {
+    return stripInternal(await this.ordersService.findOne(id), user.role);
   }
 
   @Post()

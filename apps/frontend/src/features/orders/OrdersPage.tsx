@@ -233,7 +233,7 @@ export function OrdersPage() {
                       {/* Services */}
                       <td className="px-4 py-3 text-sm text-ink">
                         {order.items?.length
-                          ? order.items.slice(0, 2).map((it: any) => it.service?.name).join(', ') +
+                          ? order.items.slice(0, 2).map((it: any) => it.service?.name ?? it.label).join(', ') +
                             (order.items.length > 2 ? ` +${order.items.length - 2}` : '')
                           : '—'}
                       </td>

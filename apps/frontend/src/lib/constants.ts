@@ -7,6 +7,8 @@ export const ROLES_LABELS: Record<string, string> = {
   MANAGER: 'Manager',
   PROVIDER: 'Prestataire',
   CLIENT: 'Client',
+  OWNER: 'Propriétaire',
+  EMPLOYEE: 'Salarié',
 };
 
 export const ROLES_COLORS: Record<string, string> = {
@@ -15,6 +17,8 @@ export const ROLES_COLORS: Record<string, string> = {
   MANAGER: 'bg-plum/10 text-plum border-plum/25',
   PROVIDER: 'bg-copper/10 text-copper border-copper/25',
   CLIENT: 'bg-success/10 text-success border-success/25',
+  OWNER: 'bg-gold/15 text-accent border-gold/30',
+  EMPLOYEE: 'bg-info/10 text-info border-info/25',
 };
 
 export const RESERVATION_STATUS_LABELS: Record<string, string> = {
