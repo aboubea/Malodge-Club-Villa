@@ -404,3 +404,5 @@ export interface DashboardKpiDto {
   revenueChange: number;
   occupancyChange: number;
 }
+
+export * from './villa-match';

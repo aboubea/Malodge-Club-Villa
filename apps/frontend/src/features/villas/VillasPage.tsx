@@ -15,6 +15,7 @@ import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 import { VillaListView } from './VillaListView';
+import { DuplicatesBanner, MergePair, MergeVillaModal, planMerge, useDuplicatePairs } from './VillaMerge';
 import { useCountries } from '../../hooks/useCountries';
 
 function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
@@ -259,6 +260,9 @@ export function VillasPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canMerge = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const [mergePair, setMergePair] = useState<MergePair | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [source, setSource] = useState<'local' | 'lodgify'>('local');
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -282,7 +286,8 @@ export function VillasPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['villas', { page, search, activeFilter, countryFilter }],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), limit: '12' });
+      // Every villa on one list, so a duplicate can be dropped on its twin.
+      const params = new URLSearchParams({ page: String(page), limit: '300' });
       if (search) params.set('search', search);
       if (activeFilter !== '') params.set('isActive', activeFilter);
       if (countryFilter) params.set('country', countryFilter);
@@ -401,6 +406,7 @@ export function VillasPage() {
   };
 
   const villas: VillaDto[] = data?.data || data || [];
+  const duplicatePairs = useDuplicatePairs(villas);
   const meta = data?.meta;
 
   const filterBtn = (label: string, value: ActiveFilter) => (
@@ -615,12 +621,25 @@ export function VillasPage() {
           <p className="text-xs text-muted mt-1">Ajoutez votre première villa pour commencer</p>
         </div>
       ) : (
-        <VillaListView
-          villas={villas}
-          onOpen={(villa) => navigate(`/villas/${villa.id}`)}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        <>
+          {canMerge && <DuplicatesBanner pairs={duplicatePairs} onPick={setMergePair} />}
+          <VillaListView
+            villas={villas}
+            onOpen={(villa) => navigate(`/villas/${villa.id}`)}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            focusId={focusId}
+            onMergeRequest={
+              canMerge
+                ? (dragged, onto) => {
+                    const plan = planMerge(dragged, onto);
+                    if (plan && 'error' in plan) toast.error(plan.error);
+                    else if (plan) setMergePair(plan);
+                  }
+                : undefined
+            }
+          />
+        </>
       )}
 
       {/* Pagination */}
@@ -639,6 +658,8 @@ export function VillasPage() {
       )}
 
       </>)}
+
+      <MergeVillaModal pair={mergePair} onClose={() => setMergePair(null)} onMerged={setFocusId} />
 
       {selectedLodgify && <LodgifyDetailModal p={selectedLodgify} onClose={() => setSelectedLodgify(null)} />}
 

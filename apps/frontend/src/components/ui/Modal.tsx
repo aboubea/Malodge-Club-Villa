@@ -50,6 +50,9 @@ export function Modal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
             className={cn(
               'relative w-full flex flex-col',
               'rounded-t-3xl sm:rounded-2xl max-h-[92dvh] sm:max-h-[88vh]',

@@ -704,23 +704,58 @@ export class ExtrasService {
    * deleted and its name is remembered so a future import attaches to the right villa.
    * Only this application's database changes — nothing is ever written to Lodgify.
    */
-  async mergeVilla(sourceId: string, targetId: string) {
+  /**
+   * What merging `sourceId` into `targetId` would do, or why it cannot be done.
+   * Amounts are never converted: villas whose extras are in two different
+   * currencies cannot be merged.
+   */
+  async mergeVillaPreview(sourceId: string, targetId: string) {
     if (sourceId === targetId) throw new BadRequestException('Choisissez une autre villa.');
+    const select = { id: true, name: true, logifyId: true, currency: true, country: true, ownerId: true } as const;
     const [source, target] = await Promise.all([
-      this.prisma.villa.findUnique({ where: { id: sourceId }, select: { id: true, name: true, logifyId: true, currency: true, ownerId: true } }),
-      this.prisma.villa.findUnique({ where: { id: targetId }, select: { id: true, name: true, currency: true, ownerId: true } }),
+      this.prisma.villa.findUnique({ where: { id: sourceId }, select }),
+      this.prisma.villa.findUnique({ where: { id: targetId }, select }),
     ]);
     if (!source || !target) throw new NotFoundException('Villa introuvable');
-    if (source.logifyId) throw new BadRequestException('Une villa issue de Lodgify ne peut pas être fusionnée dans une autre.');
-    if (source.ownerId && target.ownerId && source.ownerId !== target.ownerId) {
-      throw new BadRequestException(`Les deux villas ont un propriétaire différent : alignez-les dans Réglages > Villas avant de rattacher.`);
-    }
-    const targetExtras = await this.prisma.order.count({ where: { OR: [{ villaId: targetId }, { reservation: { villaId: targetId } }] } });
-    const sourceExtras = await this.prisma.order.count({ where: { OR: [{ villaId: sourceId }, { reservation: { villaId: sourceId } }] } });
-    if (targetExtras > 0 && sourceExtras > 0 && source.currency !== target.currency) {
-      throw new BadRequestException(`Devises différentes (${source.currency} / ${target.currency}) avec des extras des deux côtés : impossible de rattacher sans fausser les montants.`);
-    }
-    const currency = sourceExtras > 0 ? source.currency : target.currency;
+    const count = async (villaId: string) => {
+      const [stays, extras, currencies] = await Promise.all([
+        this.prisma.reservation.count({ where: { villaId } }),
+        this.prisma.order.count({ where: { OR: [{ villaId }, { reservation: { villaId } }] } }),
+        this.prisma.service.findMany({
+          where: { orderItems: { some: { order: { OR: [{ villaId }, { reservation: { villaId } }] } } } },
+          select: { currency: true },
+          distinct: ['currency'],
+        }),
+      ]);
+      return { stays, extras, serviceCurrencies: currencies.map((c) => c.currency) };
+    };
+    const [from, into] = await Promise.all([count(sourceId), count(targetId)]);
+
+    let blocker: string | null = null;
+    if (source.logifyId) blocker = 'Une villa issue de Lodgify ne peut pas être fusionnée dans une autre : déposez plutôt l’autre villa sur elle.';
+    else if (source.ownerId && target.ownerId && source.ownerId !== target.ownerId)
+      blocker = 'Les deux villas ont un propriétaire différent : alignez-les dans Suivi des extras > Réglages avant de fusionner.';
+    else if (from.extras > 0 && into.extras > 0 && source.currency !== target.currency)
+      blocker = `Devises différentes (${source.currency} / ${target.currency}) avec des extras des deux côtés : fusionner fausserait les montants.`;
+    // The extras keep the currency they were entered in.
+    const currency = from.extras > 0 ? source.currency : target.currency;
+
+    return {
+      source: { id: source.id, name: source.name, lodgify: !!source.logifyId, currency: source.currency, country: source.country, ...from },
+      target: { id: target.id, name: target.name, lodgify: !!target.logifyId, currency: target.currency, country: target.country, ...into },
+      currency,
+      currencyChanges: currency !== target.currency,
+      blocker,
+    };
+  }
+
+  async mergeVilla(sourceId: string, targetId: string) {
+    const preview = await this.mergeVillaPreview(sourceId, targetId);
+    if (preview.blocker) throw new BadRequestException(preview.blocker);
+    const source = { name: preview.source.name };
+    const target = await this.prisma.villa.findUniqueOrThrow({ where: { id: targetId }, select: { ownerId: true } });
+    const sourceOwner = (await this.prisma.villa.findUniqueOrThrow({ where: { id: sourceId }, select: { ownerId: true } })).ownerId;
+    const currency = preview.currency;
 
     const moved = await this.prisma.$transaction(async (tx) => {
       const stays = await tx.reservation.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
@@ -733,14 +768,14 @@ export class ExtrasService {
       await tx.villaManager.deleteMany({ where: { villaId: sourceId } });
       await tx.document.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
       await tx.calendarEvent.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
-      await tx.villa.update({ where: { id: targetId }, data: { currency, ownerId: target.ownerId ?? source.ownerId } });
+      await tx.villa.update({ where: { id: targetId }, data: { currency, ownerId: target.ownerId ?? sourceOwner } });
       await tx.villa.delete({ where: { id: sourceId } });
       const row = await tx.appSetting.findUnique({ where: { key: VILLA_ALIASES_KEY } });
       const aliases = { ...((row?.value as Record<string, string>) ?? {}), [source.name]: targetId };
       await tx.appSetting.upsert({ where: { key: VILLA_ALIASES_KEY }, update: { value: aliases }, create: { key: VILLA_ALIASES_KEY, value: aliases } });
       return { stays: stays.count, extras: extras.count };
     });
-    return { merged: source.name, into: target.name, ...moved };
+    return { merged: source.name, into: preview.target.name, currency, ...moved };
   }
 
   async createStay(dto: UpsertStayDto) {

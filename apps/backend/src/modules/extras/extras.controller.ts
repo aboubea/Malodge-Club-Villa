@@ -158,6 +158,14 @@ export class ExtrasController {
     return this.extras.updateVilla(id, dto);
   }
 
+  @Get('villas/:id/merge-preview')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'What merging this villa into another would move, and in which currency' })
+  mergeVillaPreview(@Param('id') id: string, @Query('targetId') targetId: string) {
+    if (!targetId) throw new BadRequestException('targetId requis');
+    return this.extras.mergeVillaPreview(id, targetId);
+  }
+
   @Post('villas/:id/merge')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Merge a duplicate villa into another one (local data only, never Lodgify)' })
