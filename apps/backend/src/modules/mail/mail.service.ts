@@ -23,10 +23,19 @@ export class MailService {
   private readonly apiKey: string;
   private readonly from: string;
   readonly appUrl: string;
+  /** Name of the variable the sender was read from (null = Resend's test sender). */
+  private readonly fromVariable: string | null;
 
   constructor(private config: ConfigService) {
-    this.apiKey = (config.get<string>('RESEND_API_KEY') ?? '').trim();
-    this.from = (config.get<string>('MAIL_FROM') ?? '').trim() || 'Malodge Club <onboarding@resend.dev>';
+    // Values pasted with quotes ("…" or '…') are taken without them.
+    const read = (k: string) => (config.get<string>(k) ?? '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+    this.apiKey = read('RESEND_API_KEY');
+    // The usual names for the sender address are all accepted.
+    const names = ['MAIL_FROM', 'EMAIL_FROM', 'RESEND_FROM', 'FROM_EMAIL', 'MAIL_SENDER', 'SMTP_FROM', 'SENDER_EMAIL'];
+    this.fromVariable = names.find((k) => read(k)) ?? null;
+    const sender = this.fromVariable ? read(this.fromVariable) : '';
+    // A bare address gets the brand name: "Malodge Club <contact@…>".
+    this.from = !sender ? 'Malodge Club <onboarding@resend.dev>' : sender.includes('<') ? sender : `Malodge Club <${sender}>`;
     // Links in e-mails must point to the live site, never to localhost.
     const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
     this.appUrl = ((config.get<string>('APP_URL') ?? '').trim() || (vercelUrl ? `https://${vercelUrl}` : 'http://localhost:5173')).replace(/\/+$/, '');
@@ -41,7 +50,8 @@ export class MailService {
       keyLooksValid: /^re_[A-Za-z0-9_]{10,}$/.test(this.apiKey),
       from: this.from,
       fromDomain: domain,
-      fromIsDefault: !(this.config.get<string>('MAIL_FROM') ?? '').trim(),
+      fromIsDefault: !this.fromVariable,
+      fromVariable: this.fromVariable,
       appUrl: this.appUrl,
       appUrlIsDefault: !(this.config.get<string>('APP_URL') ?? '').trim(),
     };

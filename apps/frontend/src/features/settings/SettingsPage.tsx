@@ -446,7 +446,7 @@ function MailCard() {
     queryKey: ['settings-mail'],
     queryFn: async () => {
       const r = await apiClient.get('/settings/mail');
-      return (r.data?.data ?? r.data) as { configured: boolean; keyLooksValid: boolean; from: string; fromDomain: string | null; fromIsDefault: boolean; appUrl: string; appUrlIsDefault: boolean };
+      return (r.data?.data ?? r.data) as { configured: boolean; keyLooksValid: boolean; from: string; fromDomain: string | null; fromIsDefault: boolean; fromVariable?: string | null; appUrl: string; appUrlIsDefault: boolean };
     },
   });
   const [to, setTo] = useState('');
@@ -479,8 +479,14 @@ function MailCard() {
       <div className="px-6 pb-6 space-y-3 text-[13px]">
         <ul className="space-y-1 text-ink-soft">
           <li>
-            Expéditeur (MAIL_FROM) : <b className="text-ink">{status?.from ?? '…'}</b>
-            {status?.fromIsDefault && <span className="text-warning"> — valeur par défaut : renseignez MAIL_FROM avec une adresse de votre domaine vérifié</span>}
+            Expéditeur : <b className="text-ink">{status?.from ?? '…'}</b>
+            {status?.fromVariable && <span className="text-muted"> (lu dans {status.fromVariable})</span>}
+            {status?.fromIsDefault && (
+              <span className="text-warning">
+                {' '}
+                — aucune variable MAIL_FROM lue par ce déploiement : vérifiez son nom, qu’elle est cochée pour « Production », puis redéployez
+              </span>
+            )}
           </li>
           <li>
             Liens des e-mails vers (APP_URL) : <b className="text-ink">{status?.appUrl ?? '…'}</b>
