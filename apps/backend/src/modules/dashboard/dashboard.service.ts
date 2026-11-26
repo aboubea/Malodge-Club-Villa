@@ -124,7 +124,7 @@ export class DashboardService {
       const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
       return {
         id: s.id,
-        guest: s.label || [s.client?.firstName, s.client?.lastName].filter(Boolean).join(' ') || 'Voyageur',
+        guest: s.label || [s.client?.firstName, s.client?.lastName].filter(Boolean).join(' ') || 'Client',
         villa: { id: house.id, name: house.name, photo: house.coverImage || house.images?.[0] || s.villa.coverImage || s.villa.images?.[0] || null },
         checkIn: day(s.checkIn),
         checkOut: day(s.checkOut),

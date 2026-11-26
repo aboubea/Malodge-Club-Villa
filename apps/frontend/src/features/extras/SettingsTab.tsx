@@ -225,7 +225,7 @@ function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: b
       open={open}
       onClose={onClose}
       title={stay ? 'Modifier le séjour' : 'Nouveau séjour'}
-      description="Un voyageur qui revient = un nouveau libellé de séjour."
+      description="Un client qui revient = un nouveau libellé de séjour."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>

@@ -125,7 +125,7 @@ export async function statementPdf(s: StatementData): Promise<Buffer> {
     }
     table(
       [
-        { title: 'Voyageur', width: 150 },
+        { title: 'Client', width: 150 },
         { title: 'Arrivée', width: 62 },
         { title: 'Départ', width: 62 },
         { title: 'Nuits', width: 52, align: 'right' },

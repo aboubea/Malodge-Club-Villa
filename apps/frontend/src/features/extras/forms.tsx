@@ -3,7 +3,8 @@ import { fxRate, useFx } from '../../lib/fx';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
-import { formatMoney, todayInput } from '../../lib/utils';
+import { cn, formatMoney, todayInput } from '../../lib/utils';
+import { ChevronDown } from 'lucide-react';
 import {
   AccountRole,
   ExtraLine,
@@ -52,6 +53,11 @@ export function ExtraFormModal({
   const [form, setForm] = useState(empty);
   const [offCatalogue, setOffCatalogue] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The rarely used fields are folded away, unless this extra already uses them.
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (open) setMore(!!extra && !!(extra.seller || extra.notes));
+  }, [open, extra]);
 
   useEffect(() => {
     if (!open) return;
@@ -248,6 +254,18 @@ export function ExtraFormModal({
             ))}
           </Select>
         </Field>
+        {/* Seller, another villa, note: rarely needed, folded away */}
+        <button
+          type="button"
+          onClick={() => setMore((m) => !m)}
+          aria-expanded={more}
+          className="sm:col-span-2 -mb-1 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-accent self-start"
+        >
+          <ChevronDown size={15} className={cn('transition-transform', more && 'rotate-180')} />
+          {more ? 'Moins de détails' : 'Plus de détails : vendeur, villa, note'}
+        </button>
+        {more && (
+        <>
         <Field label="Vendeur (salarié)" hint="Sa commission est calculée selon son taux.">
           <Select value={form.sellerId} onChange={(e) => set('sellerId', e.target.value)}>
             <option value="">Aucun</option>
@@ -272,6 +290,8 @@ export function ExtraFormModal({
         <Field label="Note">
           <TextInput value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Facultatif" maxLength={1000} />
         </Field>
+        </>
+        )}
 
         {error && <p className="sm:col-span-2 text-[13px] text-danger">{error}</p>}
       </form>

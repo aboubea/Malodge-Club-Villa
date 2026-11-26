@@ -45,7 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
     pages: [
       { path: '/reservations', label: 'Réservations', roles: STAFF },
       { path: '/agenda', label: 'Agenda', roles: STAFF },
-      { path: '/accueil', label: 'Accueil voyageurs', roles: STAFF },
+      { path: '/accueil', label: 'Accueil clients', roles: STAFF },
     ],
   },
   {

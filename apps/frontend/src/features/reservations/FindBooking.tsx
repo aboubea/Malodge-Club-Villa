@@ -59,12 +59,12 @@ export function FindBooking({ open, onClose, onJump }: { open: boolean; onClose:
   });
 
   return (
-    <Modal open={open} onClose={onClose} title="Une réservation manque ?" description="Cherchez le voyageur : l’appli dit où est sa réservation dans Lodgify et pourquoi elle n’apparaît pas." size="xl">
+    <Modal open={open} onClose={onClose} title="Une réservation manque ?" description="Cherchez le client : l’appli dit où est sa réservation dans Lodgify et pourquoi elle n’apparaît pas." size="xl">
       <div className="space-y-4">
         <div className="flex gap-2">
           <label className="flex-1 flex items-center gap-2 h-10 px-3 rounded-xl border border-line bg-surface">
             <Search size={15} className="text-muted" />
-            <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Nom du voyageur ou n° de réservation Lodgify" className="flex-1 bg-transparent outline-none text-[14px] text-ink" />
+            <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="Nom du client ou n° de réservation Lodgify" className="flex-1 bg-transparent outline-none text-[14px] text-ink" />
           </label>
           <Button variant="secondary" icon={<RefreshCw size={13} />} loading={isFetching && refresh} onClick={() => setRefresh((r) => !r)} title="Relire Lodgify maintenant">
             Relire Lodgify

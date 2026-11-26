@@ -137,7 +137,7 @@ export function OrdersPage() {
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => { setCountryFilter(''); setPage(1); }}
-                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+                className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!countryFilter ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
               >
                 Tous les pays
               </button>
@@ -145,7 +145,7 @@ export function OrdersPage() {
                 <button
                   key={c.code}
                   onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                  className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+                  className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${countryFilter === c.name ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
                 >
                   {c.flag} {c.name}
                 </button>

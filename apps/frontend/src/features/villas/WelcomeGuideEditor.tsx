@@ -76,7 +76,7 @@ export function WelcomeGuideEditor({ villaId }: { villaId: string }) {
         </CardHeader>
         <CardContent>
           <p className="text-[13px] text-ink-soft">
-            Cette annonce est une formule : ses voyageurs reçoivent le livret de la maison{' '}
+            Cette annonce est une formule : ses clients reçoivent le livret de la maison{' '}
             <Link to={`/villas/${data.usesHouse.id}`} className="font-semibold text-accent">
               {data.usesHouse.name}
             </Link>
@@ -94,7 +94,7 @@ export function WelcomeGuideEditor({ villaId }: { villaId: string }) {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2 w-full">
           <CardTitle className="flex items-center gap-2">
-            <BookOpen size={15} /> Livret d’accueil des voyageurs
+            <BookOpen size={15} /> Livret d’accueil des clients
           </CardTitle>
           {data.ready ? (
             <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-success">
@@ -109,7 +109,7 @@ export function WelcomeGuideEditor({ villaId }: { villaId: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-[12.5px] text-muted">
-          Affiché dans l’espace séjour de chaque voyageur de cette villa (et de ses formules). Les services proposés sont ceux de la section « Services disponibles »
+          Affiché dans l’espace séjour de chaque client de cette villa (et de ses formules). Les services proposés sont ceux de la section « Services disponibles »
           ({data.servicesCount}).
         </p>
         <Field label="Mot d’accueil">
@@ -129,7 +129,7 @@ export function WelcomeGuideEditor({ villaId }: { villaId: string }) {
         <Field label="Comment venir (parking, repères)">
           <textarea rows={2} value={g.directions ?? ''} onChange={set('directions')} className={area} />
         </Field>
-        <Field label="Accès à la villa (clés, codes, gardien)" hint="Visible par le voyageur seulement 2 jours avant son arrivée et jusqu’à son départ.">
+        <Field label="Accès à la villa (clés, codes, gardien)" hint="Visible par le client seulement 2 jours avant son arrivée et jusqu’à son départ.">
           <textarea rows={2} value={g.access ?? ''} onChange={set('access')} className={area} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -161,7 +161,7 @@ export function WelcomeGuideEditor({ villaId }: { villaId: string }) {
           <input type="checkbox" className="mt-0.5" checked={!!g.autoMessages} onChange={(e) => setG((p) => ({ ...p, autoMessages: e.target.checked }))} />
           <span className="text-[13px] text-ink-soft">
             <b className="text-ink">Accueil automatique</b> : chaque matin, les e-mails « Bienvenue », « J-7 extras », « J-1 arrivée » et « Merci » partent seuls aux
-            voyageurs de cette villa qui ont une adresse e-mail réelle (jamais aux adresses relais Airbnb / Booking). Les autres apparaissent dans « Accueil voyageurs »
+            clients de cette villa qui ont une adresse e-mail réelle (jamais aux adresses relais Airbnb / Booking). Les autres apparaissent dans « Accueil clients »
             avec le message WhatsApp prêt.
           </span>
         </label>

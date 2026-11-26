@@ -168,7 +168,7 @@ export function CommandPalette() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder={staff ? 'Voyageur, villa, extra, prestataire, page…' : 'Aller à une page…'}
+                placeholder={staff ? 'Client, villa, extra, prestataire, page…' : 'Aller à une page…'}
                 className="flex-1 bg-transparent outline-none text-[15px] text-ink placeholder:text-muted"
                 aria-controls="search-results"
                 aria-activedescendant={items[active] ? `search-${active}` : undefined}

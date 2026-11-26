@@ -251,7 +251,7 @@ export function ServiceCataloguePage() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!selectedCategory ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!selectedCategory ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
           >
             Tous
           </button>
@@ -259,7 +259,7 @@ export function ServiceCataloguePage() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id === selectedCategory ? '' : cat.id)}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${selectedCategory === cat.id ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${selectedCategory === cat.id ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
             >
               {cat.icon && <span className="mr-1">{cat.icon}</span>}{cat.name}
             </button>

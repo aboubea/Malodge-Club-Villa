@@ -345,7 +345,7 @@ export function VillaDetailPage() {
                     <Users size={14} className="text-muted" />
                   </div>
                   <p className="font-display font-semibold text-[22px] leading-none text-ink tabular mt-1">{villa.maxGuests > 0 ? villa.maxGuests : '—'}</p>
-                  <p className="text-[10px] text-muted">Voyageurs</p>
+                  <p className="text-[10px] text-muted">Personnes</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">

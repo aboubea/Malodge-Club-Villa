@@ -142,7 +142,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
                 <h3 className="text-[12.5px] font-semibold text-muted">Caractéristiques</h3>
                 {p.maxGuests && (
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-muted"><Users size={14} /><span>Voyageurs</span></div>
+                    <div className="flex items-center gap-2 text-muted"><Users size={14} /><span>Personnes</span></div>
                     <span className="text-ink font-medium">{p.maxGuests}</span>
                   </div>
                 )}
@@ -445,14 +445,14 @@ export function VillasPage() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setSource('local')}
-          className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'local' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+          className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${source === 'local' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
         >
           Logements internes
         </button>
         {lodgifyConfigured && (
           <button
             onClick={() => setSource('lodgify')}
-            className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'lodgify' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${source === 'lodgify' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
           >
             🔗 Lodgify
           </button>
@@ -484,7 +484,7 @@ export function VillasPage() {
                 {/* Sync filter */}
                 {(['all', 'new', 'saved'] as const).map((f) => (
                   <button key={f} onClick={() => setLodgifySyncFilter(f)}
-                    className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${lodgifySyncFilter === f ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
+                    className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${lodgifySyncFilter === f ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}>
                     {f === 'all' ? 'Tous' : f === 'new' ? 'Non pushés' : 'En base'}
                   </button>
                 ))}
@@ -492,12 +492,12 @@ export function VillasPage() {
                 {lodgifyCountries.length > 1 && (<>
                   <span className="w-px h-4 bg-line" />
                   <button onClick={() => setLodgifyCountryFilter('')}
-                    className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!lodgifyCountryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
+                    className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!lodgifyCountryFilter ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}>
                     Tous les pays
                   </button>
                   {lodgifyCountries.map((c) => (
                     <button key={c} onClick={() => setLodgifyCountryFilter(c)}
-                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${lodgifyCountryFilter === c ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
+                      className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${lodgifyCountryFilter === c ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}>
                       {c}
                     </button>
                   ))}

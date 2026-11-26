@@ -167,7 +167,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
                   key={c.code}
                   type="button"
                   onClick={() => toggleCountry(c.name)}
-                  className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
+                  className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${
                     active
                       ? 'border-primary bg-primary text-on-primary'
                       : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'

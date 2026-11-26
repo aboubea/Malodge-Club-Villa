@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { chip, chipOff, chipOn } from '../../components/ui/segmented';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Bot, Copy, Mail, MessageCircle, TriangleAlert, UserPlus } from 'lucide-react';
@@ -57,7 +58,7 @@ export function OnboardingPage() {
   return (
     <div className="space-y-5 max-w-[1100px]">
       <PageHeader
-        title="Accueil voyageurs"
+        title="Accueil clients"
         description="Arrivées des 30 prochains jours : invitation à l’espace séjour (livret d’accueil + services de la villa) et messages du parcours — bienvenue, J-7, J-1, merci."
       />
 
@@ -81,7 +82,7 @@ export function OnboardingPage() {
             key={k}
             type="button"
             onClick={() => setFilter(k)}
-            className={cn('h-8 px-3.5 rounded-full text-[12.5px] font-semibold border', filter === k ? 'bg-primary text-on-primary border-primary' : 'bg-surface border-line text-ink-soft')}
+            className={cn(chip, filter === k ? chipOn : chipOff)}
           >
             {label}
           </button>

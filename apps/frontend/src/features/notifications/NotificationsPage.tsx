@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { segItem, segOff, segOn, segTrack } from '../../components/ui/segmented';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Bell, CheckCheck, CheckCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
@@ -92,17 +93,12 @@ export function NotificationsPage() {
 
       <div className="px-5 pb-5 flex flex-col gap-4 flex-1 overflow-hidden">
         {/* Filter tabs */}
-        <div className="flex gap-1 bg-surface border border-line rounded-xl p-1 self-start">
+        <div className={cn(segTrack, 'self-start')}>
           {TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setFilter(tab.value)}
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-xs transition-all duration-150',
-                filter === tab.value
-                  ? 'bg-primary text-on-primary font-medium'
-                  : 'text-muted hover:text-ink',
-              )}
+              className={cn(segItem, filter === tab.value ? segOn : segOff)}
             >
               {tab.label}
             </button>

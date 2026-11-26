@@ -63,7 +63,7 @@ export class SearchService {
       if (s) hits.push({ type: 'villa', id: v.id, title: v.name, subtitle: [v.city, v.owner ? `propriétaire ${fullName(v.owner)}` : null, v.isActive ? null : 'inactive'].filter(Boolean).join(' · '), url: `/villas/${v.parentVillaId ?? v.id}`, score: s });
     }
     for (const r of stays) {
-      const guest = r.label || fullName(r.client) || 'Voyageur';
+      const guest = r.label || fullName(r.client) || 'Client';
       const byGuest = score(query, [guest, fullName(r.client), realEmail(r.client?.email), r.client?.phone, r.logifyId]);
       const all = byGuest || score(query, [guest, fullName(r.client), r.villa?.name]);
       if (!all) continue;

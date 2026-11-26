@@ -4,6 +4,7 @@ import { Plus, Wallet } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { cn } from '../../lib/utils';
+import { segItem, segOff, segOn, segTrack } from '../../components/ui/segmented';
 import { useExtrasOptions, useExtrasSummary } from './api';
 import { ExtraFormModal, SettlementFormModal } from './forms';
 import { OverviewTab } from './OverviewTab';
@@ -14,7 +15,7 @@ import { CatalogueTab } from './CatalogueTab';
 import { SettingsTab } from './SettingsTab';
 
 const TABS = [
-  { to: '/extras', label: "Vue d'ensemble", end: true },
+  { to: '/extras', label: 'Résumé', end: true },
   { to: '/extras/saisie', label: 'Extras' },
   { to: '/extras/reglements', label: 'Règlements', badge: 'pendingSettlements' as const },
   { to: '/extras/comptes', label: 'Comptes' },
@@ -41,7 +42,7 @@ export function ExtrasPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Suivi des extras" description="Prestations, règlements, cagnottes et commissions — par séjour, propriétaire, prestataire et salarié.">
+      <PageHeader title="Suivi des extras" description="Ce qui a été vendu, et qui doit quoi à qui.">
         <Button variant="secondary" icon={<Wallet size={15} />} onClick={() => setSettlementOpen(true)}>
           Règlement
         </Button>
@@ -50,7 +51,7 @@ export function ExtrasPage() {
         </Button>
       </PageHeader>
 
-      <nav className="flex gap-1 border-b border-line overflow-x-auto scrollbar-none -mt-2" aria-label="Sections du suivi des extras">
+      <nav className={cn(segTrack, '-mt-2')} aria-label="Sections du suivi des extras">
         {TABS.map((t) => {
           const count = t.badge ? summary?.alerts[t.badge] ?? 0 : 0;
           return (
@@ -59,15 +60,12 @@ export function ExtrasPage() {
               to={t.to}
               end={t.end}
               className={({ isActive }) =>
-                cn(
-                  'px-4 py-3 text-[13.5px] whitespace-nowrap border-b-2 -mb-px inline-flex items-center gap-2 transition-colors',
-                  isActive ? 'text-ink border-primary font-semibold' : 'text-muted border-transparent hover:text-ink',
-                )
+                cn(segItem, 'inline-flex items-center gap-1.5', isActive ? segOn : segOff)
               }
             >
               {t.label}
               {count > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-gold text-[#2A1A12] text-[10.5px] font-bold flex items-center justify-center">
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-on-primary text-[10.5px] font-bold flex items-center justify-center">
                   {count}
                 </span>
               )}

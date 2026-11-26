@@ -747,7 +747,7 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
             {/* Extras stays carry no head count: the default 1 is not shown as if it were known. */}
             {!!s.guests && !s.source?.startsWith('extras') && (
               <li className="flex items-center gap-2.5">
-                <Users size={15} className="text-muted" /> {s.guests} voyageur{s.guests > 1 ? 's' : ''}
+                <Users size={15} className="text-muted" /> {s.guests} personne{s.guests > 1 ? 's' : ''}
               </li>
             )}
             <li className="flex items-center gap-2.5">

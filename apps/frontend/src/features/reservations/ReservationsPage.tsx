@@ -177,7 +177,7 @@ export function ReservationsPage() {
       toast.success(`${newUser.firstName} ${newUser.lastName} créé(e)`);
       qc.invalidateQueries({ queryKey: ['clients-select'] });
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erreur création voyageur'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Erreur création client'),
   });
 
   const saveMutation = useMutation({
@@ -297,14 +297,14 @@ export function ReservationsPage() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setSource('local')}
-          className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'local' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+          className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${source === 'local' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
         >
           Toutes les réservations
         </button>
         {lodgifyConfigured && (
           <button
             onClick={() => setSource('lodgify')}
-            className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all flex items-center gap-1.5 ${source === 'lodgify' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors flex items-center gap-1.5 ${source === 'lodgify' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
           >
             🔗 Lodgify
           </button>
@@ -324,7 +324,7 @@ export function ReservationsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line bg-surface">
-                  {['Client', 'Propriété', 'Séjour', 'Voyageurs', 'Statut', 'Montant'].map((h) => (
+                  {['Client', 'Propriété', 'Séjour', 'Personnes', 'Statut', 'Montant'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -415,7 +415,7 @@ export function ReservationsPage() {
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
+              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${
                 statusFilter === s
                   ? 'border-primary bg-primary text-on-primary'
                   : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
@@ -429,7 +429,7 @@ export function ReservationsPage() {
           <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => { setCountryFilter(''); setPage(1); }}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!countryFilter ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
             >
               Tous les pays
             </button>
@@ -437,7 +437,7 @@ export function ReservationsPage() {
               <button
                 key={c.code}
                 onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+                className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${countryFilter === c.name ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
               >
                 {c.flag} {c.name}
               </button>
@@ -452,7 +452,7 @@ export function ReservationsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-surface">
-                {['Client', 'Villa', 'Séjour', 'Voyageurs', 'Statut', 'Montant', ''].map((h) => (
+                {['Client', 'Villa', 'Séjour', 'Personnes', 'Statut', 'Montant', ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">
                     {h}
                   </th>
@@ -595,12 +595,12 @@ export function ReservationsPage() {
                     <div className="flex gap-1">
                       <button type="button"
                         onClick={() => setClientMode('existing')}
-                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'existing' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft'}`}>
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'existing' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink'}`}>
                         Existant
                       </button>
                       <button type="button"
                         onClick={() => setClientMode('new')}
-                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'new' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft'}`}>
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'new' ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink'}`}>
                         + Nouveau
                       </button>
                     </div>
@@ -680,7 +680,7 @@ export function ReservationsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Voyageurs"
+              label="Personnes"
               type="number"
               min="1"
               value={form.guests}

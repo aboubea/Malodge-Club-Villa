@@ -250,7 +250,7 @@ function StayCard({ reservation: r, isCurrent, onRequest, onGuide }: {
                 </span>
                 {nights > 0 && <span>{nights} nuit{nights > 1 ? 's' : ''}</span>}
                 <span className="flex items-center gap-1">
-                  <Users size={10} /> {r.guests} voyageur{r.guests > 1 ? 's' : ''}
+                  <Users size={10} /> {r.guests} personne{r.guests > 1 ? 's' : ''}
                 </span>
               </div>
             </div>

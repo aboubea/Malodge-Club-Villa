@@ -129,7 +129,7 @@ export function SettingsPage() {
       }
       toast.success(`Sync OK : ${d?.properties?.synced ?? 0} propriétés, ${d?.reservations?.synced ?? 0} réservations`);
       if (d?.properties?.incomplete) {
-        toast(`${d.properties.incomplete} logement(s) sans chambres ou voyageurs renseignés dans Lodgify : à compléter sur la fiche villa.`, { duration: 7000 });
+        toast(`${d.properties.incomplete} logement(s) sans chambres ou nombre de personnes renseignés dans Lodgify : à compléter sur la fiche villa.`, { duration: 7000 });
       }
       qc.invalidateQueries({ queryKey: ['villas'] });
       qc.invalidateQueries({ queryKey: ['reservations'] });

@@ -490,7 +490,7 @@ export function ProvidersPage() {
                       key={cat.id}
                       type="button"
                       onClick={() => toggleCategory(cat.id, !!editingProvider)}
-                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
+                      className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${
                         selected
                           ? 'border-accent/50 bg-accent/10 text-accent'
                           : 'border-line text-muted hover:text-ink hover:border-line-strong'
@@ -520,7 +520,7 @@ export function ProvidersPage() {
                       key={country.code}
                       type="button"
                       onClick={() => toggleInviteCountry(country.code)}
-                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all flex items-center gap-1.5 ${
+                      className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors flex items-center gap-1.5 ${
                         selected
                           ? 'border-accent/50 bg-accent/10 text-accent'
                           : 'border-line text-muted hover:text-ink hover:border-line-strong'

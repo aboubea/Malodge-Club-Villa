@@ -105,7 +105,7 @@ export function StayInvitePanel({ stayId }: { stayId: string }) {
     <section className="rounded-2xl border border-line p-3.5 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[13px] font-bold text-ink flex items-center gap-1.5">
-          <UserPlus size={14} /> Espace séjour du voyageur
+          <UserPlus size={14} /> Espace client
         </p>
         {data.invitedAt ? (
           <span className="text-[11.5px] text-success font-semibold">Invité le {new Date(data.invitedAt).toLocaleDateString('fr-FR')}</span>
@@ -135,8 +135,8 @@ export function StayInvitePanel({ stayId }: { stayId: string }) {
 
       <div className="grid grid-cols-1 gap-2">
         <label className="block">
-          <span className="text-[11.5px] text-muted">E-mail du voyageur</span>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adresse e-mail (si le voyageur vous l’a donnée)" className="mt-1 w-full h-9 px-3 rounded-xl border border-line bg-surface text-[13px] text-ink" />
+          <span className="text-[11.5px] text-muted">E-mail du client</span>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adresse e-mail (si le client vous l’a donnée)" className="mt-1 w-full h-9 px-3 rounded-xl border border-line bg-surface text-[13px] text-ink" />
           {emailKindNow === 'relay' && <span className="block mt-1 text-[11.5px] text-warning">Adresse relais de la plateforme : les liens peuvent être filtrés. Préférez WhatsApp ou la messagerie Airbnb.</span>}
         </label>
         <label className="block">
@@ -178,7 +178,7 @@ export function StayInvitePanel({ stayId }: { stayId: string }) {
       <button
         type="button"
         onClick={() => {
-          if (window.confirm('Désactiver le lien déjà envoyé à ce voyageur ? Un nouveau lien sera créé.')) revoke.mutate();
+          if (window.confirm('Désactiver le lien déjà envoyé à ce client ? Un nouveau lien sera créé.')) revoke.mutate();
         }}
         className="inline-flex items-center gap-1 text-[12px] font-semibold text-danger hover:underline"
       >

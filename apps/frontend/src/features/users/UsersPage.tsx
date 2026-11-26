@@ -192,7 +192,7 @@ export function UsersPage() {
             <button
               key={opt.value}
               onClick={() => { setRole(opt.value); setPage(1); }}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${role === opt.value ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${role === opt.value ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
             >
               {opt.label}
             </button>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { segItem, segOff, segOn, segTrack } from '../../components/ui/segmented';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
@@ -196,13 +197,13 @@ export function PerformancePage() {
       <PageHeader title="Performance des villas" description="Occupation, prix moyen par nuit, extras et marges, comparés à la même période l’an dernier. Montants en dirhams au taux du jour." />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-full border border-line bg-surface p-1">
+        <div className={segTrack}>
           {(['month', 'quarter', 'year'] as Kind[]).map((k) => (
             <button
               key={k}
               type="button"
               onClick={() => setKind(k)}
-              className={cn('h-8 px-3.5 rounded-full text-[12.5px] font-semibold', kind === k ? 'bg-primary text-on-primary' : 'text-ink-soft hover:text-ink')}
+              className={cn(segItem, kind === k ? segOn : segOff)}
             >
               {k === 'month' ? 'Mois' : k === 'quarter' ? 'Trimestre' : 'Année'}
             </button>

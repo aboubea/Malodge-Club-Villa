@@ -253,7 +253,7 @@ export class LodgifyService {
       channel,
       propertyId: String(r.property_id ?? r.propertyId ?? r.property?.id ?? ''),
       propertyName: r.property_name ?? r.property?.name ?? null,
-      guestName: (r.guest?.name ?? r.requester_name ?? '').trim() || 'Voyageur Lodgify',
+      guestName: (r.guest?.name ?? r.requester_name ?? '').trim() || 'Client Lodgify',
       guestEmail: r.guest?.email ?? null,
       guestPhone: r.guest?.phone ?? null,
       checkIn,
@@ -844,7 +844,7 @@ export class LodgifyService {
         const guestEmail = b.guestEmail || `lodgify-guest-${b.id}@malodge.local`;
         let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
         if (!client) {
-          const [firstName = 'Voyageur', ...lastParts] = b.guestName.split(/\s+/);
+          const [firstName = 'Client', ...lastParts] = b.guestName.split(/\s+/);
           client = await this.prisma.user.create({
             data: {
               email: guestEmail,

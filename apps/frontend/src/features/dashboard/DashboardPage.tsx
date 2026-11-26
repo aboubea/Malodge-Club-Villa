@@ -159,8 +159,8 @@ export function DashboardPage() {
 
   // What is waiting, most urgent first (only what is not zero).
   const todo = [
-    today && today.todo.pendingRequests > 0 && { icon: Inbox, label: 'Demandes de voyageurs', hint: 'Extras demandés, à confirmer', count: today.todo.pendingRequests, to: '/commandes' },
-    today && today.todo.toInvite > 0 && { icon: Send, label: 'Voyageurs à inviter', hint: 'Arrivent dans les 7 jours, sans leur lien séjour', count: today.todo.toInvite, to: '/accueil' },
+    today && today.todo.pendingRequests > 0 && { icon: Inbox, label: 'Demandes de clients', hint: 'Extras demandés, à confirmer', count: today.todo.pendingRequests, to: '/commandes' },
+    today && today.todo.toInvite > 0 && { icon: Send, label: 'Clients à inviter', hint: 'Arrivent dans les 7 jours, sans leur lien séjour', count: today.todo.toInvite, to: '/accueil' },
     today && today.todo.overdueExtras > 0 && { icon: Hourglass, label: 'Extras passés à clôturer', hint: 'Pas encore « Réalisée » : hors chiffre d’affaires', count: today.todo.overdueExtras, to: '/extras/saisie?stays=all', tone: 'warning' as const },
     a && a.pendingSettlements > 0 && { icon: Wallet, label: 'Règlements à valider', hint: 'Saisis, en attente de validation', count: a.pendingSettlements, to: '/extras/reglements?status=PENDING' },
     a && a.incompleteExtras > 0 && { icon: CircleAlert, label: 'Extras à compléter', hint: 'Prix, coût, date ou séjour manquant', count: a.incompleteExtras, to: '/extras/saisie?incomplete=true', tone: 'warning' as const },
@@ -209,9 +209,9 @@ export function DashboardPage() {
       </motion.section>
 
       {/* Today's guests, Airbnb style */}
-      <motion.section {...rise(2)} aria-label="Voyageurs">
+      <motion.section {...rise(2)} aria-label="Clients">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h2 className="text-[20px] font-bold tracking-[-0.02em]">Voyageurs</h2>
+          <h2 className="text-[20px] font-bold tracking-[-0.02em]">Clients</h2>
           <Link to="/reservations" className="text-[14px] font-semibold text-accent hover:underline">
             Calendrier
           </Link>

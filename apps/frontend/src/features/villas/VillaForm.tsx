@@ -95,7 +95,7 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Input label="Voyageurs max" type="number" min="1" placeholder="—" value={form.maxGuests ? String(form.maxGuests) : ''} onChange={set('maxGuests')} />
+        <Input label="Personnes max" type="number" min="1" placeholder="—" value={form.maxGuests ? String(form.maxGuests) : ''} onChange={set('maxGuests')} />
         <Input label="Chambres" type="number" min="1" placeholder="—" value={form.bedrooms ? String(form.bedrooms) : ''} onChange={set('bedrooms')} />
         <Input label="Salles de bain" type="number" min="1" placeholder="—" value={form.bathrooms ? String(form.bathrooms) : ''} onChange={set('bathrooms')} />
       </div>

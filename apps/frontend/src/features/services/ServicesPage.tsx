@@ -225,7 +225,7 @@ export function ServicesPage() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setCategoryId('')}
-            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!categoryId ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!categoryId ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
           >
             Tous
           </button>
@@ -233,7 +233,7 @@ export function ServicesPage() {
             <button
               key={cat.id}
               onClick={() => setCategoryId(cat.id)}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${categoryId === cat.id ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
+              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${categoryId === cat.id ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
             >
               {cat.name}
               {cat._count?.services ? <span className="ml-1.5 opacity-60 tabular">{cat._count.services}</span> : null}

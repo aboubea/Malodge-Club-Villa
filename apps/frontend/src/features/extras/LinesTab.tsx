@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { chip, chipOff, chipOn } from '../../components/ui/segmented';
+import { activityKind } from '../calendar/agendaIcons';
 import { useSearchParams } from 'react-router-dom';
-import { Pencil, Search, Trash2, X } from 'lucide-react';
+import { Pencil, Search, Trash2, X, SlidersHorizontal } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { cn, formatDay } from '../../lib/utils';
@@ -53,6 +55,10 @@ export function LinesTab({ options }: { options: Options | undefined }) {
     else next.delete(k);
     setParams(next, { replace: true });
   };
+  // Detailed filters in use (stay, villa, provider, owner, seller, dates): they stay open.
+  const detailCount = (['stayId', 'villaId', 'providerId', 'ownerId', 'sellerId', 'from', 'to'] as const).filter((k) => filters[k]).length;
+  const [moreFilters, setMoreFilters] = useState(false);
+  const showMore = moreFilters || detailCount > 0;
   const activeCount = (['stayId', 'villaId', 'providerId', 'ownerId', 'sellerId', 'status', 'from', 'to', 'search'] as const).filter((k) => filters[k]).length + (filters.incomplete ? 1 : 0);
 
   const { data, isLoading, isFetching } = useExtraLines(filters);
@@ -88,12 +94,13 @@ export function LinesTab({ options }: { options: Options | undefined }) {
           <button
             type="button"
             onClick={() => setFilter('incomplete', filters.incomplete ? undefined : 'true')}
-            className={cn(
-              'h-9 px-3.5 rounded-full text-[12.5px] font-semibold border transition-colors',
-              filters.incomplete ? 'bg-warning/10 border-warning/30 text-warning' : 'border-line text-ink-soft hover:border-line-strong',
-            )}
+            className={cn(chip, filters.incomplete ? chipOn : chipOff)}
           >
-            À compléter ou à vérifier
+            À compléter
+          </button>
+          {/* The detailed filters are folded away: the list first */}
+          <button type="button" onClick={() => setMoreFilters((v) => !v)} aria-expanded={showMore} className={cn(chip, detailCount ? chipOn : chipOff)}>
+            <SlidersHorizontal size={15} /> Filtres{detailCount ? ` · ${detailCount}` : ''}
           </button>
           {activeCount > 0 && (
             <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true })} className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold text-muted hover:text-ink">
@@ -101,6 +108,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
             </button>
           )}
         </div>
+        {showMore && (
         <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-7 gap-3">
           <Select value={filters.stayId} onChange={(e) => setFilter('stayId', e.target.value)} aria-label="Séjour">
             <option value="">Tous les séjours</option>
@@ -145,6 +153,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
           <TextInput type="date" value={filters.from} onChange={(e) => setFilter('from', e.target.value)} aria-label="Du" title="Prestations du" />
           <TextInput type="date" value={filters.to} onChange={(e) => setFilter('to', e.target.value)} aria-label="Au" title="Au" />
         </div>
+        )}
       </div>
 
       {/* Totals: one row, in the display currency (each currency converted at today's rate). */}
@@ -192,7 +201,35 @@ export function LinesTab({ options }: { options: Options | undefined }) {
           <EmptyState title="Aucun extra pour ces filtres" hint="Modifiez les filtres ou ajoutez un extra." />
         </div>
       ) : (
-        <TableCard>
+        <>
+        {/* Phones: one card per extra, tap to edit */}
+        <div className="md:hidden rounded-2xl bg-surface border border-line/80 divide-y divide-line/70 overflow-hidden">
+          {lines.map((l) => {
+            const k = activityKind(l.label);
+            return (
+              <button key={l.id} type="button" onClick={() => setEditing(l)} className={cn('w-full flex items-start gap-3 px-4 py-3 text-left active:bg-surface-2', l.cancelled && 'opacity-55')}>
+                <span className={cn('w-10 h-10 rounded-xl border flex items-center justify-center shrink-0', k.tone)}>
+                  <k.icon size={18} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="text-[15px] font-semibold text-ink truncate">{l.label}</span>
+                    <Money value={l.total} currency={l.currency} className="text-[15px] font-semibold shrink-0" />
+                  </span>
+                  <span className="block text-[13px] text-muted truncate">
+                    {l.stay?.label ?? '—'} · {l.date ? formatDay(l.date) : 'sans date'}
+                  </span>
+                  <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Badge variant={STATUS_BADGE[l.status]}>{STATUS_LABELS[l.status]}</Badge>
+                    {l.issue && <IssueTag issue={l.issue} />}
+                    {l.margin !== null && !l.cancelled && <span className="text-[12px] text-muted">marge <Money value={l.margin} currency={l.currency} /></span>}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <TableCard className="hidden md:block">
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr>
@@ -294,6 +331,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       <ExtraFormModal open={!!editing} onClose={() => setEditing(null)} options={options} extra={editing} />

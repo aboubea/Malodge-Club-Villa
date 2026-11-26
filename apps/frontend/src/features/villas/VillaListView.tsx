@@ -24,7 +24,7 @@ function plural(n: number, one: string, many: string) {
 function capacityLine(v: VillaDto) {
   const parts = [
     v.bedrooms > 0 && plural(v.bedrooms, 'chambre', 'chambres'),
-    v.maxGuests > 0 && plural(v.maxGuests, 'voyageur', 'voyageurs'),
+    v.maxGuests > 0 && plural(v.maxGuests, 'personne', 'personnes'),
     v.bathrooms > 0 && plural(v.bathrooms, 'sdb', 'sdb'),
   ].filter(Boolean);
   return parts.length ? parts.join(' • ') : 'Capacité non renseignée';

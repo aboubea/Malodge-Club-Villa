@@ -81,7 +81,7 @@ export class StaySpaceService {
   }
 
   private context(s: Awaited<ReturnType<StaySpaceService['stay']>>, servicesCount: number) {
-    return { firstName: s.client.firstName || 'cher voyageur', villa: this.house(s).name, checkIn: s.checkIn, checkOut: s.checkOut, url: this.url(s), guide: this.guideOf(s), servicesCount };
+    return { firstName: s.client.firstName || 'cher client', villa: this.house(s).name, checkIn: s.checkIn, checkOut: s.checkOut, url: this.url(s), guide: this.guideOf(s), servicesCount };
   }
 
   /* ───────────── Team: the villa's booklet ───────────── */
@@ -150,7 +150,7 @@ export class StaySpaceService {
     let emailResult: { sent: boolean; error?: string } | null = null;
     if (opts.sendEmail) {
       const kind = emailKind(s.client.email);
-      if (kind === 'none') emailResult = { sent: false, error: 'Pas d’adresse e-mail pour ce voyageur.' };
+      if (kind === 'none') emailResult = { sent: false, error: 'Pas d’adresse e-mail pour ce client.' };
       else emailResult = await this.sendStep(s, dueStep(s.checkIn, s.checkOut, (s.journey ?? {}) as Journey) ?? 'welcome', 'email');
     }
     return { ...(await this.access(reservationId)), email: emailResult };

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { segItem, segOff, segOn, segTrack } from '../../components/ui/segmented';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -289,13 +290,13 @@ export function FinancePage() {
 
       {/* Period: kind, then back and forth */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 bg-surface border border-line rounded-full p-1" role="group" aria-label="Période">
+        <div className={segTrack} role="group" aria-label="Période">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setPeriod(p.value)}
-              className={cn('px-3.5 h-8 text-[12.5px] rounded-full transition-colors', period === p.value ? 'bg-primary text-on-primary font-semibold' : 'text-muted hover:text-ink')}
+              className={cn(segItem, period === p.value ? segOn : segOff)}
             >
               {p.label}
             </button>
@@ -316,12 +317,12 @@ export function FinancePage() {
           </button>
         )}
         {data && (data.currencies.length > 1 || data.currencies.some((c) => c.currency !== 'MAD')) && (
-          <div className="ml-auto flex items-center gap-1 bg-surface border border-line rounded-full p-1" role="group" aria-label="Devises comptées">
+          <div className={cn(segTrack, 'ml-auto')} role="group" aria-label="Devises comptées">
             <button
               type="button"
               onClick={() => setAskedCurrency(undefined)}
               title="Toutes les devises, converties en dirhams au taux du jour"
-              className={cn('px-3 h-8 text-[12px] rounded-full', !askedCurrency ? 'bg-primary text-on-primary font-semibold' : 'text-muted hover:text-ink')}
+              className={cn(segItem, !askedCurrency ? segOn : segOff)}
             >
               Toutes devises
             </button>
@@ -331,7 +332,7 @@ export function FinancePage() {
                 type="button"
                 onClick={() => setAskedCurrency(c.currency)}
                 title={`Seulement les villas en ${c.currency}, sans conversion`}
-                className={cn('px-3 h-8 text-[12px] rounded-full', askedCurrency === c.currency ? 'bg-primary text-on-primary font-semibold' : 'text-muted hover:text-ink')}
+                className={cn(segItem, askedCurrency === c.currency ? segOn : segOff)}
               >
                 {c.currency} seul
               </button>
@@ -503,13 +504,13 @@ export function FinancePage() {
           <CardTitle>
             Reversements · <span className="capitalize">{payLabel}</span>
           </CardTitle>
-          <div className="flex items-center gap-1 bg-canvas border border-line rounded-full p-1">
+          <div className={segTrack}>
             {(['provider', 'owner'] as PayoutsTab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setPayoutsTab(tab)}
-                className={cn('px-4 h-8 text-[12px] rounded-full transition-colors', payoutsTab === tab ? 'bg-surface text-ink font-semibold border border-line' : 'text-muted hover:text-ink')}
+                className={cn(segItem, payoutsTab === tab ? segOn : segOff)}
               >
                 {tab === 'provider' ? 'Prestataires' : 'Propriétaires'}
               </button>

@@ -94,7 +94,7 @@ export function TopBar() {
         className="hidden md:flex items-center gap-2.5 w-[300px] lg:w-[380px] h-10 pl-3.5 pr-2 rounded-full bg-surface-2 text-[14px] text-muted hover:bg-line/70 transition-colors"
       >
         <Search size={16} />
-        Rechercher un voyageur, une villa…
+        Rechercher un client, une villa…
         <kbd className="ml-auto h-6 px-2 inline-flex items-center rounded-full bg-surface text-[11px] font-sans font-semibold text-muted">{SHORTCUT}</kbd>
       </button>
 

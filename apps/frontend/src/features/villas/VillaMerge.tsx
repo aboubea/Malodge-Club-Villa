@@ -221,7 +221,7 @@ export function DuplicatesBanner({ pairs, onPick }: { pairs: MergePair[]; onPick
 /* ───────────────────────────── Formulas of a house ───────────────────────────── */
 
 const capacity = (v: { bedrooms?: number; maxGuests?: number }) =>
-  [v.bedrooms ? `${v.bedrooms} ch.` : null, v.maxGuests ? `${v.maxGuests} voyageurs` : null].filter(Boolean).join(' · ') || 'capacité non renseignée';
+  [v.bedrooms ? `${v.bedrooms} ch.` : null, v.maxGuests ? `${v.maxGuests} personnes` : null].filter(Boolean).join(' · ') || 'capacité non renseignée';
 
 /** Confirmation of grouping two Lodgify listings as formulas of one house. */
 export function GroupVillaModal({ pair, onClose, onDone }: { pair: GroupPair | null; onClose: () => void; onDone?: (mainId: string) => void }) {

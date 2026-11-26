@@ -107,7 +107,7 @@ export class CalendarService {
       ...reservations.map((r) => ({
         id: `res-${r.id}`,
         title: `${r.label || `${r.client.firstName} ${r.client.lastName}`.trim()} — ${(r.villa.parentVilla ?? r.villa).name}`,
-        description: `${r.guests} voyageur(s) · ${r.status}`,
+        description: `${r.guests} personne(s) · ${r.status}`,
         // Who and where, for the agenda to show at a glance.
         guest: r.label || `${r.client.firstName} ${r.client.lastName}`.trim(),
         status: r.status,
