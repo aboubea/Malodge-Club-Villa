@@ -56,15 +56,33 @@ export class MailService {
     try {
       const { data, error } = await new Resend(this.apiKey).emails.send({ from: this.from, to, subject, html });
       if (error) {
-        const reason = `${(error as any).name ?? 'erreur'} : ${error.message}`;
-        this.logger.error(`${what} refusé par Resend pour ${to} — ${reason}`);
-        return { sent: false, error: reason };
+        const raw = `${(error as any).name ?? 'erreur'} : ${error.message}`;
+        this.logger.error(`${what} refusé par Resend pour ${to} — ${raw}`);
+        return { sent: false, error: this.explain(error.message ?? '') ?? raw };
       }
       return { sent: true, id: data?.id };
     } catch (e: any) {
       this.logger.error(`${what} : envoi impossible à ${to} — ${e?.message ?? e}`);
       return { sent: false, error: e?.message ?? String(e) };
     }
+  }
+
+  /** Resend's refusals in plain French, with what to change. */
+  private explain(message: string): string | null {
+    const m = message.toLowerCase();
+    const st = this.status();
+    if (m.includes('only send testing emails')) {
+      return st.fromIsDefault
+        ? `MAIL_FROM n’est pas renseignée sur le serveur : l’adresse de test de Resend (${st.from}) ne peut écrire qu’au titulaire du compte Resend. Renseignez MAIL_FROM avec une adresse de votre domaine vérifié (ex. Malodge Club <noreply@malodge.fr>) dans Vercel, puis redéployez.`
+        : `L’expéditeur ${st.from} n’est pas autorisé : le domaine ${st.fromDomain} n’est pas vérifié dans le compte Resend de cette clé. Vérifiez-le dans Resend (Domains › Verify) ou utilisez un domaine déjà vérifié dans MAIL_FROM.`;
+    }
+    if (m.includes('not verified') || m.includes('domain is not')) {
+      return `Le domaine ${st.fromDomain} de l’expéditeur n’est pas vérifié dans Resend (Domains › Verify).`;
+    }
+    if (m.includes('api key is invalid') || m.includes('invalid api key')) {
+      return 'La clé RESEND_API_KEY est refusée par Resend : recopiez une clé valide dans Vercel puis redéployez.';
+    }
+    return null;
   }
 
   sendPasswordReset(to: string, firstName: string, token: string) {
