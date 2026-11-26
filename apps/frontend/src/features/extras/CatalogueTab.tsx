@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MadEquivalent } from '../../lib/fx';
+import { useSearchParams } from 'react-router-dom';
 import { Pencil, Plus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -128,7 +129,10 @@ function CatalogueItemModal({ item, open, onClose, options, markup }: { item: Ca
 
 export function CatalogueTab({ options }: { options: Options | undefined }) {
   const { data, isLoading } = useCatalogue();
-  const [q, setQ] = useState('');
+  // ?search= : opened from the global search (Ctrl+K).
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get('search') ?? '');
+  useEffect(() => setQ(params.get('search') ?? ''), [params]);
   const [cat, setCat] = useState('');
   const [editing, setEditing] = useState<CatalogueItem | null | 'new'>(null);
 

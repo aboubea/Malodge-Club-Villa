@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar, SidebarContent } from './Sidebar';
 import { TopBar } from './TopBar';
 import { SectionTabs } from './SectionTabs';
+import { CommandPalette } from './CommandPalette';
 import { useUIStore } from '../../store/uiStore';
 
 interface AppShellProps {
@@ -59,6 +60,7 @@ export function AppShell({ children }: AppShellProps) {
       </AnimatePresence>
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <CommandPalette />
         <TopBar />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-10 py-6 lg:py-9">

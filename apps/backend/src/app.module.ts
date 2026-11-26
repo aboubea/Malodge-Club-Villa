@@ -17,6 +17,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ExtrasModule } from './modules/extras/extras.module';
+import { SearchModule } from './modules/search/search.module';
 import { FxModule } from './modules/fx/fx.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -50,6 +51,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     DocumentsModule,
     NotificationsModule,
     ExtrasModule,
+    SearchModule,
     FxModule,
     MonitoringModule,
     StatementsModule,

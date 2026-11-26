@@ -15,6 +15,9 @@ interface UIState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   setMobileNavOpen: (open: boolean) => void;
   setTheme: (theme: ThemePreference) => void;
+  /** The global search (Ctrl+K) is open. */
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -29,6 +32,8 @@ export const useUIStore = create<UIState>()(
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
       setTheme: (theme) => set({ theme }),
+      searchOpen: false,
+      setSearchOpen: (searchOpen) => set({ searchOpen }),
     }),
     {
       name: 'malodge-ui',

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MadEquivalent } from '../../lib/fx';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Building2, CalendarDays, ChevronLeft, ChevronRight, Moon, Pencil, ShoppingBag, Users } from 'lucide-react';
@@ -210,6 +210,29 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
     pending.current = { left: ((t - s) / DAY) * COL, smooth };
     setRange({ start: s, count });
   };
+
+  // ?stay=<id> (from the global search): go to its dates and open it.
+  const [params, setParams] = useSearchParams();
+  const stayParam = params.get('stay');
+  const openedFromLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!stayParam || openedFromLink.current === stayParam) return;
+    openedFromLink.current = stayParam;
+    apiClient
+      .get(`/reservations/${stayParam}`)
+      .then((r) => {
+        const s = (r.data?.data ?? r.data) as TimelineStay & { orders?: unknown[] };
+        setSelected({ ...s, _count: s._count ?? { orders: s.orders?.length ?? 0 } } as TimelineStay);
+        if (s.checkIn) goTo(utcDay(new Date(s.checkIn)) - 3 * DAY, false);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        const next = new URLSearchParams(params);
+        next.delete('stay');
+        setParams(next, { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stayParam]);
 
   // Mouse: drag the calendar sideways (touch screens and trackpads swipe it natively).
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);

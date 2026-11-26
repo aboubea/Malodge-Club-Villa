@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
 import { useUIStore } from '../../store/uiStore';
 import { useIsDark } from '../../hooks/useTheme';
+import { SHORTCUT } from './CommandPalette';
 import { ROLES_LABELS } from '../../lib/constants';
 import { ChangePasswordModal } from '../../features/auth/ChangePasswordModal';
 
@@ -24,7 +25,7 @@ interface Notification {
 
 export function TopBar() {
   const { user, logout } = useAuthStore();
-  const { setMobileNavOpen, setTheme, currency, setCurrency } = useUIStore();
+  const { setMobileNavOpen, setTheme, currency, setCurrency, setSearchOpen } = useUIStore();
   const isDark = useIsDark();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -103,22 +104,27 @@ export function TopBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-2 ml-auto">
-        {/* Search */}
-        <div className="relative hidden md:block w-56 lg:w-64">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Rechercher"
-            aria-label="Rechercher"
-            className={cn(
-              'w-full h-10 pl-10 pr-3 rounded-xl text-[13px]',
-              'bg-surface border border-line',
-              'text-ink placeholder:text-muted',
-              'focus:outline-none focus:border-ink/20 focus:ring-4 focus:ring-ink/5',
-              'transition-all duration-150',
-            )}
-          />
-        </div>
+        {/* Search: opens the global search (Ctrl+K) */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className={cn(
+            'relative hidden md:flex items-center w-56 lg:w-64 h-10 pl-10 pr-2 rounded-xl text-[13px] text-muted',
+            'bg-surface border border-line hover:border-line-strong transition-colors',
+          )}
+        >
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" />
+          Rechercher
+          <kbd className="ml-auto h-6 px-1.5 inline-flex items-center rounded-md border border-line bg-surface-2 text-[11px] font-sans text-muted">{SHORTCUT}</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          aria-label="Rechercher"
+          className="md:hidden w-10 h-10 rounded-full border border-line bg-surface flex items-center justify-center text-ink-soft"
+        >
+          <Search size={16} />
+        </button>
 
         {/* Theme */}
         <button
