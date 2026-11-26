@@ -174,6 +174,20 @@ export class ExtrasController {
     return this.extras.convertVillaCurrency(id, body.to);
   }
 
+  @Post('villas/:id/group')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Make a Lodgify listing a formula of another (same house, own rooms and price)' })
+  groupVilla(@Param('id') id: string, @Body() dto: MergeVillaDto) {
+    return this.extras.groupVilla(id, dto.targetId);
+  }
+
+  @Post('villas/:id/ungroup')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Make a formula a separate villa again' })
+  ungroupVilla(@Param('id') id: string) {
+    return this.extras.ungroupVilla(id);
+  }
+
   @Post('villas/:id/merge')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Merge a duplicate villa into another one (local data only, never Lodgify)' })

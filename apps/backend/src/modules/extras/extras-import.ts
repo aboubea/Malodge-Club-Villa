@@ -204,7 +204,7 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   const [users, providers, villaRows, categories, services] = await Promise.all([
     tx.user.findMany({ where: { role: { in: ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'] } }, select: { id: true, firstName: true, lastName: true, role: true } }),
     tx.provider.findMany({ select: { id: true, userId: true } }),
-    tx.villa.findMany({ select: { id: true, name: true, slug: true } }),
+    tx.villa.findMany({ select: { id: true, name: true, slug: true, parentVillaId: true } }),
     tx.serviceCategory.findMany({ select: { id: true, name: true, slug: true } }),
     tx.service.findMany({ select: { id: true, name: true, slug: true } }),
   ]);
@@ -303,7 +303,8 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     // (e.g. its Lodgify listing) — otherwise a new villa is created.
     let existing = villaIds.get(k) ?? (aliases.has(k) && villaRows.some((v) => v.id === aliases.get(k)) ? aliases.get(k) : undefined);
     if (!existing) {
-      const match = uniqueVillaMatch(name, villaRows);
+      // Formulas (another listing of the same house) are never matched: the house is.
+      const match = uniqueVillaMatch(name, villaRows.filter((v) => !v.parentVillaId));
       if (match) {
         existing = match.id;
         report.villas.matched.push(`${name} → ${match.name}`);
@@ -314,7 +315,7 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       villaIds.set(k, existing);
       if (!report.villas.matched.some((m) => m.startsWith(`${name} → `))) report.villas.updated.push(name);
     } else {
-      const lookalikes = villaCandidates(name, villaRows);
+      const lookalikes = villaCandidates(name, villaRows.filter((v) => !v.parentVillaId));
       if (lookalikes.length) {
         warn(`Villa « ${name} » créée, mais elle ressemble à ${lookalikes.map((c) => `« ${c.name} »`).join(', ')} : rattachez-la dans Réglages > Villas.`);
       }

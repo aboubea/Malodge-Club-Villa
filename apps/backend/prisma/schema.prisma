@@ -133,10 +133,14 @@ model Villa {
   /// ISO 4217 code used for extras at this villa (MAD in Morocco, EUR in France…)
   currency     String   @default("EUR")
   ownerId      String?
+  /// Set on a Lodgify listing that is another formula (more or fewer rooms, own price) of the same house
+  parentVillaId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   owner          User?           @relation("VillaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  parentVilla    Villa?          @relation("VillaFormulas", fields: [parentVillaId], references: [id], onDelete: SetNull)
+  formulas       Villa[]         @relation("VillaFormulas")
   managers       VillaManager[]
   reservations   Reservation[]
   villaServices  VillaService[]

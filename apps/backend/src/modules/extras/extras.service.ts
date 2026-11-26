@@ -20,6 +20,7 @@ import { villaCandidates } from './villa-match';
 import { checkImportDates } from './extras-dates-check';
 import { coherenceReport } from './extras-coherence';
 import { FxService } from '../fx/fx.service';
+import { currencyForCountry } from '../../common/money';
 import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import {
@@ -582,7 +583,7 @@ export class ExtrasService {
       this.prisma.villa.findMany({
         where: countries ? { country: { in: countries } } : undefined,
         select: {
-          id: true, name: true, city: true, country: true, currency: true, ownerId: true, isActive: true, logifyId: true,
+          id: true, name: true, city: true, country: true, currency: true, ownerId: true, isActive: true, logifyId: true, parentVillaId: true,
           _count: { select: { reservations: true } },
         },
         orderBy: { name: 'asc' },
@@ -602,7 +603,8 @@ export class ExtrasService {
       this.prisma.order.groupBy({ by: ['villaId'], _count: { _all: true } }),
     ]);
     const extrasCount = new Map(ordersByVilla.map((o) => [o.villaId, o._count._all]));
-    const lodgifyVillas = villaRows.filter((v) => v.logifyId).map((v) => ({ id: v.id, name: v.name }));
+    // Formulas are part of their house: a duplicate is matched with the house only.
+    const lodgifyVillas = villaRows.filter((v) => v.logifyId && !(v as { parentVillaId?: string | null }).parentVillaId).map((v) => ({ id: v.id, name: v.name }));
     const villas = villaRows.map(({ _count, logifyId, ...v }) => ({
       ...v,
       lodgify: !!logifyId,
@@ -703,14 +705,62 @@ export class ExtrasService {
       const owner = await this.prisma.user.findUnique({ where: { id: dto.ownerId }, select: { role: true } });
       if (!owner || owner.role !== 'OWNER') throw new BadRequestException('Propriétaire introuvable');
     }
-    await this.prisma.villa.update({
-      where: { id },
-      data: {
-        ...(dto.ownerId !== undefined && { ownerId: dto.ownerId }),
-        ...(dto.currency && { currency: dto.currency.toUpperCase() }),
-      },
-    });
+    const data = {
+      ...(dto.ownerId !== undefined && { ownerId: dto.ownerId }),
+      ...(dto.currency && { currency: dto.currency.toUpperCase() }),
+    };
+    // The formulas of a house share its owner and currency.
+    await this.prisma.villa.updateMany({ where: { OR: [{ id }, { parentVillaId: id }] }, data });
     return { id };
+  }
+
+  /**
+   * Makes a Lodgify listing a formula of another one: the same house offered with
+   * more or fewer rooms at its own nightly price. Both listings stay as they are in
+   * Lodgify (read-only) and each booking keeps its own amount; in the app the house
+   * has one calendar line, one owner and one currency.
+   */
+  async groupVilla(formulaId: string, mainId: string) {
+    if (formulaId === mainId) throw new BadRequestException('Choisissez une autre villa.');
+    const select = { id: true, name: true, logifyId: true, parentVillaId: true, ownerId: true, currency: true } as const;
+    const [formula, main0] = await Promise.all([
+      this.prisma.villa.findUnique({ where: { id: formulaId }, select }),
+      this.prisma.villa.findUnique({ where: { id: mainId }, select }),
+    ]);
+    if (!formula || !main0) throw new NotFoundException('Villa introuvable');
+    if (!formula.logifyId || !main0.logifyId) {
+      throw new BadRequestException('Seules deux annonces Lodgify se regroupent en formules ; pour une villa créée dans l’appli, utilisez la fusion.');
+    }
+    // A formula of a formula belongs to the house.
+    const main = main0.parentVillaId ? await this.prisma.villa.findUniqueOrThrow({ where: { id: main0.parentVillaId }, select }) : main0;
+    if (main.id === formula.id) throw new BadRequestException('Cette annonce est déjà la villa principale.');
+    // One currency for the house: the one already used by extras, else the country's.
+    const extrasOf = (id: string) => this.prisma.order.count({ where: { OR: [{ villaId: id }, { reservation: { villaId: id } }] } });
+    const [mainExtras, formulaExtras, country] = await Promise.all([
+      extrasOf(main.id),
+      extrasOf(formula.id),
+      this.prisma.villa.findUnique({ where: { id: main.id }, select: { country: true } }).then((v) => v?.country),
+    ]);
+    const currency = mainExtras ? main.currency : formulaExtras ? formula.currency : currencyForCountry(country);
+    if (mainExtras && formulaExtras && main.currency !== formula.currency) {
+      throw new BadRequestException(`Les deux annonces ont des extras dans des devises différentes (${main.currency} / ${formula.currency}) : convertissez-en une d’abord.`);
+    }
+    const ownerId = main.ownerId ?? formula.ownerId;
+    await this.prisma.$transaction([
+      // Its own formulas come along.
+      this.prisma.villa.updateMany({ where: { parentVillaId: formula.id }, data: { parentVillaId: main.id, ownerId, currency } }),
+      this.prisma.villa.update({ where: { id: formula.id }, data: { parentVillaId: main.id, ownerId, currency } }),
+      this.prisma.villa.update({ where: { id: main.id }, data: { ownerId, currency } }),
+    ]);
+    return { grouped: formula.name, into: main.name };
+  }
+
+  async ungroupVilla(id: string) {
+    const v = await this.prisma.villa.findUnique({ where: { id }, select: { id: true, name: true, parentVillaId: true } });
+    if (!v) throw new NotFoundException('Villa introuvable');
+    if (!v.parentVillaId) throw new BadRequestException('Cette villa n’est pas une formule.');
+    await this.prisma.villa.update({ where: { id }, data: { parentVillaId: null } });
+    return { ungrouped: v.name };
   }
 
   /**
@@ -725,8 +775,11 @@ export class ExtrasService {
    * Amounts are never converted: villas whose extras are in two different
    * currencies cannot be merged.
    */
-  async mergeVillaPreview(sourceId: string, targetId: string) {
-    if (sourceId === targetId) throw new BadRequestException('Choisissez une autre villa.');
+  async mergeVillaPreview(sourceId: string, targetId0: string) {
+    if (sourceId === targetId0) throw new BadRequestException('Choisissez une autre villa.');
+    // Merging into a formula merges into its house.
+    const parent = (await this.prisma.villa.findUnique({ where: { id: targetId0 }, select: { parentVillaId: true } }))?.parentVillaId;
+    const targetId = parent ?? targetId0;
     const select = { id: true, name: true, logifyId: true, currency: true, country: true, ownerId: true } as const;
     const [source, target] = await Promise.all([
       this.prisma.villa.findUnique({ where: { id: sourceId }, select }),
@@ -768,6 +821,7 @@ export class ExtrasService {
   async mergeVilla(sourceId: string, targetId: string) {
     const preview = await this.mergeVillaPreview(sourceId, targetId);
     if (preview.blocker) throw new BadRequestException(preview.blocker);
+    targetId = preview.target.id; // the house, when a formula was chosen
     const source = { name: preview.source.name };
     const target = await this.prisma.villa.findUniqueOrThrow({ where: { id: targetId }, select: { ownerId: true } });
     const sourceOwner = (await this.prisma.villa.findUniqueOrThrow({ where: { id: sourceId }, select: { ownerId: true } })).ownerId;

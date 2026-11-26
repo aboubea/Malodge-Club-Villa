@@ -170,6 +170,8 @@ async function bootstrap() {
       `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "originalCurrency" TEXT`,
       `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "fxRate" DOUBLE PRECISION`,
       `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "fxDate" TIMESTAMP(3)`,
+      `ALTER TABLE "Villa" ADD COLUMN IF NOT EXISTS "parentVillaId" TEXT`,
+      onceFk('Villa', 'Villa_parentVillaId_fkey', `FOREIGN KEY ("parentVillaId") REFERENCES "Villa"("id") ON DELETE SET NULL ON UPDATE CASCADE`),
       // One spelling per country: Lodgify's "Morocco" is the app's "Maroc".
       `UPDATE "Villa" SET "country" = 'Maroc' WHERE lower(trim("country")) IN ('morocco', 'ma', 'maroc') AND "country" <> 'Maroc'`,
       `UPDATE "User" SET "countries" = ARRAY(SELECT DISTINCT CASE WHEN lower(trim(c)) IN ('morocco', 'ma', 'maroc') THEN 'Maroc' ELSE c END FROM unnest("countries") AS c) WHERE EXISTS (SELECT 1 FROM unnest("countries") AS c WHERE lower(trim(c)) IN ('morocco', 'ma') OR c = 'maroc')`,

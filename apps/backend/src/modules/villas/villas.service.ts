@@ -68,6 +68,9 @@ export class VillasService {
         include: {
           managers: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
           _count: { select: { reservations: true } },
+          // Other Lodgify listings of the same house (formulas with more or fewer rooms).
+          formulas: { select: { id: true, name: true, bedrooms: true, maxGuests: true, bathrooms: true, logifyId: true, coverImage: true }, orderBy: { bedrooms: 'asc' } },
+          parentVilla: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),

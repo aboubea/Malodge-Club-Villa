@@ -13,6 +13,7 @@ import {
   ArrowUpRight,
   Link2,
   GripVertical,
+  Layers,
 } from 'lucide-react';
 import { VillaDto } from '@malodge/shared';
 import { cn } from '../../lib/utils';
@@ -20,6 +21,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { VillaOwnerPicker } from './VillaOwner';
+import { VillaFormulas } from './VillaMerge';
 
 function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
@@ -37,7 +39,8 @@ function capacityLine(v: VillaDto) {
 
 const orDash = (n: number) => (n > 0 ? n : '—');
 
-type DropState = 'idle' | 'dragging' | 'target' | 'over' | 'blocked' | 'blocked-over';
+/** 'group*': two Lodgify listings, dropped one on the other they become formulas of one house. */
+type DropState = 'idle' | 'dragging' | 'target' | 'over' | 'group' | 'group-over';
 
 function VillaRow({
   villa,
@@ -73,8 +76,8 @@ function VillaRow({
         state === 'dragging' && 'opacity-40',
         state === 'target' && 'border-dashed border-accent/50',
         state === 'over' && 'border-transparent ring-2 ring-accent bg-peach/50 shadow-pop',
-        state === 'blocked' && 'opacity-50 cursor-not-allowed',
-        state === 'blocked-over' && 'cursor-not-allowed ring-2 ring-danger/50',
+        state === 'group' && 'border-dashed border-info/50',
+        state === 'group-over' && 'border-transparent ring-2 ring-info bg-info/5 shadow-pop',
       )}
     >
       <div className="relative w-[124px] sm:w-[148px] aspect-[4/3] rounded-xl overflow-hidden bg-surface-2 shrink-0 pointer-events-none">
@@ -101,6 +104,12 @@ function VillaRow({
         <p className="text-[12.5px] text-muted mt-1 truncate">
           {capacityLine(villa)}
         </p>
+        {!!villa.formulas?.length && (
+          <p className="text-[12px] text-info mt-0.5 truncate">
+            + {villa.formulas.length} formule{villa.formulas.length > 1 ? 's' : ''} :{' '}
+            {villa.formulas.map((f) => [f.bedrooms ? `${f.bedrooms} ch.` : null, f.maxGuests ? `${f.maxGuests} pers.` : null].filter(Boolean).join(' / ') || f.name).join(' · ')}
+          </p>
+        )}
         <div className="mt-auto pt-2 flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-soft">
             <Sparkles size={13} className="text-muted" />
@@ -114,9 +123,9 @@ function VillaRow({
           <Link2 size={13} /> Déposer pour fusionner
         </span>
       )}
-      {state === 'blocked-over' && (
-        <span className="absolute right-3 top-3 max-w-[70%] px-3 py-1 rounded-2xl bg-danger text-white text-[11.5px] font-semibold leading-snug pointer-events-none">
-          Deux annonces Lodgify ne se fusionnent pas
+      {state === 'group-over' && (
+        <span className="absolute right-3 top-3 h-7 px-3 inline-flex items-center gap-1.5 rounded-full bg-info text-white text-[12px] font-semibold pointer-events-none">
+          <Layers size={13} /> Déposer pour regrouper en formules
         </span>
       )}
     </div>
@@ -275,6 +284,7 @@ function VillaPreview({
         </AnimatePresence>
       </div>
 
+      <VillaFormulas villa={villa} canEdit={!!onMergeWith} />
       <VillaOwnerPicker villa={villa} className="mb-3" />
 
       {onMergeWith && others && others.length > 0 && (
@@ -347,14 +357,14 @@ export function VillaListView({ villas, onOpen, onEdit, onDelete, onMergeRequest
   }, [focusId]);
   const selected = villas.find((v) => v.id === selectedId) ?? villas[0];
 
-  // Drag a villa onto its duplicate to merge them (two Lodgify listings never merge).
+  // Drag a villa onto its duplicate to merge them; two Lodgify listings are grouped as formulas instead.
   // The ref is read by the drag events (set at once), the state drives the styling.
   const dragRef = useRef<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const dragged = villas.find((v) => v.id === dragId) ?? null;
   const draggedNow = () => villas.find((v) => v.id === dragRef.current) ?? null;
-  const blocked = (from: VillaDto | null, v: VillaDto) => !!from && !!from.logifyId && !!v.logifyId;
+  const asFormulas = (from: VillaDto | null, v: VillaDto) => !!from && !!from.logifyId && !!v.logifyId;
   const endDrag = () => {
     dragRef.current = null;
     setDragId(null);
@@ -366,10 +376,10 @@ export function VillaListView({ villas, onOpen, onEdit, onDelete, onMergeRequest
       ? 'idle'
       : dragged.id === villa.id
         ? 'dragging'
-        : blocked(dragged, villa)
+        : asFormulas(dragged, villa)
           ? overId === villa.id
-            ? 'blocked-over'
-            : 'blocked'
+            ? 'group-over'
+            : 'group'
           : overId === villa.id
             ? 'over'
             : 'target';
@@ -388,11 +398,6 @@ export function VillaListView({ villas, onOpen, onEdit, onDelete, onMergeRequest
           const from = draggedNow();
           if (!from || from.id === villa.id) return;
           if (overId !== villa.id) setOverId(villa.id);
-          // Two Lodgify listings: no drop, the row says why.
-          if (blocked(from, villa)) {
-            e.dataTransfer.dropEffect = 'none';
-            return;
-          }
           e.preventDefault();
           e.dataTransfer.dropEffect = 'link';
         },

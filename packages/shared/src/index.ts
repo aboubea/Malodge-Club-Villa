@@ -152,6 +152,11 @@ export interface VillaDto {
   /** ISO 4217 code used for this villa's extras (MAD in Morocco, EUR in France…). */
   currency?: string;
   ownerId?: string | null;
+  /** Set on a Lodgify listing that is another formula of the same house. */
+  parentVillaId?: string | null;
+  parentVilla?: { id: string; name: string } | null;
+  /** Other Lodgify listings of this house (more or fewer rooms, own nightly price). */
+  formulas?: Array<{ id: string; name: string; bedrooms: number; maxGuests: number; bathrooms: number; logifyId?: string | null; coverImage?: string | null }>;
   customFields?: Array<{ label: string; value: string }> | null;
   createdAt: string;
   updatedAt: string;

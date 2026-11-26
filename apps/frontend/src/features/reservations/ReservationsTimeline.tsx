@@ -40,6 +40,11 @@ interface VillaRow {
   name: string;
   city: string;
   coverImage?: string | null;
+  /** Set on a formula (another Lodgify listing of the same house): shown on its house's line. */
+  parentVillaId?: string | null;
+  bedrooms?: number;
+  maxGuests?: number;
+  formulas?: { id: string }[];
 }
 
 const DAY = 86_400_000;
@@ -165,11 +170,23 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   const known = new Set(stays.map((s) => s.logifyId).filter(Boolean));
   const allStays = [...stays, ...(live?.bookings ?? []).filter((b) => !known.has(b.logifyId))];
   const visible = allStays.filter((s) => s.checkIn && s.checkOut && (showCancelled || s.status !== 'CANCELLED'));
+  // Formulas of a house share its line: a stay booked on a formula is shown on the house.
+  const villaInfo = new Map(villas.map((v) => [v.id, v]));
+  const houseOf = (villaId: string) => villaInfo.get(villaId)?.parentVillaId ?? villaId;
+  const formulaOf = (s: TimelineStay) => {
+    const v = villaInfo.get(s.villaId ?? s.villa?.id);
+    const house = v?.parentVillaId ? villaInfo.get(v.parentVillaId) : v;
+    if (!v || !house?.formulas?.length) return null;
+    return [v.bedrooms ? `${v.bedrooms} ch.` : null, v.maxGuests ? `${v.maxGuests} pers.` : null].filter(Boolean).join(' / ') || v.name;
+  };
   const byVilla = new Map<string, TimelineStay[]>();
-  for (const s of visible) byVilla.set(s.villaId ?? s.villa?.id, [...(byVilla.get(s.villaId ?? s.villa?.id) ?? []), s]);
+  for (const s of visible) {
+    const key = houseOf(s.villaId ?? s.villa?.id);
+    byVilla.set(key, [...(byVilla.get(key) ?? []), s]);
+  }
   // Villas that only appear through a stay (inactive, or filtered out) still get their line.
-  const rows: VillaRow[] = [...villas];
-  for (const s of visible) if (!rows.some((v) => v.id === (s.villaId ?? s.villa?.id))) rows.push(s.villa);
+  const rows: VillaRow[] = villas.filter((v) => !v.parentVillaId);
+  for (const s of visible) if (!rows.some((v) => v.id === houseOf(s.villaId ?? s.villa?.id))) rows.push(s.villa);
   const shownRows = onlyBooked ? rows.filter((v) => byVilla.has(v.id)) : rows;
 
   const occupiedNights = (villaId: string) =>
@@ -393,7 +410,8 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                         if (right <= 0 || left >= width) return null;
                         const cutLeft = startIdx < 0;
                         const cutRight = endIdx > days.length;
-                        const name = guestName(s);
+                        const formula = formulaOf(s);
+                        const name = guestName(s) + (formula ? ` · ${formula}` : '');
                         const n = nights(s);
                         const past = b < today;
                         const w = Math.max(right - left, 18);

@@ -57,7 +57,7 @@ function distance(a: string, b: string) {
 export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Promise<CoherenceReport> {
   const [villas, stays, settlements, items] = await Promise.all([
     prisma.villa.findMany({
-      select: { id: true, name: true, country: true, currency: true, logifyId: true, ownerId: true, isActive: true, bedrooms: true, maxGuests: true },
+      select: { id: true, name: true, country: true, currency: true, logifyId: true, ownerId: true, isActive: true, bedrooms: true, maxGuests: true, parentVillaId: true },
     }),
     prisma.reservation.findMany({
       select: {
@@ -80,7 +80,9 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
   ]);
   const villaById = new Map(villas.map((v) => [v.id, v]));
   const stayName = (s: (typeof stays)[number]) => s.label || [s.client?.firstName, s.client?.lastName].filter(Boolean).join(' ') || 'Client';
-  const lodgifyVillas = villas.filter((v) => v.logifyId);
+  // A house is a villa that is not a formula of another; its formulas share its calendar.
+  const lodgifyVillas = villas.filter((v) => v.logifyId && !v.parentVillaId);
+  const houseOf = (villaId: string) => villaById.get(villaId)?.parentVillaId ?? villaId;
   const extrasByVilla = new Map<string, number>();
   for (const l of lines) if (l.villa && !l.cancelled) extrasByVilla.set(l.villa.id, (extrasByVilla.get(l.villa.id) ?? 0) + 1);
 
@@ -108,7 +110,8 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
     villaFindings.push({
       severity: 'info',
       title: 'Annonces Lodgify qui se ressemblent',
-      detail: 'Deux annonces pour la même maison ? Les réservations restent sur chaque annonce (rien n’est modifié dans Lodgify).',
+      detail: 'Deux formules de la même maison (plus ou moins de chambres, prix différents) ? Regroupez-les : glissez l’une sur l’autre dans la page Villas. Rien n’est modifié dans Lodgify.',
+      href: '/villas',
       items: lodgifyTwins.map((label) => ({ label })),
     });
   const badCountry = villas.filter((v) => v.country && canonicalCountry(v.country) !== v.country);
@@ -174,7 +177,8 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
   const overlaps: { a: (typeof live)[number]; b: (typeof live)[number] }[] = [];
   const dated = live.filter((s) => s.checkIn && s.checkOut);
   const byVilla = new Map<string, typeof dated>();
-  for (const s of dated) byVilla.set(s.villaId, [...(byVilla.get(s.villaId) ?? []), s]);
+  // Formulas of a house are one calendar: a booking on each at the same time is a double booking.
+  for (const s of dated) byVilla.set(houseOf(s.villaId), [...(byVilla.get(houseOf(s.villaId)) ?? []), s]);
   for (const list of byVilla.values()) {
     list.sort((x, y) => x.checkIn!.getTime() - y.checkIn!.getTime());
     for (let i = 0; i < list.length; i++)
@@ -184,7 +188,7 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
   const doubleBooking = overlaps.filter(({ a, b }) => a.logifyId && b.logifyId);
   const otherOverlap = overlaps.filter(({ a, b }) => !a.logifyId && !b.logifyId);
   const pairLabel = ({ a, b }: { a: (typeof live)[number]; b: (typeof live)[number] }) =>
-    `${villaById.get(a.villaId)?.name} : ${stayName(a)}${a.logifyId ? ' (Lodgify)' : ''} ${day(a.checkIn)} → ${day(a.checkOut)} / ${stayName(b)}${b.logifyId ? ' (Lodgify)' : ''} ${day(b.checkIn)} → ${day(b.checkOut)}`;
+    `${villaById.get(houseOf(a.villaId))?.name} : ${stayName(a)}${a.logifyId ? ' (Lodgify)' : ''} ${day(a.checkIn)} → ${day(a.checkOut)} / ${stayName(b)}${b.logifyId ? ' (Lodgify)' : ''} ${day(b.checkIn)} → ${day(b.checkOut)}`;
   if (doubleBooking.length)
     stayFindings.push({ severity: 'error', title: 'Double réservation Lodgify sur la même villa', href: '/reservations', items: doubleBooking.map((p) => ({ label: pairLabel(p) })) });
   if (lodgifyPair.length)
@@ -200,7 +204,7 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
   const twins: string[] = [];
   live.forEach((a, i) =>
     live.slice(i + 1).forEach((b) => {
-      if (a.villaId !== b.villaId) return;
+      if (houseOf(a.villaId) !== houseOf(b.villaId)) return;
       const na = norm(stayName(a));
       const nb = norm(stayName(b));
       if (na !== nb && Math.min(na.length, nb.length) >= 4 && distance(na, nb) <= 2) twins.push(`${stayName(a)} / ${stayName(b)} · ${villaById.get(a.villaId)?.name ?? ''}`);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowDown, ArrowLeftRight, Link2, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, Layers, Link2, TriangleAlert, Unlink } from 'lucide-react';
 import { VillaDto, villaCandidates } from '@malodge/shared';
 import { apiClient } from '../../lib/apiClient';
 import { Modal } from '../../components/ui/Modal';
@@ -21,10 +21,17 @@ export interface MergePair {
  * Which villa is kept when `dragged` is dropped on `onto`: the Lodgify listing
  * always stays (Lodgify is the source of truth); otherwise the one dropped on.
  */
-export function planMerge(dragged: Villa, onto: Villa): MergePair | { error: string } | null {
+export interface GroupPair {
+  /** Listing attached as a formula of `main`. */
+  formula: Villa;
+  /** The house (its name and photos are the ones shown). */
+  main: Villa;
+}
+
+export function planMerge(dragged: Villa, onto: Villa): MergePair | { group: GroupPair } | { error: string } | null {
   if (dragged.id === onto.id) return null;
-  if (dragged.logifyId && onto.logifyId)
-    return { error: 'Deux annonces Lodgify ne se fusionnent pas : chacune serait recréée à la prochaine synchronisation.' };
+  // Two Lodgify listings are the same house offered differently (rooms, price): grouped, never merged.
+  if (dragged.logifyId && onto.logifyId) return { group: { formula: dragged, main: onto } };
   if (dragged.logifyId) return { source: onto, target: dragged };
   return { source: dragged, target: onto };
 }
@@ -207,6 +214,129 @@ export function DuplicatesBanner({ pairs, onPick }: { pairs: MergePair[]; onPick
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ───────────────────────────── Formulas of a house ───────────────────────────── */
+
+const capacity = (v: { bedrooms?: number; maxGuests?: number }) =>
+  [v.bedrooms ? `${v.bedrooms} ch.` : null, v.maxGuests ? `${v.maxGuests} voyageurs` : null].filter(Boolean).join(' · ') || 'capacité non renseignée';
+
+/** Confirmation of grouping two Lodgify listings as formulas of one house. */
+export function GroupVillaModal({ pair, onClose, onDone }: { pair: GroupPair | null; onClose: () => void; onDone?: (mainId: string) => void }) {
+  const qc = useQueryClient();
+  const [swapped, setSwapped] = useState(false);
+  const current = pair && swapped ? { formula: pair.main, main: pair.formula } : pair;
+  const group = useMutation({
+    mutationFn: () => apiClient.post(`/extras/villas/${current!.formula.id}/group`, { targetId: current!.main.id }),
+    onSuccess: (res) => {
+      const d = res.data?.data ?? res.data;
+      toast.success(`« ${d.grouped} » est maintenant une formule de « ${d.into} »`);
+      qc.invalidateQueries({ queryKey: ['villas'] });
+      qc.invalidateQueries({ queryKey: ['reservations'] });
+      qc.invalidateQueries({ queryKey: ['extras'] });
+      onDone?.(current!.main.id);
+      close();
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Regroupement impossible'),
+  });
+  const close = () => {
+    setSwapped(false);
+    onClose();
+  };
+  if (!current) return null;
+  return (
+    <Modal
+      open={!!pair}
+      onClose={close}
+      title="Regrouper en formules d’une même villa"
+      description="La même maison proposée avec plus ou moins de chambres, chacune à son prix. Rien n’est modifié dans Lodgify."
+      size="lg"
+      footer={
+        <div className="flex items-center justify-between gap-3 w-full">
+          <Button variant="ghost" size="sm" icon={<ArrowLeftRight size={13} />} onClick={() => setSwapped((s) => !s)}>
+            Inverser
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={close}>
+              Annuler
+            </Button>
+            <Button icon={<Layers size={14} />} loading={group.isPending} onClick={() => group.mutate()}>
+              Regrouper
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-2">
+        <div className="rounded-2xl border border-accent/40 bg-peach/60 p-4">
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">Villa principale (nom et photos affichés)</p>
+          <p className="text-[15px] font-bold text-ink mt-1">{current.main.name}</p>
+          <p className="text-[12.5px] text-ink-soft mt-0.5">{capacity(current.main)}</p>
+        </div>
+        <div className="flex justify-center text-muted">
+          <Layers size={18} />
+        </div>
+        <div className="rounded-2xl border border-line bg-surface p-4">
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">Rattachée comme formule</p>
+          <p className="text-[15px] font-bold text-ink mt-1">{current.formula.name}</p>
+          <p className="text-[12.5px] text-ink-soft mt-0.5">{capacity(current.formula)}</p>
+        </div>
+      </div>
+      <ul className="mt-4 space-y-1.5 text-[13px] text-ink-soft list-disc pl-5">
+        <li>Les deux annonces restent séparées dans Lodgify ; chaque réservation garde le prix de la formule réservée.</li>
+        <li>Le calendrier montre la maison sur une seule ligne : une réservation sur chaque formule aux mêmes dates est signalée comme double réservation.</li>
+        <li>Même propriétaire et même devise pour les deux formules. Réversible à tout moment (« Dégrouper »).</li>
+      </ul>
+    </Modal>
+  );
+}
+
+/** Formulas of a house, shown in its preview, each can be ungrouped. */
+export function VillaFormulas({ villa, canEdit }: { villa: Villa; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const ungroup = useMutation({
+    mutationFn: (id: string) => apiClient.post(`/extras/villas/${id}/ungroup`),
+    onSuccess: (res) => {
+      toast.success(`« ${(res.data?.data ?? res.data).ungrouped} » est de nouveau une villa à part`);
+      qc.invalidateQueries({ queryKey: ['villas'] });
+      qc.invalidateQueries({ queryKey: ['reservations'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Impossible de dégrouper'),
+  });
+  if (!villa.formulas?.length) return null;
+  return (
+    <div className="mb-4 rounded-2xl border border-line p-3.5">
+      <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
+        <Layers size={14} className="text-info" /> Formules Lodgify de cette villa
+      </p>
+      <ul className="mt-2 space-y-1.5 text-[12.5px]">
+        <li className="flex items-center gap-2 text-ink-soft">
+          <span className="min-w-0 flex-1 truncate">
+            <b className="text-ink">{villa.name}</b> · {capacity(villa)}
+          </span>
+          <span className="text-[11px] text-muted">principale</span>
+        </li>
+        {villa.formulas.map((f) => (
+          <li key={f.id} className="flex items-center gap-2 text-ink-soft">
+            <span className="min-w-0 flex-1 truncate">
+              <b className="text-ink">{f.name}</b> · {capacity(f)}
+            </span>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => ungroup.mutate(f.id)}
+                disabled={ungroup.isPending}
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-muted hover:text-ink"
+                title="En refaire une villa à part"
+              >
+                <Unlink size={12} /> Dégrouper
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

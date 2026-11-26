@@ -15,7 +15,7 @@ import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
 import { VillaListView } from './VillaListView';
-import { DuplicatesBanner, MergePair, MergeVillaModal, planMerge, useDuplicatePairs } from './VillaMerge';
+import { DuplicatesBanner, GroupPair, GroupVillaModal, MergePair, MergeVillaModal, planMerge, useDuplicatePairs } from './VillaMerge';
 import { useCountries } from '../../hooks/useCountries';
 
 function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
@@ -262,6 +262,7 @@ export function VillasPage() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canMerge = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const [mergePair, setMergePair] = useState<MergePair | null>(null);
+  const [groupPair, setGroupPair] = useState<GroupPair | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [source, setSource] = useState<'local' | 'lodgify'>('local');
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -405,7 +406,8 @@ export function VillasPage() {
     setEditingVilla(null);
   };
 
-  const villas: VillaDto[] = data?.data || data || [];
+  // A formula (another Lodgify listing of the same house) is shown within its house.
+  const villas: VillaDto[] = (data?.data || data || []).filter((v: VillaDto) => !v.parentVillaId);
   const duplicatePairs = useDuplicatePairs(villas);
   const meta = data?.meta;
 
@@ -634,6 +636,7 @@ export function VillasPage() {
                 ? (dragged, onto) => {
                     const plan = planMerge(dragged, onto);
                     if (plan && 'error' in plan) toast.error(plan.error);
+                    else if (plan && 'group' in plan) setGroupPair(plan.group);
                     else if (plan) setMergePair(plan);
                   }
                 : undefined
@@ -660,6 +663,7 @@ export function VillasPage() {
       </>)}
 
       <MergeVillaModal pair={mergePair} onClose={() => setMergePair(null)} onMerged={setFocusId} />
+      <GroupVillaModal pair={groupPair} onClose={() => setGroupPair(null)} onDone={setFocusId} />
 
       {selectedLodgify && <LodgifyDetailModal p={selectedLodgify} onClose={() => setSelectedLodgify(null)} />}
 
