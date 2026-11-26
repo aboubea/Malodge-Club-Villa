@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, HttpCode, HttpStatus, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -8,6 +8,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AllowRestrictedRoles } from '../../common/decorators/roles.decorator';
+import { clientOf } from './attempts.service';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -17,16 +18,16 @@ export class AuthController {
   @Public()
   @Post('register')
   @ApiOperation({ summary: 'Create a new CLIENT account' })
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @Req() req: any) {
+    return this.authService.register(dto, clientOf(req));
   }
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Req() req: any) {
+    return this.authService.login(dto, clientOf(req));
   }
 
   @Public()
@@ -49,8 +50,8 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request a password reset email' })
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: any) {
+    return this.authService.forgotPassword(dto, clientOf(req));
   }
 
   @Public()

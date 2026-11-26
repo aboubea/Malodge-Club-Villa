@@ -53,8 +53,9 @@ export class OrdersController {
   providerConfirm(
     @Query('orderId') orderId: string,
     @Query('action') action: 'accept' | 'reject',
+    @Query('t') signature: string,
   ) {
-    return this.ordersService.providerRespond(orderId, action);
+    return this.ordersService.providerRespond(orderId, action, signature);
   }
 
   @Get()

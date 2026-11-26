@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { AttemptsService } from './attempts.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
@@ -10,6 +11,7 @@ import { MailModule } from '../mail/mail.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { appSecret } from '../../common/security/secrets';
 
 @Module({
   imports: [
@@ -20,18 +22,19 @@ import { RolesGuard } from '../../common/guards/roles.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'default-secret'),
+        secret: appSecret('access'),
         signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '15m') },
       }),
     }),
   ],
   providers: [
     AuthService,
+    AttemptsService,
     JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, AttemptsService],
 })
 export class AuthModule {}

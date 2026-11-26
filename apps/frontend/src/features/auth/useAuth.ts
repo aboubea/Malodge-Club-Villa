@@ -25,6 +25,8 @@ export function useLogin() {
       const axiosError = error as { response?: { status?: number } };
       if (!axiosError.response) {
         toast.error('Impossible de contacter le serveur.');
+      } else if (axiosError.response.status === 429) {
+        // Locked after too many failures: the API client already shows the server's message (how long to wait).
       } else {
         toast.error('Email ou mot de passe incorrect');
       }

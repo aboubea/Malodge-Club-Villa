@@ -9,6 +9,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AttemptsService, Client } from './attempts.service';
+import { appSecret } from '../../common/security/secrets';
 
 @Injectable()
 export class AuthService {
@@ -17,21 +19,24 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private mail: MailService,
+    private attempts: AttemptsService,
   ) {}
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, client: Client = { ip: null, userAgent: null }) {
+    const key = dto.email.trim().toLowerCase();
+    // Locked after too many failures: the password is not even checked.
+    await this.attempts.assertLoginAllowed(key, client);
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
-    if (!user || !user.isActive || !user.canLogin) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const passwordMatch = await bcrypt.compare(dto.password, user.password);
+    const passwordMatch = !!user && user.isActive && user.canLogin && (await bcrypt.compare(dto.password, user.password));
     if (!passwordMatch) {
+      await this.attempts.loginFailed(key, client);
       throw new UnauthorizedException('Invalid credentials');
     }
+    await this.attempts.loginSucceeded(key, client, user.id);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -41,12 +46,12 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_SECRET', 'default-secret'),
+      secret: appSecret('access'),
       expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET', 'default-refresh-secret'),
+      secret: appSecret('refresh'),
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
 
@@ -67,7 +72,7 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: this.config.get('JWT_REFRESH_SECRET', 'default-refresh-secret'),
+        secret: appSecret('refresh'),
       });
 
       const user = await this.prisma.user.findUnique({
@@ -80,7 +85,7 @@ export class AuthService {
 
       const newPayload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
       const accessToken = this.jwtService.sign(newPayload, {
-        secret: this.config.get('JWT_SECRET', 'default-secret'),
+        secret: appSecret('access'),
         expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
       });
 
@@ -113,7 +118,8 @@ export class AuthService {
     return user;
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, client: Client = { ip: null, userAgent: null }) {
+    await this.attempts.assertSignupAllowed(dto.email.trim().toLowerCase(), client);
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email.');
 
@@ -132,11 +138,11 @@ export class AuthService {
 
     const payload = { sub: user.id, email: user.email, role: user.role, countries: user.countries || [] };
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_SECRET', 'default-secret'),
+      secret: appSecret('access'),
       expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
     });
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.config.get('JWT_REFRESH_SECRET', 'default-refresh-secret'),
+      secret: appSecret('refresh'),
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
 
@@ -153,13 +159,15 @@ export class AuthService {
     };
   }
 
-  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(dto: ForgotPasswordDto, client: Client = { ip: null, userAgent: null }): Promise<{ message: string }> {
+    // Always return the same message to prevent email enumeration
+    const safeResponse = { message: 'Si cet email existe, vous recevrez un lien de réinitialisation.' };
+    // Too many requests: same answer, no e-mail (no mailbox flooding, no hint).
+    if (!(await this.attempts.resetAllowed(dto.email.trim().toLowerCase(), client))) return safeResponse;
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-
-    // Always return the same message to prevent email enumeration
-    const safeResponse = { message: 'Si cet email existe, vous recevrez un lien de réinitialisation.' };
 
     if (!user || !user.isActive) return safeResponse;
 

@@ -8,6 +8,16 @@ async function bootstrap() {
   // The schema is updated by the versioned migrations (scripts/migrate.js, run by
   // start:prod and the Vercel build), never by `db push`, which can drop data.
   const app = await NestFactory.create(AppModule);
+  // Same browser protections as the serverless entry (api/index.ts).
+  const http = app.getHttpAdapter().getInstance();
+  http.disable('x-powered-by');
+  http.use((_req: any, res: any, next: () => void) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
 
   const allowedOrigins = [
     process.env.FRONTEND_URL,

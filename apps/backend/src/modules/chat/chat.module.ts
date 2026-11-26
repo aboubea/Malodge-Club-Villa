@@ -4,13 +4,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
+import { appSecret } from '../../common/security/secrets';
 
 @Module({
   imports: [
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'secret'),
+        secret: appSecret('access'),
       }),
       inject: [ConfigService],
     }),

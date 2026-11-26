@@ -23,6 +23,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { LodgifyModule } from './modules/lodgify/lodgify.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -46,6 +47,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     NotificationsModule,
     ExtrasModule,
     FxModule,
+    MonitoringModule,
     CalendarModule,
     DashboardModule,
     LodgifyModule,

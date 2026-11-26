@@ -5,14 +5,18 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { MonitoringService } from '../../modules/monitoring/monitoring.service';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  constructor(@Optional() private monitoring?: MonitoringService) {}
+
+  async catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -34,6 +38,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       message = exception.message;
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
+    }
+
+    // Server errors go to the incident journal (and alert the administrators when new).
+    if (status >= 500 && this.monitoring) {
+      const text = Array.isArray(message) ? message.join(', ') : String(message);
+      await this.monitoring.report(/lodgify/i.test(text) ? 'lodgify' : 'api', text, {
+        route: `${request.method} ${request.url}`,
+        status,
+        stack: exception instanceof Error ? exception.stack : undefined,
+      });
     }
 
     response.status(status).json({

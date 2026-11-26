@@ -15,6 +15,7 @@ try {
   // Load reflect-metadata from node_modules (not bundled) for a single global Reflect.
   _require('reflect-metadata');
   expressServer = _require('express')();
+  expressServer.disable('x-powered-by');
 } catch (e: any) {
   moduleError = `Module init: ${e?.message ?? String(e)}`;
   console.error('[api/index module-eval]', moduleError);
@@ -28,6 +29,16 @@ function setCors(res: any) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
+
+/** Browser protections on every API response (no framing, no type sniffing, HTTPS only, no caching of personal data). */
+function setSecurityHeaders(res: any) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Cache-Control', 'no-store');
 }
 
 function send(res: any, status: number, body: object) {
@@ -158,6 +169,7 @@ async function dbTiming() {
 
 export default async function handler(req: any, res: any) {
   setCors(res);
+  setSecurityHeaders(res);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);

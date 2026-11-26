@@ -20,6 +20,8 @@ const esc = (s: string | null | undefined) =>
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  /** Called when an e-mail does not leave (set by the incident journal). */
+  onFailure?: (what: string, error: string) => void;
   private readonly apiKey: string;
   private readonly from: string;
   readonly appUrl: string;
@@ -58,6 +60,19 @@ export class MailService {
   }
 
   private async deliver(to: string, subject: string, html: string, what: string): Promise<MailResult> {
+    const result = await this.send(to, subject, html, what);
+    // A missing address is not a failure of the mail system.
+    if (!result.sent && result.error && !result.error.startsWith('Pas d’adresse')) {
+      try {
+        this.onFailure?.(what, result.error);
+      } catch {
+        /* never fails a send */
+      }
+    }
+    return result;
+  }
+
+  private async send(to: string, subject: string, html: string, what: string): Promise<MailResult> {
     if (!this.apiKey) {
       this.logger.warn(`${what} non envoyé à ${to} : RESEND_API_KEY absente`);
       return { sent: false, error: 'RESEND_API_KEY absente dans les variables d’environnement du serveur' };
@@ -158,6 +173,19 @@ export class MailService {
       `${title} — Malodge Club`,
       this.layout(title, `<p>Bonjour ${esc(firstName)},</p><p>${esc(body).replace(/\n/g, '<br/>')}</p>`, { label: 'Ouvrir l’application', url: this.appUrl }),
       'Notification',
+    );
+  }
+
+  /** Incident alert to an administrator: a few labelled lines and a link to the check page. */
+  sendAlert(to: string, subject: string, lines: [string, string][]) {
+    const rows = lines
+      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#6B6E80;vertical-align:top;">${esc(k)}</td><td style="padding:4px 0;">${esc(v)}</td></tr>`)
+      .join('');
+    return this.deliver(
+      to,
+      `[Malodge] ${subject}`,
+      this.layout('Incident sur l’application', `<table style="border-collapse:collapse;font-size:14px;">${rows}</table>`, { label: 'Voir le contrôle des données', url: `${this.appUrl}/controle` }),
+      'Alerte incident',
     );
   }
 

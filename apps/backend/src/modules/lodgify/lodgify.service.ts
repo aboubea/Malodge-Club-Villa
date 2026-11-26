@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as https from 'https';
 import { extractCapacity } from './lodgify-capacity';
@@ -6,6 +6,7 @@ import { currencyForCountry } from '../../common/money';
 import { canonicalCountry } from '../../common/geo';
 import { FxService } from '../fx/fx.service';
 import { convertVillaCurrency } from '../fx/convert-villa';
+import { MonitoringService } from '../monitoring/monitoring.service';
 
 /** Number of guests of a Lodgify booking, whatever the API version. */
 export function bookingGuests(r: any): number | null {
@@ -29,6 +30,7 @@ export class LodgifyService {
   constructor(
     private prisma: PrismaService,
     private fx: FxService,
+    @Optional() private monitoring?: MonitoringService,
   ) {}
 
   private async getApiKey(): Promise<string | null> {
@@ -342,6 +344,7 @@ export class LodgifyService {
         copied = await this.copyBookings(bookings);
       } catch (e: any) {
         this.logger.warn(`Lodgify: copie des réservations dans l’appli impossible (${e?.message})`);
+        await this.monitoring?.report('lodgify', `Copie des réservations Lodgify impossible : ${e?.message}`);
       }
     }
     const villas = await this.prisma.villa.findMany({

@@ -23,6 +23,7 @@ import { ChatRestModule } from './modules/chat/chat.rest.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { LodgifyModule } from './modules/lodgify/lodgify.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 // ChatRestModule provides REST-only chat endpoints (no WebSocket — not supported in serverless).
@@ -45,6 +46,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     NotificationsModule,
     ExtrasModule,
     FxModule,
+    MonitoringModule,
     SettingsModule,
     DashboardModule,
     ChatRestModule,

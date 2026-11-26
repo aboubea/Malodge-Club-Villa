@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { HealthPanel } from './HealthPanel';
 
 type Severity = 'error' | 'warning' | 'info';
 interface Finding {
@@ -93,6 +94,8 @@ export function CoherencePage() {
           Relancer
         </Button>
       </PageHeader>
+
+      <HealthPanel />
 
       {isLoading || !data ? (
         <div className="space-y-3">

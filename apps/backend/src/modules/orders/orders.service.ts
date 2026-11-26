@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VillaCurrencies, orderCurrency } from '../../common/money';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@malodge/shared';
+import { signLink, verifyLink } from '../../common/security/secrets';
 
 @Injectable()
 export class OrdersService {
@@ -210,8 +211,8 @@ export class OrdersService {
       `💰 Montant : ${order.totalAmount?.toFixed(2)} ${order.currency ?? 'EUR'}`,
       '',
       `Confirmez votre disponibilité :`,
-      `✅ Accepter : ${appUrl}/confirmer?orderId=${order.id}&action=accept`,
-      `❌ Refuser : ${appUrl}/confirmer?orderId=${order.id}&action=reject`,
+      `✅ Accepter : ${appUrl}/confirmer?orderId=${order.id}&action=accept&t=${signLink(`${order.id}:accept`)}`,
+      `❌ Refuser : ${appUrl}/confirmer?orderId=${order.id}&action=reject&t=${signLink(`${order.id}:reject`)}`,
       '',
       `Malodge Club Villa`,
     ].join('\n');
@@ -219,7 +220,11 @@ export class OrdersService {
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   }
 
-  async providerRespond(orderId: string, action: 'accept' | 'reject') {
+  /** A provider's answer from the link sent to them: only a link signed by the server is accepted. */
+  async providerRespond(orderId: string, action: 'accept' | 'reject', signature?: string) {
+    if (!['accept', 'reject'].includes(action) || !verifyLink(`${orderId}:${action}`, signature)) {
+      throw new ForbiddenException('Lien non valide ou incomplet : demandez un nouveau lien à Malodge.');
+    }
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException(`Order ${orderId} not found`);
 

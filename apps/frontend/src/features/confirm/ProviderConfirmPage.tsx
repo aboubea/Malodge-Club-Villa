@@ -8,6 +8,7 @@ export function ProviderConfirmPage() {
   const [params] = useSearchParams();
   const orderId = params.get('orderId');
   const action = params.get('action') as 'accept' | 'reject' | null;
+  const signature = params.get('t') ?? '';
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [result, setResult] = useState<any>(null);
@@ -20,7 +21,7 @@ export function ProviderConfirmPage() {
       return;
     }
     apiClient
-      .get(`/orders/provider-confirm?orderId=${orderId}&action=${action}`)
+      .get('/orders/provider-confirm', { params: { orderId, action, t: signature } })
       .then((res) => {
         setResult(res.data?.data ?? res.data);
         setStatus('success');
@@ -29,7 +30,7 @@ export function ProviderConfirmPage() {
         setErrorMsg(err?.response?.data?.message || 'Une erreur est survenue.');
         setStatus('error');
       });
-  }, [orderId, action]);
+  }, [orderId, action, signature]);
 
   const isAccept = action === 'accept';
 
