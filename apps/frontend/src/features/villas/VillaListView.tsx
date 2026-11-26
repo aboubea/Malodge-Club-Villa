@@ -17,11 +17,11 @@ import {
 } from 'lucide-react';
 import { VillaDto } from '@malodge/shared';
 import { cn } from '../../lib/utils';
-import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { VillaOwnerPicker } from './VillaOwner';
 import { VillaFormulas } from './VillaMerge';
+import { VillaActiveSwitch } from './VillaActiveSwitch';
 
 function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
@@ -115,7 +115,7 @@ function VillaRow({
             <Sparkles size={13} className="text-muted" />
             {plural(Array.isArray(villa.amenities) ? villa.amenities.length : 0, 'équipement', 'équipements')}
           </span>
-          <Badge variant={villa.isActive ? 'active' : 'inactive'}>{villa.isActive ? 'Active' : 'Inactive'}</Badge>
+          <VillaActiveSwitch villaId={villa.id} active={villa.isActive} size="sm" />
         </div>
       </div>
       {state === 'over' && (
@@ -315,10 +315,11 @@ function VillaPreview({
         <div>
           <p className="text-[15px] font-bold text-ink">{villa.isActive ? 'Villa active' : 'Villa inactive'}</p>
           <p className="text-[12.5px] text-ink-soft mt-0.5">
-            {villa.isActive ? 'Visible pour les réservations et les services.' : 'Masquée des réservations et des services.'}
+            {villa.isActive ? 'Comptée dans l’occupation et la performance, proposée aux réservations et services.' : 'Hors activité : ni dans l’occupation, ni proposée aux réservations et services.'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <VillaActiveSwitch villaId={villa.id} active={villa.isActive} />
           <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={onEdit}>
             Modifier
           </Button>

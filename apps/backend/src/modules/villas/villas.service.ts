@@ -120,10 +120,13 @@ export class VillasService {
 
   async update(id: string, dto: UpdateVillaDto) {
     await this.findOne(id);
-    return this.prisma.villa.update({
+    const villa = await this.prisma.villa.update({
       where: { id },
       data: { ...dto, ...(dto.country !== undefined && { country: canonicalCountry(dto.country) }) },
     });
+    // A house switched on or off takes its Lodgify formulas with it.
+    if (dto.isActive !== undefined) await this.prisma.villa.updateMany({ where: { parentVillaId: id }, data: { isActive: dto.isActive } });
+    return villa;
   }
 
   async remove(id: string) {
