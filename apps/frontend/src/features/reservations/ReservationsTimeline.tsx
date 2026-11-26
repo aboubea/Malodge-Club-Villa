@@ -28,6 +28,10 @@ export interface TimelineStay {
   villa: { id: string; name: string; city: string; coverImage?: string | null; currency?: string };
   client: { id: string; firstName: string; lastName: string; email?: string; phone?: string | null };
   _count?: { orders: number };
+  /** Read live from Lodgify (not yet copied into the app). */
+  live?: boolean;
+  /** Where the booking was made: Airbnb, Booking.com, Direct… */
+  channel?: string | null;
 }
 
 interface VillaRow {
@@ -128,6 +132,18 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
     placeholderData: (prev) => prev,
   });
 
+  // Lodgify bookings read live, so every booking shows even before a sync.
+  const { data: live } = useQuery({
+    queryKey: ['reservations', 'lodgify-live', from, to],
+    queryFn: async () => {
+      const res = await apiClient.get(`/lodgify/calendar?from=${from}&to=${to}`, { timeout: 45_000 });
+      return (res.data?.data ?? res.data) as { configured: boolean; bookings: TimelineStay[]; unknownProperties: string[] };
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const { data: undated = [] } = useQuery({
     queryKey: ['reservations', 'undated', country],
     queryFn: async () => {
@@ -144,7 +160,10 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
     scroller.current?.scrollTo({ left: 0 });
   }, [start]);
 
-  const visible = stays.filter((s) => s.checkIn && s.checkOut && (showCancelled || s.status !== 'CANCELLED'));
+  // The app's stays (direct bookings, extras stays, Lodgify copies) plus Lodgify bookings not copied yet.
+  const known = new Set(stays.map((s) => s.logifyId).filter(Boolean));
+  const allStays = [...stays, ...(live?.bookings ?? []).filter((b) => !known.has(b.logifyId))];
+  const visible = allStays.filter((s) => s.checkIn && s.checkOut && (showCancelled || s.status !== 'CANCELLED'));
   const byVilla = new Map<string, TimelineStay[]>();
   for (const s of visible) byVilla.set(s.villaId ?? s.villa?.id, [...(byVilla.get(s.villaId ?? s.villa?.id) ?? []), s]);
   // Villas that only appear through a stay (inactive, or filtered out) still get their line.
@@ -248,6 +267,13 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
           )}
           {around && !around.last && !around.next && <span>Aucun séjour daté dans l’appli.</span>}
         </div>
+      )}
+
+      {!!live?.unknownProperties?.length && (
+        <p className="text-[12.5px] text-warning">
+          Réservations Lodgify non affichées : annonce(s) pas encore dans l’appli ({live.unknownProperties.join(', ')}). Synchronisez les logements
+          (Paramètres › Lodgify).
+        </p>
       )}
 
       {/* Legend */}
@@ -375,7 +401,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                             key={s.id}
                             type="button"
                             onClick={() => setSelected(s)}
-                            title={`${name} · ${formatDay(s.checkIn)} → ${formatDay(s.checkOut)}`}
+                            title={`${name} · ${formatDay(s.checkIn)} → ${formatDay(s.checkOut)}${s.logifyId || s.live ? ` · Lodgify${s.channel ? ` (${s.channel})` : ''}` : s.source?.startsWith('extras') ? ' · suivi des extras' : ' · direct'}`}
                             style={{ left, width: w, top: 7 + lane * ROW, height: ROW - 6 }}
                             className={cn(
                               'absolute flex items-center gap-1.5 pl-1 pr-2.5 text-left text-[12px] font-semibold shadow-sm transition-transform hover:-translate-y-px hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
@@ -450,13 +476,20 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
   const n = s ? nights(s) : 0;
   const currency = s?.currency || s?.villa?.currency || 'EUR';
   const fromLodgify = !!s?.logifyId || s?.source === 'lodgify';
+  const origin = s?.live
+    ? `Lodgify${s.channel ? ` · ${s.channel}` : ''}, lu en direct`
+    : fromLodgify
+      ? `Lodgify${s?.channel ? ` · ${s.channel}` : ''}`
+      : s?.source?.startsWith('extras')
+        ? 'Séjour du suivi des extras'
+        : 'Réservation directe (saisie dans l’appli)';
   return (
     <SlideOver open={!!s} onClose={onClose} title={s ? guestName(s) : ''} description={s?.villa?.name} size="sm">
       {s && (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={STATUS[s.status]?.badge ?? 'confirmed'}>{STATUS[s.status]?.label ?? s.status}</Badge>
-            <span className="text-[12px] text-muted">{fromLodgify ? 'Réservation Lodgify (lecture seule côté Lodgify)' : 'Séjour saisi dans l’appli'}</span>
+            <span className="text-[12px] text-muted">{origin}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -486,13 +519,15 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
               <CalendarDays size={15} className="text-muted" />
               {s.totalAmount > 0 ? <>Montant du séjour : <b className="text-ink">{formatCurrency(s.totalAmount, currency)}</b></> : 'Montant du séjour non renseigné'}
             </li>
-            <li className="flex items-center gap-2.5">
-              <ShoppingBag size={15} className="text-muted" />
-              {s._count?.orders ?? 0} extra{(s._count?.orders ?? 0) > 1 ? 's' : ''}
-              <Link to={`/extras/saisie?stayId=${s.id}&stays=all`} className="ml-auto text-accent font-semibold hover:underline">
-                Voir
-              </Link>
-            </li>
+            {!s.live && (
+              <li className="flex items-center gap-2.5">
+                <ShoppingBag size={15} className="text-muted" />
+                {s._count?.orders ?? 0} extra{(s._count?.orders ?? 0) > 1 ? 's' : ''}
+                <Link to={`/extras/saisie?stayId=${s.id}&stays=all`} className="ml-auto text-accent font-semibold hover:underline">
+                  Voir
+                </Link>
+              </li>
+            )}
           </ul>
 
           {(s.client?.phone || realEmail(s.client?.email)) && (
@@ -505,7 +540,14 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
 
           {s.notes && <p className="text-[13px] text-ink-soft whitespace-pre-line">{s.notes}</p>}
 
-          {onEdit && (
+          {s.live && (
+            <p className="text-[12px] text-muted">
+              Lue directement dans Lodgify (rien n’y est modifié). Elle sera copiée dans l’appli à la prochaine synchronisation, pour y
+              rattacher des extras.
+            </p>
+          )}
+
+          {onEdit && !s.live && (
             <Button variant="secondary" icon={<Pencil size={13} />} onClick={() => onEdit(s)} className="w-full">
               Modifier la réservation
             </Button>

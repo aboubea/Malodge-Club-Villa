@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { LodgifyService } from './lodgify.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -57,6 +58,18 @@ export class LodgifyController {
   @ApiOperation({ summary: 'Save/sync all Lodgify properties to DB (upsert by logifyId)' })
   saveAllProperties(@Body() body: { properties: any[] }) {
     return this.lodgifyService.saveAllProperties(body.properties ?? []);
+  }
+
+  @Get('calendar')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Lodgify bookings of a period, read live, not yet copied into the app (calendar)' })
+  calendar(@Query('from') from: string, @Query('to') to: string, @CurrentUser() user: { countries?: string[]; role: string }) {
+    const day = (s: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00.000Z`) : null);
+    const a = day(from);
+    const b = day(to);
+    if (!a || !b) throw new BadRequestException('from et to attendus (AAAA-MM-JJ)');
+    const restricted = ['ADMIN', 'MANAGER'].includes(user.role) ? user.countries ?? [] : [];
+    return this.lodgifyService.calendarBookings(a, b, restricted);
   }
 
   @Get('reservations')

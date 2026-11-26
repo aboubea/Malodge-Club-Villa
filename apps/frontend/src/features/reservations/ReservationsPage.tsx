@@ -286,7 +286,7 @@ export function ReservationsPage() {
           onClick={() => setSource('local')}
           className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'local' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
         >
-          Réservations internes
+          Toutes les réservations
         </button>
         {lodgifyConfigured && (
           <button

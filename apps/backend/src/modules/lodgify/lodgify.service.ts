@@ -184,8 +184,25 @@ export class LodgifyService {
       else if (checkIn <= today) appStatus = 'ACTIVE';
     }
     const currency = r.currency_code ?? r.currency;
+    // Where the booking was made: Airbnb, Booking.com, the Lodgify website (direct)…
+    const rawSource = String(r.source_text ?? r.source ?? '').trim();
+    const src = rawSource.toLowerCase();
+    const channel = !rawSource
+      ? null
+      : src.includes('airbnb')
+        ? 'Airbnb'
+        : src.includes('booking')
+          ? 'Booking.com'
+          : src.includes('vrbo') || src.includes('homeaway') || src.includes('abritel')
+            ? 'Vrbo / Abritel'
+            : src.includes('expedia')
+              ? 'Expedia'
+              : ['manual', 'website', 'oh', 'direct', 'widget', 'bookingengine'].some((k) => src.includes(k))
+                ? 'Direct'
+                : rawSource;
     return {
       id: String(r.id),
+      channel,
       propertyId: String(r.property_id ?? r.propertyId ?? r.property?.id ?? ''),
       propertyName: r.property_name ?? r.property?.name ?? null,
       guestName: (r.guest?.name ?? r.requester_name ?? '').trim() || 'Voyageur Lodgify',
@@ -200,6 +217,68 @@ export class LodgifyService {
       status: appStatus,
       notes: r.notes ?? null,
     };
+  }
+
+  /** Bookings kept a few minutes, so browsing the calendar does not hit Lodgify on every click. */
+  private bookingCache: { at: number; items: NonNullable<ReturnType<LodgifyService['mapBooking']>>[] } | null = null;
+
+  private async cachedBookings() {
+    if (this.bookingCache && Date.now() - this.bookingCache.at < 5 * 60_000) return this.bookingCache.items;
+    const apiKey = await this.getApiKey();
+    if (!apiKey) return [];
+    const items = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean) as NonNullable<ReturnType<LodgifyService['mapBooking']>>[];
+    this.bookingCache = { at: Date.now(), items };
+    return items;
+  }
+
+  /**
+   * Lodgify bookings of a period, read live (GET only) and shaped like the app's
+   * stays, for the calendar: those already copied into the app are left out
+   * (the app shows its own copy), so every booking appears exactly once.
+   */
+  async calendarBookings(from: Date, to: Date, countries: string[] = []) {
+    const configured = await this.getApiKey();
+    if (!configured) return { configured: false, bookings: [], unknownProperties: [] as string[] };
+    const bookings = await this.cachedBookings();
+    const villas = await this.prisma.villa.findMany({
+      where: { logifyId: { not: null }, ...(countries.length ? { country: { in: countries } } : {}) },
+      select: { id: true, name: true, city: true, coverImage: true, currency: true, logifyId: true },
+    });
+    const villaByListing = new Map(villas.map((v) => [v.logifyId!, v]));
+    const inApp = new Set(
+      (await this.prisma.reservation.findMany({ where: { logifyId: { in: bookings.map((b) => b.id) } }, select: { logifyId: true } })).map((r) => r.logifyId!),
+    );
+    const unknown = new Set<string>();
+    const out = [];
+    for (const b of bookings) {
+      if (!b.checkIn || !b.checkOut || b.checkIn > to || b.checkOut < from || inApp.has(b.id)) continue;
+      const v = villaByListing.get(b.propertyId);
+      if (!v) {
+        if (!countries.length) unknown.add(b.propertyName ? `${b.propertyName} (${b.propertyId})` : b.propertyId);
+        continue;
+      }
+      const [firstName, ...rest] = b.guestName.split(/\s+/);
+      out.push({
+        id: `lodgify-${b.id}`,
+        logifyId: b.id,
+        live: true,
+        channel: b.channel,
+        label: b.guestName,
+        checkIn: b.checkIn.toISOString(),
+        checkOut: b.checkOut.toISOString(),
+        status: b.status,
+        totalAmount: b.totalAmount,
+        currency: b.currency,
+        guests: b.guests,
+        source: 'lodgify',
+        notes: b.notes,
+        villaId: v.id,
+        villa: { id: v.id, name: v.name, city: v.city, coverImage: v.coverImage, currency: v.currency },
+        client: { id: '', firstName, lastName: rest.join(' '), email: b.guestEmail, phone: b.guestPhone },
+        _count: { orders: 0 },
+      });
+    }
+    return { configured: true, bookings: out, unknownProperties: [...unknown] };
   }
 
   async listReservations(): Promise<any[]> {
