@@ -99,7 +99,8 @@ export function LoginPage() {
         </Button>
       </form>
 
-      {/* Demo hint */}
+      {/* Demo hint: local development only (never shown on the live site). */}
+      {import.meta.env.DEV && (
       <div className="mt-6 flex items-start gap-3 p-3.5 rounded-xl border border-dashed border-line-strong bg-surface/60">
         <Sparkles size={15} className="text-accent mt-0.5 shrink-0" />
         <p className="text-[12.5px] text-muted leading-relaxed">
@@ -108,6 +109,7 @@ export function LoginPage() {
           <span className="text-ink-soft font-medium">SuperAdmin2024!</span>
         </p>
       </div>
+      )}
     </AuthLayout>
   );
 }

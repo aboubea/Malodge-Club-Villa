@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, KeyRound, Mail, Plug, ServerCrash, ShieldAlert, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, KeyRound, Mail, Plug, ServerCrash, ShieldAlert, ShieldX, TriangleAlert } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import { Button } from '../../components/ui/Button';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import { apiClient } from '../../lib/apiClient';
 import { cn } from '../../lib/utils';
 
 type Kind = 'api' | 'lodgify' | 'mail';
 interface Overview {
   incidents: { id: string; kind: Kind; message: string; route: string | null; status: number | null; count: number; firstSeen: string; lastSeen: string }[];
-  checks: { jwtSecret: 'configured' | 'derived'; jwtRefreshSecret: 'configured' | 'derived'; mailConfigured: boolean; mailSenderIsDefault: boolean; alertRecipients: string };
+  checks: { jwtSecret: 'configured' | 'derived'; jwtRefreshSecret: 'configured' | 'derived'; mailConfigured: boolean; mailSenderIsDefault: boolean; alertRecipients: string; publicPasswordAccounts?: string[] };
   logins: { loginFailures24h: number; lockedAccounts: string[] };
 }
 
@@ -37,6 +40,8 @@ function Check({ ok, icon: Icon, children }: { ok: boolean; icon: React.ElementT
 /** Errors of the last days (server, Lodgify, e-mails), login failures and security settings. */
 export function HealthPanel() {
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const me = useAuthStore((s) => s.user?.email);
   const { data } = useQuery({
     queryKey: ['monitoring'],
     queryFn: async () => {
@@ -56,6 +61,24 @@ export function HealthPanel() {
         <h2 className="text-[16px] font-bold text-ink">Santé de l’application</h2>
         <span className="text-[12px] text-muted">Alertes par e-mail : {checks.alertRecipients === 'ALERT_EMAIL' ? 'adresse ALERT_EMAIL' : 'administrateurs'}</span>
       </div>
+
+      {!!checks.publicPasswordAccounts?.length && (
+        <div className="flex flex-wrap items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3">
+          <ShieldX size={18} className="shrink-0 mt-0.5 text-danger" />
+          <div className="min-w-0 flex-1 text-[13px] text-ink">
+            <p className="font-bold text-danger">Mot de passe public sur {checks.publicPasswordAccounts.length > 1 ? 'des comptes' : 'un compte'} d’administration</p>
+            <p className="mt-0.5 text-ink-soft">
+              <b>{checks.publicPasswordAccounts.join(', ')}</b> utilise{checks.publicPasswordAccounts.length > 1 ? 'nt' : ''} le mot de passe de démonstration, qui était affiché sur la page de
+              connexion : n’importe qui peut ouvrir ce compte. Changez-le maintenant (menu en haut à droite › Changer mon mot de passe).
+            </p>
+          </div>
+          {me && checks.publicPasswordAccounts.includes(me) && (
+            <Button size="sm" variant="primary" icon={<KeyRound size={13} />} onClick={() => setPasswordOpen(true)}>
+              Changer mon mot de passe
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-3">
         <Check ok={secretsOk} icon={KeyRound}>
@@ -113,6 +136,7 @@ export function HealthPanel() {
           )}
         </div>
       )}
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { secretsStatus } from '../../common/security/secrets';
+import { usesPublicPassword } from '../../common/security/public-passwords';
 
 /**
  * Incident journal: server errors, Lodgify failures and e-mails not sent are recorded
@@ -125,6 +126,24 @@ export class MonitoringService {
     }
   }
 
+  /** Password hash → is it a public password (bcrypt is slow: each hash is checked once). */
+  private readonly publicHashes = new Map<string, boolean>();
+
+  /** Active staff accounts whose password is a public one (a changed password is seen at once). */
+  async adminsWithPublicPassword(): Promise<string[]> {
+    const admins = await this.prisma.user.findMany({
+      where: { role: { in: ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] }, isActive: true, canLogin: true },
+      select: { email: true, password: true },
+      take: 30,
+    });
+    const emails: string[] = [];
+    for (const a of admins) {
+      if (!this.publicHashes.has(a.password)) this.publicHashes.set(a.password, await usesPublicPassword(a.password));
+      if (this.publicHashes.get(a.password)) emails.push(a.email);
+    }
+    return emails;
+  }
+
   /** Incidents of the last days and the security checks, for the admin panel. */
   async overview(days = 14) {
     const rows = await this.prisma.auditLog.findMany({
@@ -149,6 +168,7 @@ export class MonitoringService {
       })
       .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
     const mail = this.mail.status();
+    const publicPasswordAccounts = await this.adminsWithPublicPassword().catch(() => [] as string[]);
     return {
       incidents,
       checks: {
@@ -156,6 +176,7 @@ export class MonitoringService {
         mailConfigured: mail.configured,
         mailSenderIsDefault: mail.fromIsDefault,
         alertRecipients: (process.env.ALERT_EMAIL ?? '').trim() ? 'ALERT_EMAIL' : 'administrateurs',
+        publicPasswordAccounts,
       },
     };
   }

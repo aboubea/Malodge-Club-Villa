@@ -10,6 +10,8 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AttemptsService, Client } from './attempts.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { isPublicPassword } from '../../common/security/public-passwords';
 import { appSecret } from '../../common/security/secrets';
 
 @Injectable()
@@ -225,16 +227,44 @@ export class AuthService {
     return { message: 'Mot de passe réinitialisé avec succès.' };
   }
 
+  /** The signed-in user changes their own password (the current one is required). */
+  async changePassword(userId: string, dto: ChangePasswordDto, client: Client = { ip: null, userAgent: null }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    const key = user.email.trim().toLowerCase();
+    await this.attempts.assertLoginAllowed(key, client);
+    if (!(await bcrypt.compare(dto.currentPassword, user.password))) {
+      await this.attempts.loginFailed(key, client);
+      throw new BadRequestException('Mot de passe actuel incorrect.');
+    }
+    if (dto.newPassword === dto.currentPassword) throw new BadRequestException('Le nouveau mot de passe doit être différent de l’actuel.');
+    if (isPublicPassword(dto.newPassword)) throw new BadRequestException('Ce mot de passe est public : choisissez-en un autre.');
+    await this.prisma.user.update({ where: { id: userId }, data: { password: await bcrypt.hash(dto.newPassword, 12) } });
+    await this.prisma.auditLog.create({ data: { action: 'PASSWORD_CHANGED', entity: 'auth', entityId: key, userId, ipAddress: client.ip, userAgent: client.userAgent } });
+    return { message: 'Mot de passe modifié.' };
+  }
+
+  /**
+   * First administrator of an empty database. In production it is created only from
+   * SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD (never with a password written in the code).
+   */
   async ensureSuperAdmin() {
     const existing = await this.prisma.user.findFirst({
       where: { role: 'SUPER_ADMIN' },
     });
 
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('SuperAdmin2024!', 12);
+      const production = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+      const email = (process.env.SUPER_ADMIN_EMAIL ?? '').trim() || 'superadmin@malodge.com';
+      const password = (process.env.SUPER_ADMIN_PASSWORD ?? '').trim() || (production ? '' : 'SuperAdmin2024!');
+      if (!password || (production && isPublicPassword(password))) {
+        console.warn('Aucun super administrateur : définissez SUPER_ADMIN_EMAIL et SUPER_ADMIN_PASSWORD pour en créer un.');
+        return;
+      }
+      const hashedPassword = await bcrypt.hash(password, 12);
       await this.prisma.user.create({
         data: {
-          email: 'superadmin@malodge.com',
+          email,
           password: hashedPassword,
           firstName: 'Super',
           lastName: 'Admin',

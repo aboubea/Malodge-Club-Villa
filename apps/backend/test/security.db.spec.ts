@@ -89,3 +89,35 @@ describe('incident journal', () => {
     expect(monitoring).toBeDefined();
   });
 });
+
+describe('public passwords', () => {
+  it('flags an administrator using the demo password until it is changed', async () => {
+    const admin = await prisma.user.create({
+      data: { email: 'demo-admin@malodge-test.fr', password: await bcrypt.hash('SuperAdmin2024!', 4), firstName: 'Demo', lastName: 'Admin', role: 'SUPER_ADMIN' },
+    });
+    const monitoring = new MonitoringService(prisma as any, mail);
+    expect(await monitoring.adminsWithPublicPassword()).toEqual(['demo-admin@malodge-test.fr']);
+
+    await expect(auth.changePassword(admin.id, { currentPassword: 'mauvais', newPassword: 'Un-nouveau-mot-2026' } as any, client)).rejects.toMatchObject({ status: 400 });
+    await expect(auth.changePassword(admin.id, { currentPassword: 'SuperAdmin2024!', newPassword: 'SuperAdmin2024!' } as any, client)).rejects.toMatchObject({ status: 400 });
+    await expect(auth.changePassword(admin.id, { currentPassword: 'SuperAdmin2024!', newPassword: 'Un-nouveau-mot-2026' } as any, client)).resolves.toMatchObject({ message: 'Mot de passe modifié.' });
+
+    expect(await monitoring.adminsWithPublicPassword()).toEqual([]);
+    await expect(auth.login({ email: 'demo-admin@malodge-test.fr', password: 'Un-nouveau-mot-2026' } as any, client)).resolves.toHaveProperty('accessToken');
+    await prisma.user.delete({ where: { id: admin.id } });
+  });
+
+  it('never creates the demo super administrator in production', async () => {
+    await prisma.user.updateMany({ where: { role: 'SUPER_ADMIN' }, data: { role: 'ADMIN' } });
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('SUPER_ADMIN_PASSWORD', '');
+    await auth.ensureSuperAdmin();
+    expect(await prisma.user.count({ where: { role: 'SUPER_ADMIN' } })).toBe(0);
+
+    vi.stubEnv('SUPER_ADMIN_EMAIL', 'patron@malodge-test.fr');
+    vi.stubEnv('SUPER_ADMIN_PASSWORD', 'Un-mot-de-passe-solide-2026');
+    await auth.ensureSuperAdmin();
+    expect(await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' }, select: { email: true } })).toEqual({ email: 'patron@malodge-test.fr' });
+    vi.unstubAllEnvs();
+  });
+});

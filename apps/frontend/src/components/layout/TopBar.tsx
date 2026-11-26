@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bell, Search, LogOut, User, Settings, ChevronDown, Menu, Moon, Sun, CalendarDays } from 'lucide-react';
+import { Bell, Search, LogOut, User, Settings, ChevronDown, Menu, Moon, Sun, CalendarDays, KeyRound } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { formatDistanceToNow } from '../../lib/utils';
@@ -11,6 +11,7 @@ import { Avatar } from '../ui/Avatar';
 import { useUIStore } from '../../store/uiStore';
 import { useIsDark } from '../../hooks/useTheme';
 import { ROLES_LABELS } from '../../lib/constants';
+import { ChangePasswordModal } from '../../features/auth/ChangePasswordModal';
 
 interface Notification {
   id: string;
@@ -29,6 +30,7 @@ export function TopBar() {
   const qc = useQueryClient();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -286,6 +288,12 @@ export function TopBar() {
                   >
                     <Settings size={14} /> Paramètres
                   </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); setPasswordOpen(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+                  >
+                    <KeyRound size={14} /> Changer mon mot de passe
+                  </button>
                 </div>
                 <div className="pt-1 border-t border-line">
                   <button
@@ -300,6 +308,7 @@ export function TopBar() {
           </AnimatePresence>
         </div>
       </div>
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </header>
   );
 }
