@@ -45,6 +45,8 @@ interface Line {
   seller?: { id: string; name: string } | null;
   ownerRate?: number | null;
   sellerRate?: number | null;
+  ownerRule?: unknown;
+  sellerRule?: unknown;
 }
 
 const money = (n: number, c: string) => `${Math.round(n).toLocaleString('fr-FR')} ${c}`;
@@ -277,7 +279,7 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
     });
 
   // Root causes of the "à compléter" lines: one setting fixes many lines.
-  const ownerNoRate = active.filter((l) => l.owner && l.ownerRate == null);
+  const ownerNoRate = active.filter((l) => l.owner && l.ownerRate == null && !l.ownerRule);
   if (ownerNoRate.length)
     extraFindings.push({
       severity: 'error',
@@ -287,7 +289,7 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
       href: '/extras/reglages',
       items: groupBy(ownerNoRate, (l) => l.owner!.name).map(([name, ls]) => ({ label: `${name} : ${ls.length} extra(s) bloqué(s)` })),
     });
-  const sellerNoRate = active.filter((l) => l.seller && l.sellerRate == null);
+  const sellerNoRate = active.filter((l) => l.seller && l.sellerRate == null && !l.sellerRule);
   if (sellerNoRate.length)
     extraFindings.push({
       severity: 'warning',

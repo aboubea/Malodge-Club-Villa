@@ -10,9 +10,14 @@
  *   employee share = base × employee rate                   (seller; base = Malodge share or total margin)
  *   net Malodge    = margin − owner share − employee share
  * Rates are read live from people records, so changing a rate recomputes the whole history.
+ * A commission rule (commission-rules.ts) can replace the owner's or the employee's rate for a
+ * villa, a category, a service or a period, and compute the share on the margin, the Malodge
+ * share, the price, or as a fixed amount per unit.
  * Cancelled extras count for nothing. Missing data never gets replaced by an assumed value:
  * the line is flagged and its unknown parts are left out of the totals.
  */
+
+import { RuleTerms, shareOf } from './commission-rules';
 
 export type AccountRole = 'CLIENT' | 'PROVIDER' | 'OWNER' | 'EMPLOYEE';
 
@@ -40,8 +45,9 @@ export interface ExtraInput {
   } | null;
   villa: { id: string; name: string; country: string; currency: string } | null;
   provider: { id: string; name: string } | null;
-  owner: { id: string; name: string; rate: number | null } | null;
-  seller: { id: string; name: string; rate: number | null; base: CommissionBase | null } | null;
+  /** `rule`: the commission rule that replaces the person's rate on this extra, if any. */
+  owner: { id: string; name: string; rate: number | null; rule?: RuleTerms | null } | null;
+  seller: { id: string; name: string; rate: number | null; base: CommissionBase | null; rule?: RuleTerms | null } | null;
 }
 
 export interface ExtraLine extends Omit<ExtraInput, 'owner' | 'seller'> {
@@ -58,6 +64,9 @@ export interface ExtraLine extends Omit<ExtraInput, 'owner' | 'seller'> {
   sellerRate: number | null;
   sellerBase: CommissionBase | null;
   sellerShare: number | null;
+  /** The commission rules applied (null: the person's default rate). */
+  ownerRule: RuleTerms | null;
+  sellerRule: RuleTerms | null;
   net: number | null;
   /** First blocking issue, as in the spreadsheet's "À compléter" column (amounts are partial). */
   issue: string | null;
@@ -82,12 +91,16 @@ const isNum = (n: unknown): n is number => typeof n === 'number' && Number.isFin
 export function computeExtra(input: ExtraInput): ExtraLine {
   const cancelled = input.status === 'CANCELLED';
   const currency = input.villa?.currency ?? 'EUR';
+  const ownerRule = input.owner?.rule ?? null;
+  const sellerRule = input.seller?.rule ?? null;
   const base: Omit<ExtraLine, 'total' | 'cost' | 'margin' | 'ownerRate' | 'ownerShare' | 'malodgeShare' | 'sellerRate' | 'sellerBase' | 'sellerShare' | 'net' | 'issue' | 'warning'> = {
     ...input,
     currency,
     owner: input.owner ? { id: input.owner.id, name: input.owner.name } : null,
     seller: input.seller ? { id: input.seller.id, name: input.seller.name } : null,
     cancelled,
+    ownerRule,
+    sellerRule,
   };
 
   if (cancelled) {
@@ -105,20 +118,41 @@ export function computeExtra(input: ExtraInput): ExtraLine {
   const cost = qtyOk && isNum(input.unitCost) ? round2(input.quantity! * input.unitCost) : null;
   const margin = total !== null && cost !== null ? round2(total - cost) : null;
 
-  // Owner: no owner → 0 %; owner without a rate → unknown.
-  const ownerRate = input.owner ? (isNum(input.owner.rate) ? input.owner.rate : null) : 0;
-  const ownerShare = margin !== null && ownerRate !== null ? round2(margin * ownerRate) : null;
+  const quantity = qtyOk ? input.quantity : null;
+
+  // Owner: no owner → 0 %; a rule when one applies; else the owner's rate (none → unknown).
+  const ownerRateMissing = !!input.owner && !ownerRule && !isNum(input.owner.rate);
+  const ownerRate = !input.owner ? 0 : ownerRule ? (ownerRule.base === 'FIXED' ? null : ownerRule.rate) : isNum(input.owner.rate) ? input.owner.rate : null;
+  const ownerShare = !input.owner
+    ? 0
+    : ownerRule
+      ? shareOf(ownerRule, { total, margin, malodgeShare: null, quantity })
+      : margin !== null && ownerRate !== null
+        ? round2(margin * ownerRate)
+        : null;
   const malodgeShare = margin !== null && ownerShare !== null ? round2(margin - ownerShare) : null;
 
-  // Employee: no seller → 0 %; seller without a rate → unknown. Default base = Malodge share.
-  const sellerRate = input.seller ? (isNum(input.seller.rate) ? input.seller.rate : null) : 0;
-  const sellerBase: CommissionBase | null = input.seller ? input.seller.base ?? 'MALODGE_MARGIN' : null;
+  // Employee: no seller → 0 %; a rule when one applies; else the seller's rate on their base
+  // (default: the Malodge share); no rate → unknown.
+  const sellerRateMissing = !!input.seller && !sellerRule && !isNum(input.seller.rate);
+  const sellerRate = !input.seller ? 0 : sellerRule ? (sellerRule.base === 'FIXED' ? null : sellerRule.rate) : isNum(input.seller.rate) ? input.seller.rate : null;
+  const sellerBase: CommissionBase | null = !input.seller
+    ? null
+    : sellerRule
+      ? sellerRule.base === 'MARGIN'
+        ? 'TOTAL_MARGIN'
+        : sellerRule.base === 'MALODGE_SHARE'
+          ? 'MALODGE_MARGIN'
+          : null
+      : input.seller.base ?? 'MALODGE_MARGIN';
   const baseAmount = sellerBase === 'TOTAL_MARGIN' ? margin : malodgeShare;
   const sellerShare = !input.seller
     ? 0
-    : baseAmount !== null && sellerRate !== null
-      ? round2(baseAmount * sellerRate)
-      : null;
+    : sellerRule
+      ? shareOf(sellerRule, { total, margin, malodgeShare, quantity })
+      : baseAmount !== null && sellerRate !== null
+        ? round2(baseAmount * sellerRate)
+        : null;
 
   const net =
     margin !== null && ownerShare !== null && sellerShare !== null
@@ -133,8 +167,8 @@ export function computeExtra(input: ExtraInput): ExtraLine {
   else if (!isNum(input.unitPrice)) issue = 'Prix à renseigner';
   else if (!isNum(input.unitCost)) issue = 'Coût à renseigner';
   else if (input.unitCost > 0 && !input.provider) issue = 'Prestataire à vérifier';
-  else if (ownerRate === null) issue = 'Taux propriétaire manquant';
-  else if (sellerRate === null) issue = 'Taux salarié manquant';
+  else if (ownerRateMissing) issue = 'Taux propriétaire manquant';
+  else if (sellerRateMissing) issue = 'Taux salarié manquant';
   else if (
     sellerShare !== null && malodgeShare !== null && margin !== null && margin >= 0 && sellerShare > malodgeShare
   ) issue = 'Commission > part Malodge';

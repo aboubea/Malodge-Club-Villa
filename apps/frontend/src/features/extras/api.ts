@@ -34,6 +34,9 @@ export interface ExtraLine {
   malodgeShare: number | null;
   sellerRate: number | null;
   sellerBase: 'MALODGE_MARGIN' | 'TOTAL_MARGIN' | null;
+  /** The commission rules applied (null: the person's usual rate). */
+  ownerRule?: { id: string; base: string; rate: number | null; amount: number | null } | null;
+  sellerRule?: { id: string; base: string; rate: number | null; amount: number | null } | null;
   sellerShare: number | null;
   net: number | null;
   issue: string | null;
@@ -325,5 +328,9 @@ export const api = {
 
 export const pct = (rate: number | null | undefined) =>
   rate === null || rate === undefined ? '—' : `${Math.round(rate * 1000) / 10}\u00a0%`;
+
+/** "30 % du prix", "50 MAD par unité": the terms of a commission rule. */
+export const ruleText = (r: { base: string; rate: number | null; amount: number | null }, currency: string) =>
+  r.base === 'FIXED' ? `${r.amount ?? '—'} ${currency} par unité` : `${pct(r.rate)} ${r.base === 'PRICE' ? 'du prix' : r.base === 'MALODGE_SHARE' ? 'de la part Malodge' : 'de la marge'}`;
 
 export const toDateInput = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : '');

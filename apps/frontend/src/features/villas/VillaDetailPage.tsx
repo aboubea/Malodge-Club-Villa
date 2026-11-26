@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { VillaCommissions } from './VillaCommissions';
 import { VillaOwnerPicker } from './VillaOwner';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -44,9 +45,6 @@ export function VillaDetailPage() {
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [editServiceId, setEditServiceId] = useState<string | null>(null);
   const [customPrice, setCustomPrice] = useState('');
-  const [commission, setCommission] = useState('15');
-  const [commissionTo, setCommissionTo] = useState<'manager' | 'owner' | 'shared'>('manager');
-  const [ownerShare, setOwnerShare] = useState('50');
   const [serviceSearch, setServiceSearch] = useState('');
 
   // Custom fields state
@@ -131,13 +129,8 @@ export function VillaDetailPage() {
   const linkedServiceIds = new Set(villaServices.map((vs: any) => vs.serviceId));
 
   const assignServiceMutation = useMutation({
-    mutationFn: ({ serviceId, cp, cm, cto, os }: { serviceId: string; cp?: number; cm?: number; cto?: string; os?: number }) =>
-      apiClient.post(`/villas/${id}/services/${serviceId}`, {
-        customPrice: cp,
-        commission: cm,
-        commissionTo: cto ?? 'manager',
-        ownerShare: os,
-      }),
+    // Commissions on the extras are set as rules (Extras › Réglages), not here.
+    mutationFn: ({ serviceId, cp }: { serviceId: string; cp?: number }) => apiClient.post(`/villas/${id}/services/${serviceId}`, { customPrice: cp }),
     onSuccess: () => {
       toast.success('Service ajouté à la villa');
       qc.invalidateQueries({ queryKey: ['villa-services', id] });
@@ -149,13 +142,7 @@ export function VillaDetailPage() {
   });
 
   const updateServiceMutation = useMutation({
-    mutationFn: ({ serviceId, cp, cm, cto, os }: { serviceId: string; cp?: number | null; cm?: number; cto?: string; os?: number }) =>
-      apiClient.patch(`/villas/${id}/services/${serviceId}`, {
-        customPrice: cp,
-        commission: cm,
-        commissionTo: cto,
-        ownerShare: os,
-      }),
+    mutationFn: ({ serviceId, cp }: { serviceId: string; cp?: number | null }) => apiClient.patch(`/villas/${id}/services/${serviceId}`, { customPrice: cp }),
     onSuccess: () => {
       toast.success('Prix mis à jour');
       qc.invalidateQueries({ queryKey: ['villa-services', id] });
@@ -538,6 +525,13 @@ export function VillaDetailPage() {
         </motion.div>
       )}
 
+      {/* Commissions that apply to this villa — staff only */}
+      {isStaff && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <VillaCommissions villaId={villa.parentVillaId ?? villa.id} />
+        </motion.div>
+      )}
+
       {/* Villa Services Section — staff only */}
       {isStaff && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -587,40 +581,12 @@ export function VillaDetailPage() {
                               value={customPrice}
                               onChange={(e) => setCustomPrice(e.target.value)}
                             />
-                            <input
-                              type="number"
-                              placeholder="Comm. %"
-                              className="w-20 h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
-                              value={commission}
-                              onChange={(e) => setCommission(e.target.value)}
-                            />
-                            <select
-                              value={commissionTo}
-                              onChange={(e) => setCommissionTo(e.target.value as any)}
-                              className="h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
-                            >
-                              <option value="manager">→ Manager</option>
-                              <option value="owner">→ Proprio</option>
-                              <option value="shared">Partagé</option>
-                            </select>
-                            {commissionTo === 'shared' && (
-                              <input
-                                type="number"
-                                placeholder="% proprio"
-                                className="w-20 h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
-                                value={ownerShare}
-                                onChange={(e) => setOwnerShare(e.target.value)}
-                              />
-                            )}
                             <Button
                               size="sm"
                               variant="primary"
                               onClick={() => updateServiceMutation.mutate({
                                 serviceId: vs.serviceId,
                                 cp: customPrice ? Number(customPrice) : null,
-                                cm: commission ? Number(commission) : 15,
-                                cto: commissionTo,
-                                os: commissionTo === 'shared' ? Number(ownerShare) : undefined,
                               })}
                               loading={updateServiceMutation.isPending}
                             >
@@ -635,19 +601,11 @@ export function VillaDetailPage() {
                               {vs.customPrice && (
                                 <p className="text-[10px] text-muted">défaut: {formatCurrency(vs.service.basePrice, vs.service.currency ?? villa.currency ?? 'EUR')}</p>
                               )}
-                              <p className="text-[10px] text-muted">Comm. {vs.commission ?? 15}% → {
-                                vs.commissionTo === 'owner' ? 'Proprio' :
-                                vs.commissionTo === 'shared' ? `${100 - (vs.ownerShare ?? 50)}% Mgr / ${vs.ownerShare ?? 50}% Proprio` :
-                                'Manager'
-                              }</p>
                             </div>
                             <button
                               onClick={() => {
                                 setEditServiceId(vs.serviceId);
                                 setCustomPrice(vs.customPrice?.toString() || '');
-                                setCommission((vs.commission ?? 15).toString());
-                                setCommissionTo(vs.commissionTo ?? 'manager');
-                                setOwnerShare((vs.ownerShare ?? 50).toString());
                               }}
                               className="p-1.5 text-muted hover:text-accent transition-colors"
                             >
@@ -695,9 +653,6 @@ export function VillaDetailPage() {
                     onClick={() => assignServiceMutation.mutate({
                       serviceId: s.id,
                       cp: customPrice ? Number(customPrice) : undefined,
-                      cm: commission ? Number(commission) : 15,
-                      cto: 'manager',
-                      os: 50,
                     })}
                     loading={assignServiceMutation.isPending}
                   >
@@ -718,16 +673,6 @@ export function VillaDetailPage() {
                 className="w-full mt-1 h-9 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={customPrice}
                 onChange={(e) => setCustomPrice(e.target.value)}
-              />
-            </div>
-            <div className="w-28">
-              <label className="text-xs text-muted">Commission %</label>
-              <input
-                type="number"
-                placeholder="15"
-                className="w-full mt-1 h-9 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
-                value={commission}
-                onChange={(e) => setCommission(e.target.value)}
               />
             </div>
           </div>

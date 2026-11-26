@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { pickRule } from './commission-rules';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -83,10 +84,10 @@ export class ExtrasService {
 
   /** Loads every order item as an extras line, with live rates. */
   async loadLines(actor?: Actor): Promise<ExtraLine[]> {
-    const [orders, villas] = await Promise.all([
+    const [orders, villas, rules] = await Promise.all([
       this.prisma.order.findMany({
         include: {
-          items: { include: { service: { select: { id: true, name: true } } } },
+          items: { include: { service: { select: { id: true, name: true, categoryId: true } } } },
           reservation: {
             select: {
               id: true, label: true, archived: true, clientId: true, villaId: true, checkIn: true, checkOut: true, datesEstimated: true,
@@ -103,6 +104,7 @@ export class ExtrasService {
           owner: { select: { id: true, firstName: true, lastName: true, commissionRate: true } },
         },
       }),
+      this.prisma.commissionRule.findMany(),
     ]);
     const byId = new Map(villas.map((v) => [v.id, v]));
     // A Lodgify formula belongs to the owner of its house (its own owner only if the house has none).
@@ -112,10 +114,19 @@ export class ExtrasService {
     for (const order of orders) {
       const villa = villaById.get(order.villaId ?? '') ?? villaById.get(order.reservation?.villaId ?? '') ?? null;
       for (const item of order.items) {
+        // The commission rules of this extra (villa and its house, category, service, day).
+        const date = order.scheduledAt ?? order.completedAt ?? null;
+        const ruleCtx = (personId: string | null) => ({
+          personId,
+          villaIds: villa ? [villa.id, ...(villa.parentVillaId ? [villa.parentVillaId] : [])] : [],
+          categoryId: item.service?.categoryId ?? null,
+          serviceId: item.serviceId,
+          date,
+        });
         const input: ExtraInput = {
           id: item.id,
           // The day of the service; a completed extra without one is dated on the day it was completed.
-          date: order.scheduledAt ?? order.completedAt ?? null,
+          date,
           status: order.status,
           notes: order.notes ?? item.notes ?? null,
           quantity: item.quantity,
@@ -136,9 +147,17 @@ export class ExtrasService {
             : null,
           villa: villa ? { id: villa.id, name: villa.name, country: villa.country, currency: villa.currency } : null,
           provider: order.provider ? { id: order.provider.user.id, name: fullName(order.provider.user) } : null,
-          owner: villa?.owner ? { id: villa.owner.id, name: fullName(villa.owner), rate: villa.owner.commissionRate } : null,
+          owner: villa?.owner
+            ? { id: villa.owner.id, name: fullName(villa.owner), rate: villa.owner.commissionRate, rule: pickRule(rules, 'OWNER', ruleCtx(villa.owner.id)) }
+            : null,
           seller: order.seller
-            ? { id: order.seller.id, name: fullName(order.seller), rate: order.seller.commissionRate, base: order.seller.commissionBase }
+            ? {
+                id: order.seller.id,
+                name: fullName(order.seller),
+                rate: order.seller.commissionRate,
+                base: order.seller.commissionBase,
+                rule: pickRule(rules, 'EMPLOYEE', ruleCtx(order.seller.id)),
+              }
             : null,
         };
         lines.push({ ...computeExtra(input), orderId: order.id } as ExtraLine & { orderId: string });

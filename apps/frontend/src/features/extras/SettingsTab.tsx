@@ -10,6 +10,8 @@ import { cn, formatDay } from '../../lib/utils';
 import { Person, Stay, VillaRef, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
 import { Field, IssueTag, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { ImportPanel } from './ImportPanel';
+import { CommissionsPanel } from './CommissionsPanel';
+import { useSearchParams } from 'react-router-dom';
 
 const ROLE_NAMES: Record<string, string> = { OWNER: 'Propriétaire', EMPLOYEE: 'Salarié', PROVIDER: 'Prestataire', CLIENT: 'Client' };
 
@@ -353,7 +355,8 @@ export function SettingsTab() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const { data, isLoading } = useExtrasSettings();
-  const [section, setSection] = useState<'people' | 'stays' | 'villas' | 'import'>('people');
+  const [params] = useSearchParams();
+  const [section, setSection] = useState<'people' | 'commissions' | 'stays' | 'villas' | 'import'>(params.get('section') === 'commissions' ? 'commissions' : 'people');
   const [person, setPerson] = useState<Person | null | 'new'>(null);
   const [stay, setStay] = useState<Stay | null | 'new'>(null);
   const [mergeVilla, setMergeVilla] = useState<VillaRef | null>(null);
@@ -377,6 +380,7 @@ export function SettingsTab() {
           onChange={setSection}
           options={[
             { value: 'people', label: 'Personnes & taux', count: data.people.filter((p) => p.issue).length },
+            { value: 'commissions', label: 'Règles de commission' },
             { value: 'stays', label: 'Séjours', count: data.stays.filter((s) => s.issue).length },
             { value: 'villas', label: 'Villas', count: data.villas.filter((v) => v.duplicates?.length).length },
             ...(isAdmin ? [{ value: 'import' as const, label: 'Import Excel' }] : []),
@@ -393,6 +397,8 @@ export function SettingsTab() {
           </Button>
         )}
       </div>
+
+      {section === 'commissions' && <CommissionsPanel preset={{ villaId: params.get('villa') ?? undefined }} />}
 
       {section === 'people' && (
         <TableCard>

@@ -24,6 +24,24 @@ enum CommissionBase {
   TOTAL_MARGIN // gross margin
 }
 
+/// Who a commission rule pays.
+enum CommissionBeneficiary {
+  OWNER
+  EMPLOYEE
+}
+
+/// What a commission rule is computed on.
+enum CommissionRuleBase {
+  /// % of the margin (price − cost)
+  MARGIN
+  /// % of the Malodge share (margin − owner's share): employees only
+  MALODGE_SHARE
+  /// % of the price billed to the guest
+  PRICE
+  /// A fixed amount per unit sold (villa currency)
+  FIXED
+}
+
 enum SettlementKind {
   CLIENT_PAYMENT // Reçu client
   CLIENT_REFUND // Remboursé au client
@@ -109,48 +127,50 @@ model User {
   createdSettlements         Settlement[]              @relation("SettlementCreator")
   validatedSettlements       Settlement[]              @relation("SettlementValidator")
   ownerStatements            OwnerStatement[]          @relation("OwnerStatements")
+  commissionRules            CommissionRule[]          @relation("CommissionRulePerson")
 }
 
 model Villa {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  description  String?
-  address      String
-  city         String
-  country      String   @default("France")
-  latitude     Float?
-  longitude    Float?
-  coverImage   String?
-  images       String[]
-  amenities    Json     @default("[]")
-  rules        Json     @default("[]")
-  maxGuests    Int      @default(1)
-  bedrooms     Int      @default(1)
-  bathrooms    Int      @default(1)
-  isActive     Boolean  @default(true)
-  logifyId     String?  @unique
-  customFields Json     @default("[]")
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  address           String
+  city              String
+  country           String   @default("France")
+  latitude          Float?
+  longitude         Float?
+  coverImage        String?
+  images            String[]
+  amenities         Json     @default("[]")
+  rules             Json     @default("[]")
+  maxGuests         Int      @default(1)
+  bedrooms          Int      @default(1)
+  bathrooms         Int      @default(1)
+  isActive          Boolean  @default(true)
+  logifyId          String?  @unique
+  customFields      Json     @default("[]")
   /// ISO 4217 code used for extras at this villa (MAD in Morocco, EUR in France…)
-  currency     String   @default("EUR")
-  ownerId      String?
+  currency          String   @default("EUR")
+  ownerId           String?
   /// Set on a Lodgify listing that is another formula (more or fewer rooms, own price) of the same house
-  parentVillaId String?
+  parentVillaId     String?
   /// Management fee on accommodation revenue (0.2 = 20 %), shown on the owner's monthly statement
-  managementFeeRate Float @default(0.2)
+  managementFeeRate Float    @default(0.2)
   /// Welcome booklet shown to the guests of the villa (arrival, access, Wi-Fi, rules, contact…)
-  welcomeGuide      Json  @default("{}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  welcomeGuide      Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  owner          User?           @relation("VillaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  parentVilla    Villa?          @relation("VillaFormulas", fields: [parentVillaId], references: [id], onDelete: SetNull)
-  formulas       Villa[]         @relation("VillaFormulas")
-  managers       VillaManager[]
-  reservations   Reservation[]
-  villaServices  VillaService[]
-  documents      Document[]
-  calendarEvents CalendarEvent[]
+  owner           User?            @relation("VillaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  parentVilla     Villa?           @relation("VillaFormulas", fields: [parentVillaId], references: [id], onDelete: SetNull)
+  formulas        Villa[]          @relation("VillaFormulas")
+  managers        VillaManager[]
+  reservations    Reservation[]
+  villaServices   VillaService[]
+  documents       Document[]
+  calendarEvents  CalendarEvent[]
+  commissionRules CommissionRule[]
 }
 
 model VillaManager {
@@ -163,16 +183,16 @@ model VillaManager {
 }
 
 model Provider {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  companyName String?
-  siret       String?
-  iban        String?
-  isActive    Boolean  @default(true)
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  companyName   String?
+  siret         String?
+  iban          String?
+  isActive      Boolean  @default(true)
   /// Version of the personal link (provider space without password); +1 revokes the links sent
-  accessVersion Int    @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  accessVersion Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   categories         ProviderCategory[]
@@ -190,8 +210,9 @@ model ServiceCategory {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  services  Service[]
-  providers ProviderCategory[]
+  services        Service[]
+  providers       ProviderCategory[]
+  commissionRules CommissionRule[]
 }
 
 model Service {
@@ -221,6 +242,7 @@ model Service {
   villaServices   VillaService[]
   providers       ServiceProvider[]
   orderItems      OrderItem[]
+  commissionRules CommissionRule[]
 }
 
 model VillaService {
@@ -296,26 +318,26 @@ model Reservation {
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  reservationId  String?
-  clientId       String
-  providerId     String?
+  id               String      @id @default(cuid())
+  reservationId    String?
+  clientId         String
+  providerId       String?
   /// Set when the amounts were converted (e.g. villa moved from EUR to MAD): original currency, rate and day
   originalCurrency String?
   fxRate           Float?
   fxDate           DateTime?
-  villaId        String?
+  villaId          String?
   /// Employee who sold the extra (earns a commission)
-  sellerId       String?
-  status         OrderStatus @default(PENDING)
-  totalAmount    Float
-  commission     Float       @default(0)
-  notes          String?
-  scheduledAt    DateTime?
-  completedAt    DateTime?
-  providerStatus String      @default("PENDING")
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  sellerId         String?
+  status           OrderStatus @default(PENDING)
+  totalAmount      Float
+  commission       Float       @default(0)
+  notes            String?
+  scheduledAt      DateTime?
+  completedAt      DateTime?
+  providerStatus   String      @default("PENDING")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   reservation    Reservation?    @relation(fields: [reservationId], references: [id])
   client         User            @relation(fields: [clientId], references: [id])
@@ -544,4 +566,35 @@ model OwnerStatement {
 
   @@unique([ownerId, month])
   @@index([month])
+}
+
+/// A commission rule on the extras: overrides the default rate of the owner or the employee
+/// for a villa, a category, a service and/or a person, during a period. The most specific
+/// matching rule wins (service > category > villa > person); without a rule, the person's rate applies.
+model CommissionRule {
+  id          String                @id @default(cuid())
+  beneficiary CommissionBeneficiary
+  /// A given owner / employee; empty = whoever it is (the villa's owner, the seller)
+  personId    String?
+  /// A house (its Lodgify formulas included); empty = every villa
+  villaId     String?
+  categoryId  String?
+  serviceId   String?
+  base        CommissionRuleBase
+  /// Percentage (0.3 = 30 %) for MARGIN, MALODGE_SHARE and PRICE
+  rate        Float?
+  /// Amount per unit sold, in the villa's currency, for FIXED
+  amount      Float?
+  validFrom   DateTime?
+  validTo     DateTime?
+  note        String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  person   User?            @relation("CommissionRulePerson", fields: [personId], references: [id], onDelete: Cascade)
+  villa    Villa?           @relation(fields: [villaId], references: [id], onDelete: Cascade)
+  category ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  service  Service?         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiary])
 }

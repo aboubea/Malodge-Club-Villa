@@ -4,7 +4,7 @@ import { Pencil, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { cn, formatDay } from '../../lib/utils';
-import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, Totals, api, pct, useExtraLines, useExtrasMutation } from './api';
+import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, Totals, api, pct, ruleText, useExtraLines, useExtrasMutation } from './api';
 import { ExtraFormModal } from './forms';
 import { EmptyState, IssueTag, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { formatMoney } from '../../lib/utils';
@@ -249,11 +249,19 @@ export function LinesTab({ options }: { options: Options | undefined }) {
                   <td className={cn(td, 'text-right')}>
                     <Money value={l.margin} currency={l.currency} className={l.margin !== null && l.margin < 0 ? 'text-danger' : ''} />
                   </td>
-                  <td className={cn(td, 'text-right text-ink-soft')} title={l.owner ? `${l.owner.name} · ${pct(l.ownerRate)}` : 'Pas de propriétaire'}>
+                  <td
+                    className={cn(td, 'text-right text-ink-soft')}
+                    title={l.owner ? `${l.owner.name} · ${l.ownerRule ? `règle : ${ruleText(l.ownerRule, l.currency)}` : `${pct(l.ownerRate)} de la marge (taux habituel)`}` : 'Pas de propriétaire'}
+                  >
                     <Money value={l.ownerShare} currency={l.currency} />
+                    {l.ownerRule && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-accent align-middle" aria-label="règle de commission" />}
                   </td>
-                  <td className={cn(td, 'text-right text-ink-soft')} title={l.seller ? `${l.seller.name} · ${pct(l.sellerRate)}` : 'Pas de vendeur'}>
+                  <td
+                    className={cn(td, 'text-right text-ink-soft')}
+                    title={l.seller ? `${l.seller.name} · ${l.sellerRule ? `règle : ${ruleText(l.sellerRule, l.currency)}` : `${pct(l.sellerRate)} (taux habituel)`}` : 'Pas de vendeur'}
+                  >
                     <Money value={l.sellerShare} currency={l.currency} />
+                    {l.sellerRule && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-accent align-middle" aria-label="règle de commission" />}
                   </td>
                   <td className={cn(td, 'text-right font-semibold')}>
                     <Money value={l.net} currency={l.currency} />
