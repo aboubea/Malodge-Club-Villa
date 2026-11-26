@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MadEquivalent } from '../../lib/fx';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -103,23 +103,132 @@ const COL = 46; // px per day
 const ROW = 36; // px per line of stays
 const NAME_WIDE = 220;
 const NAME_NARROW = 124;
+/** Days rendered on each side of what is shown, to swipe into. */
+const LEAD = 28;
+/** Days added when a swipe nears the edge of what is rendered. */
+const STEP = 28;
+/** Days kept rendered: beyond, the far side is dropped (the page stays light). */
+const MAX_DAYS = 196;
+/** How close to the edge (px) a swipe adds days. */
+const EDGE = 10 * COL;
 
 export function ReservationsTimeline({ country, onEdit }: { country?: string; onEdit?: (stay: TimelineStay) => void }) {
   const wide = useMediaQuery('(min-width: 1024px)');
-  const span = wide ? 35 : 21;
   const NAME_COL = wide ? NAME_WIDE : NAME_NARROW;
-  const [start, setStart] = useState(() => todayUtc() - 3 * DAY);
+  // The days rendered: they grow as the calendar is swiped (touch screen, trackpad,
+  // Maj + molette or by dragging with the mouse), the arrows scroll by two weeks.
+  const [range, setRange] = useState(() => ({ start: todayUtc() - (3 + LEAD) * DAY, count: LEAD + 63 }));
+  // The days on screen: index of the first one in `days`, and how many fit.
+  const [view, setView] = useState({ first: LEAD, shown: wide ? 35 : 7 });
   const [showCancelled, setShowCancelled] = useState(false);
   // Lodgify enquiries (quotes) are requests, often next to the real booking: hidden unless asked for.
   const [showEnquiries, setShowEnquiries] = useState(false);
   const [onlyBooked, setOnlyBooked] = useState(false);
   const [selected, setSelected] = useState<TimelineStay | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  /** Scroll to apply once the new days are rendered. */
+  const pending = useRef<{ left: number; smooth: boolean } | null>({ left: LEAD * COL, smooth: false });
+  /** Days added on the left: the scroll moves by as much, so that nothing jumps on screen. */
+  const shift = useRef(0);
+  const growing = useRef(false);
+  const frame = useRef(0);
 
-  const days = useMemo(() => Array.from({ length: span }, (_, i) => start + i * DAY), [start, span]);
+  const days = useMemo(() => Array.from({ length: range.count }, (_, i) => range.start + i * DAY), [range]);
   const from = iso(days[0]);
   const to = iso(days[days.length - 1]);
   const today = todayUtc();
+  // The window on screen (for the month shown and the nights booked per villa).
+  const winStart = days[Math.min(view.first, days.length - 1)];
+  const winEnd = Math.min(winStart + view.shown * DAY, days[days.length - 1] + DAY);
+
+  /** Reads what is on screen, and adds days when the swipe nears an edge. */
+  const measure = () => {
+    const el = scroller.current;
+    if (!el) return;
+    const first = Math.max(0, Math.floor(el.scrollLeft / COL));
+    const shown = Math.max(1, Math.floor((el.clientWidth - NAME_COL) / COL));
+    setView((v) => (v.first === first && v.shown === shown ? v : { first, shown }));
+    if (growing.current) return;
+    if (el.scrollLeft + el.clientWidth > el.scrollWidth - EDGE) {
+      growing.current = true;
+      setRange((r) => {
+        if (r.count + STEP <= MAX_DAYS) return { ...r, count: r.count + STEP };
+        const drop = r.count + STEP - MAX_DAYS;
+        shift.current = -drop * COL;
+        return { start: r.start + drop * DAY, count: MAX_DAYS };
+      });
+    } else if (el.scrollLeft < EDGE) {
+      growing.current = true;
+      shift.current = STEP * COL;
+      setRange((r) => ({ start: r.start - STEP * DAY, count: Math.min(r.count + STEP, MAX_DAYS) }));
+    }
+  };
+  const onScroll = () => {
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      measure();
+    });
+  };
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    growing.current = false;
+    if (!el) return;
+    if (shift.current) el.scrollLeft += shift.current;
+    shift.current = 0;
+    const p = pending.current;
+    pending.current = null;
+    if (p) el.scrollTo({ left: p.left, behavior: p.smooth ? 'smooth' : 'auto' });
+    measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range]);
+  useEffect(() => {
+    window.addEventListener('resize', onScroll);
+    return () => window.removeEventListener('resize', onScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Brings day `t` to the left of the screen, smoothly when it is near. */
+  const goTo = (t: number, smooth = true) => {
+    const el = scroller.current;
+    const end = range.start + range.count * DAY;
+    const s = Math.min(range.start, t - LEAD * DAY);
+    const e = Math.max(end, t + (view.shown + LEAD) * DAY);
+    const count = Math.round((e - s) / DAY);
+    if (s === range.start && count === range.count) {
+      el?.scrollTo({ left: ((t - s) / DAY) * COL, behavior: smooth ? 'smooth' : 'auto' });
+      return;
+    }
+    if (count > MAX_DAYS) {
+      // Far away: start again around that day.
+      pending.current = { left: LEAD * COL, smooth: false };
+      setRange({ start: t - LEAD * DAY, count: LEAD * 2 + view.shown });
+      return;
+    }
+    shift.current = ((range.start - s) / DAY) * COL;
+    pending.current = { left: ((t - s) / DAY) * COL, smooth };
+    setRange({ start: s, count });
+  };
+
+  // Mouse: drag the calendar sideways (touch screens and trackpads swipe it natively).
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || (e.target as HTMLElement).closest('a,button,input,label')) return;
+    drag.current = { x: e.clientX, left: scroller.current?.scrollLeft ?? 0, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !scroller.current) return;
+    if (!d.moved && Math.abs(e.clientX - d.x) < 4) return;
+    if (!d.moved) {
+      d.moved = true;
+      scroller.current.setPointerCapture(e.pointerId);
+    }
+    scroller.current.scrollLeft = d.left - (e.clientX - d.x);
+  };
+  const endDrag = () => {
+    drag.current = null;
+  };
 
   const { data: villas = [], isLoading: loadingVillas } = useQuery({
     queryKey: ['villas', 'timeline', country],
@@ -179,11 +288,6 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
     },
   });
 
-  // Back to the left edge when the window moves.
-  useEffect(() => {
-    scroller.current?.scrollTo({ left: 0 });
-  }, [start]);
-
   // The app's stays (direct bookings, extras stays, Lodgify copies) plus Lodgify bookings not copied yet.
   const known = new Set(stays.map((s) => s.logifyId).filter(Boolean));
   const allStays = [...stays, ...(live?.bookings ?? []).filter((b) => !known.has(b.logifyId))];
@@ -210,16 +314,17 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   for (const s of visible) if (!rows.some((v) => v.id === houseOf(s.villaId ?? s.villa?.id))) rows.push(s.villa);
   const shownRows = onlyBooked ? rows.filter((v) => byVilla.has(v.id)) : rows;
 
+  // Nights booked in the days on screen.
   const occupiedNights = (villaId: string) =>
     (byVilla.get(villaId) ?? []).reduce((sum, s) => {
-      const a = Math.max(utcDay(new Date(s.checkIn!)), days[0]);
-      const b = Math.min(utcDay(new Date(s.checkOut!)), days[days.length - 1] + DAY);
+      const a = Math.max(utcDay(new Date(s.checkIn!)), winStart);
+      const b = Math.min(utcDay(new Date(s.checkOut!)), winEnd);
       return s.status === 'CANCELLED' ? sum : sum + Math.max(0, Math.round((b - a) / DAY));
     }, 0);
 
   const monthLabel = (() => {
-    const first = MONTH.format(new Date(days[0]));
-    const last = MONTH.format(new Date(days[days.length - 1]));
+    const first = MONTH.format(new Date(winStart));
+    const last = MONTH.format(new Date(winEnd - DAY));
     return first === last ? first : `${first.split(' ')[0]} – ${last}`;
   })();
 
@@ -244,7 +349,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
       return { last, next };
     },
   });
-  const jumpTo = (s: TimelineStay) => setStart(utcDay(new Date(s.checkIn!)) - 3 * DAY);
+  const jumpTo = (s: TimelineStay) => goTo(utcDay(new Date(s.checkIn!)) - 3 * DAY);
   const loading = loadingVillas || loadingStays;
 
   return (
@@ -254,7 +359,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setStart((s) => s - 14 * DAY)}
+            onClick={() => goTo(winStart - 14 * DAY)}
             className="w-9 h-9 rounded-full border border-line bg-surface flex items-center justify-center text-ink-soft hover:text-ink hover:border-line-strong"
             aria-label="Deux semaines plus tôt"
           >
@@ -262,14 +367,14 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
           </button>
           <button
             type="button"
-            onClick={() => setStart(todayUtc() - 3 * DAY)}
+            onClick={() => goTo(todayUtc() - 3 * DAY)}
             className="h-9 px-4 rounded-full border border-line bg-surface text-[13px] font-semibold text-ink hover:border-line-strong"
           >
             Aujourd’hui
           </button>
           <button
             type="button"
-            onClick={() => setStart((s) => s + 14 * DAY)}
+            onClick={() => goTo(winStart + 14 * DAY)}
             className="w-9 h-9 rounded-full border border-line bg-surface flex items-center justify-center text-ink-soft hover:text-ink hover:border-line-strong"
             aria-label="Deux semaines plus tard"
           >
@@ -365,7 +470,16 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
 
       {/* Grid */}
       <div className="rounded-2xl border border-line bg-surface overflow-hidden">
-        <div ref={scroller} className="overflow-x-auto">
+        <div
+          ref={scroller}
+          onScroll={onScroll}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          // Swiping sideways scrolls the calendar, never the browser back a page.
+          className="overflow-x-auto overscroll-x-contain cursor-grab active:cursor-grabbing select-none"
+        >
           <div style={{ width: NAME_COL + width }} className="relative">
             {/* Header */}
             <div className="flex sticky top-0 z-20 bg-surface border-b border-line">
@@ -421,7 +535,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                   <div key={v.id} className="flex border-b border-line last:border-b-0 group/row">
                     <div
                       style={{ width: NAME_COL, minHeight: height }}
-                      className="sticky left-0 z-10 bg-surface shrink-0 px-3 py-2 flex items-center gap-2.5 border-r border-line group-hover/row:bg-surface-2/40"
+                      className="sticky left-0 z-10 bg-surface shrink-0 px-3 py-2 flex items-center gap-2.5 border-r border-line group-hover/row:bg-surface-2"
                     >
                       {wide && (
                         <span className="w-9 h-9 rounded-lg overflow-hidden bg-surface-2 shrink-0 flex items-center justify-center">
@@ -489,12 +603,15 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                               s.enquiry && '!bg-surface !text-ink-soft border border-dashed border-line-strong',
                             )}
                           >
-                            {w > 60 && (
-                              <span className="w-[22px] h-[22px] rounded-full bg-surface text-ink text-[10px] font-bold flex items-center justify-center shrink-0">
-                                {initials(name)}
-                              </span>
-                            )}
-                            {w > 90 && <span className="truncate">{name}</span>}
+                            {/* The name stays in sight while the bar is half scrolled away */}
+                            <span className="sticky flex items-center gap-1.5 min-w-0" style={{ left: NAME_COL + 4 }}>
+                              {w > 60 && (
+                                <span className="w-[22px] h-[22px] rounded-full bg-surface text-ink text-[10px] font-bold flex items-center justify-center shrink-0">
+                                  {initials(name)}
+                                </span>
+                              )}
+                              {w > 90 && <span className="truncate">{name}</span>}
+                            </span>
                             {w > 170 && <span className="ml-auto shrink-0 opacity-75 font-medium">{n} n.</span>}
                           </button>
                         );
