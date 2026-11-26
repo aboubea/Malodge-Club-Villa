@@ -21,8 +21,8 @@ const PERIODS: { label: string; value: Period }[] = [
   { label: 'Année', value: 'year' },
 ];
 
-async function fetchDashboard(period: Period) {
-  const res = await apiClient.get(`/finance/dashboard?period=${period}`);
+async function fetchDashboard(period: Period, currency?: string) {
+  const res = await apiClient.get(`/finance/dashboard?period=${period}${currency ? `&currency=${currency}` : ''}`);
   return res.data?.data ?? res.data;
 }
 
@@ -39,13 +39,14 @@ async function fetchOwnerPayouts(month: number, year: number) {
 interface KpiCardProps {
   label: string;
   value: number;
+  currency: string;
   icon: React.ElementType;
   color: string;
   bgColor: string;
   delay: number;
 }
 
-function KpiCard({ label, value, icon: Icon, color, bgColor, delay }: KpiCardProps) {
+function KpiCard({ label, value, currency, icon: Icon, color, bgColor, delay }: KpiCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -60,21 +61,21 @@ function KpiCard({ label, value, icon: Icon, color, bgColor, delay }: KpiCardPro
           </div>
         </div>
         <p className="font-display font-semibold text-[28px] leading-none tracking-tight text-ink tabular mt-4">
-          {formatCurrency(value)}
+          {formatCurrency(value, currency)}
         </p>
       </Card>
     </motion.div>
   );
 }
 
-function RankedBar({ name, amount, maxAmount }: { name: string; amount: number; maxAmount: number }) {
+function RankedBar({ name, amount, maxAmount, currency }: { name: string; amount: number; maxAmount: number; currency: string }) {
   const pct = maxAmount > 0 ? (amount / maxAmount) * 100 : 0;
   return (
     <div className="flex items-center gap-3 py-2">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <p className="text-sm text-ink truncate">{name}</p>
-          <p className="text-sm font-normal text-accent ml-2 shrink-0">{formatCurrency(amount)}</p>
+          <p className="text-sm font-normal text-accent ml-2 shrink-0">{formatCurrency(amount, currency)}</p>
         </div>
         <div className="h-1.5 bg-line rounded-full overflow-hidden">
           <motion.div
@@ -98,10 +99,15 @@ export function FinancePage() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
+  // One currency at a time: dirhams and euros are never added together.
+  const [askedCurrency, setAskedCurrency] = useState<string | undefined>(undefined);
   const { data: dashboard, isLoading } = useQuery({
-    queryKey: ['finance-dashboard', period],
-    queryFn: () => fetchDashboard(period),
+    queryKey: ['finance-dashboard', period, askedCurrency],
+    queryFn: () => fetchDashboard(period, askedCurrency),
+    placeholderData: (prev) => prev,
   });
+  const currency: string = dashboard?.currency ?? askedCurrency ?? 'EUR';
+  const currencies: { currency: string; amount: number }[] = dashboard?.currencies ?? [];
 
   const { data: providerPayouts = [], isLoading: loadingProviders } = useQuery({
     queryKey: ['provider-payouts', currentMonth, currentYear],
@@ -116,7 +122,7 @@ export function FinancePage() {
   async function handleExport(format: 'pdf' | 'excel' | 'csv') {
     setIsExporting(format);
     try {
-      const response = await apiClient.get(`/finance/export?period=${period}&format=${format}`, {
+      const response = await apiClient.get(`/finance/export?period=${period}&format=${format}&currency=${currency}`, {
         responseType: 'blob',
       });
       const ext = format === 'excel' ? 'xlsx' : format;
@@ -130,7 +136,7 @@ export function FinancePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `rapport-finances-${period}-${now.toISOString().split('T')[0]}.${ext}`;
+      a.download = `rapport-finances-${period}-${currency}-${now.toISOString().split('T')[0]}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -144,6 +150,7 @@ export function FinancePage() {
     {
       label: 'CA Total',
       value: dashboard?.totalRevenue ?? 0,
+      currency,
       icon: TrendingUp,
       color: 'text-accent',
       bgColor: 'bg-gold/15',
@@ -152,6 +159,7 @@ export function FinancePage() {
     {
       label: 'CA Services',
       value: dashboard?.serviceRevenue ?? 0,
+      currency,
       icon: Sparkles,
       color: 'text-plum',
       bgColor: 'bg-plum/10',
@@ -160,6 +168,7 @@ export function FinancePage() {
     {
       label: 'Commissions',
       value: dashboard?.totalCommissions ?? 0,
+      currency,
       icon: DollarSign,
       color: 'text-info',
       bgColor: 'bg-info/10',
@@ -168,6 +177,7 @@ export function FinancePage() {
     {
       label: 'Marge conciergerie',
       value: dashboard?.conciergeMargin ?? 0,
+      currency,
       icon: BarChart3,
       color: 'text-success',
       bgColor: 'bg-success/10',
@@ -181,7 +191,7 @@ export function FinancePage() {
   const maxService = Math.max(...serviceData.map((s) => s.amount), 1);
 
   // Map to PayoutRow shape
-  const providerRows: PayoutRow[] = providerPayouts.map((p: any) => ({
+  const providerRows: PayoutRow[] = providerPayouts.filter((p: any) => (p.currency ?? 'EUR') === currency).map((p: any) => ({
     id: p.providerId,
     name: p.name,
     grossAmount: p.grossAmount,
@@ -190,7 +200,7 @@ export function FinancePage() {
     orderCount: p.orderCount,
   }));
 
-  const ownerRows: PayoutRow[] = ownerPayouts.map((o: any) => ({
+  const ownerRows: PayoutRow[] = ownerPayouts.filter((o: any) => (o.currency ?? 'EUR') === currency).map((o: any) => ({
     id: o.villaId,
     name: `${o.name} — ${o.ownerName}`,
     grossAmount: o.grossAmount,
@@ -219,6 +229,24 @@ export function FinancePage() {
             </button>
           ))}
         </div>
+        {/* Currency selector: shown when the period has money in several currencies */}
+        {currencies.length > 1 && (
+          <div className="flex items-center gap-1 bg-surface border border-line rounded-lg p-1" role="group" aria-label="Devise">
+            {currencies.map((c) => (
+              <button
+                key={c.currency}
+                onClick={() => setAskedCurrency(c.currency)}
+                title={`Montants en ${c.currency}, sans conversion`}
+                className={[
+                  'px-3 py-1.5 text-xs rounded-md transition-all duration-150',
+                  currency === c.currency ? 'bg-primary text-on-primary font-medium' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                {c.currency}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Export buttons */}
         <Button
           variant="secondary"
@@ -276,7 +304,7 @@ export function FinancePage() {
             {isLoading ? (
               <Skeleton className="h-48 w-full" />
             ) : (
-              <RevenueChart data={dashboard?.revenueByDay ?? []} />
+              <RevenueChart data={dashboard?.revenueByDay ?? []} currency={currency} />
             )}
           </CardContent>
         </Card>
@@ -303,7 +331,7 @@ export function FinancePage() {
               ) : (
                 <div className="divide-y divide-line">
                   {villaData.slice(0, 8).map((v) => (
-                    <RankedBar key={v.name} name={v.name} amount={v.amount} maxAmount={maxVilla} />
+                    <RankedBar key={v.name} name={v.name} amount={v.amount} maxAmount={maxVilla} currency={currency} />
                   ))}
                 </div>
               )}
@@ -330,7 +358,7 @@ export function FinancePage() {
               ) : (
                 <div className="divide-y divide-line">
                   {serviceData.slice(0, 8).map((s) => (
-                    <RankedBar key={s.name} name={s.name} amount={s.amount} maxAmount={maxService} />
+                    <RankedBar key={s.name} name={s.name} amount={s.amount} maxAmount={maxService} currency={currency} />
                   ))}
                 </div>
               )}
@@ -372,14 +400,14 @@ export function FinancePage() {
                 {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
               </div>
             ) : (
-              <PayoutsTable type="provider" data={providerRows} />
+              <PayoutsTable type="provider" data={providerRows} currency={currency} />
             )
           ) : loadingOwners ? (
             <div className="p-4 space-y-2">
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : (
-            <PayoutsTable type="owner" data={ownerRows} />
+            <PayoutsTable type="owner" data={ownerRows} currency={currency} />
           )}
         </Card>
       </motion.div>

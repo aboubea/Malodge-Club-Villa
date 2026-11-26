@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as https from 'https';
 import { extractCapacity } from './lodgify-capacity';
+import { currencyForCountry } from '../../common/money';
 
 /** Number of guests of a Lodgify booking, whatever the API version. */
 export function bookingGuests(r: any): number | null {
@@ -165,6 +166,7 @@ export class LodgifyService {
       checkOut: r.departure_date ?? r.departure ?? r.check_out,
       guests: bookingGuests(r) ?? 1,
       totalAmount: parseFloat(r.total_amount ?? r.price ?? 0),
+      currency: r.currency_code ?? r.currency ?? null,
       status: r.status ?? 'unknown',
       source: 'lodgify',
       notes: r.notes ?? null,
@@ -401,6 +403,12 @@ export class LodgifyService {
       (await this.prisma.villa.findFirst({ where: { logifyId: lodgifyId } })) ??
       (opts.matchByName ? await this.prisma.villa.findFirst({ where: { name, logifyId: null } }) : null);
     if (existing) {
+      // A villa still on the default currency, without any extra yet, takes its country's (MAD in Morocco).
+      const expected = currencyForCountry((known.country as string) ?? existing.country);
+      if (existing.currency !== expected && existing.currency === 'EUR') {
+        const extras = await this.prisma.order.count({ where: { OR: [{ villaId: existing.id }, { reservation: { villaId: existing.id } }] } });
+        if (extras === 0) update.currency = expected;
+      }
       await this.prisma.villa.update({ where: { id: existing.id }, data: { ...update, name, logifyId: lodgifyId } });
       return { villaId: existing.id, created: false };
     }
@@ -415,6 +423,8 @@ export class LodgifyService {
         address: (known.address as string) ?? '',
         city: (known.city as string) ?? '',
         country: (known.country as string) ?? 'France',
+        // Extras of a new villa are priced in its country's currency (MAD in Morocco).
+        currency: currencyForCountry((known.country as string) ?? 'France'),
         // 0 = not given by Lodgify: shown as "non renseigné", never as a real figure.
         maxGuests: (known.maxGuests as number) ?? 0,
         bedrooms: (known.bedrooms as number) ?? 0,
@@ -541,6 +551,8 @@ export class LodgifyService {
             checkOut: checkOutDate,
             guests: bookingGuests(res) ?? 1,
             totalAmount: parseFloat(res.total_amount ?? res.price ?? 0),
+            // The booking's own currency (a Moroccan villa can be rented in euros).
+            currency: typeof (res.currency_code ?? res.currency) === 'string' ? String(res.currency_code ?? res.currency).toUpperCase() : null,
             status: (statusMap[res.status?.toLowerCase()] || 'PENDING') as any,
             source: 'lodgify',
             notes: res.notes ?? null,

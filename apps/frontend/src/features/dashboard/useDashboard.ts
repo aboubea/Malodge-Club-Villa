@@ -3,6 +3,9 @@ import { apiClient } from '../../lib/apiClient';
 
 export interface DashboardKpis {
   totalRevenue: number;
+  /** Currency of totalRevenue; other currencies are listed apart (never added). */
+  revenueCurrency?: string;
+  revenueByCurrency?: { currency: string; amount: number; previous: number; change: number }[];
   revenueChange: number;
   activeReservations: number;
   pendingOrders: number;

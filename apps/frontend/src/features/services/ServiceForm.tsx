@@ -21,6 +21,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
     name: service?.name || '',
     description: service?.description || '',
     basePrice: service?.basePrice || 0,
+    currency: (service as { currency?: string } | null | undefined)?.currency || 'EUR',
     duration: service?.duration || '',
     categoryId: service?.categoryId || (categories[0]?.id || ''),
     requiresDate: service?.requiresDate || false,
@@ -145,7 +146,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
 
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Prix de base (€)"
+          label={`Prix de base (${form.currency})`}
           type="number"
           min="0"
           step="0.01"
@@ -153,6 +154,17 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
           onChange={(e) => setForm((p) => ({ ...p, basePrice: Number(e.target.value) }))}
           error={errors.basePrice}
         />
+        <div>
+          <label className="text-[12.5px] font-medium text-ink-soft">Devise</label>
+          <select
+            value={form.currency}
+            onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
+            className="mt-1.5 w-full h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink"
+          >
+            <option value="EUR">Euro (EUR)</option>
+            <option value="MAD">Dirham (MAD)</option>
+          </select>
+        </div>
         <Input
           label="Durée (min)"
           type="number"

@@ -178,7 +178,7 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             {r.totalAmount && (
-              <p className="text-sm font-normal text-accent">{formatCurrency(r.totalAmount)}</p>
+              <p className="text-sm font-normal text-accent">{formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}</p>
             )}
             {onOrderServices && isCurrent && (
               <Button variant="primary" size="sm" onClick={onOrderServices}>

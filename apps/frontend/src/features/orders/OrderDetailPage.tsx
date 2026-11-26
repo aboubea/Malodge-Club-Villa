@@ -251,10 +251,10 @@ export function OrderDetailPage() {
                       </td>
                       <td className="px-5 py-3 text-sm text-muted">{item.quantity}</td>
                       <td className="px-5 py-3 text-sm text-muted">
-                        {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
+                        {item.unitPrice != null ? formatCurrency(item.unitPrice, order.currency) : '—'}
                       </td>
                       <td className="px-5 py-3 text-sm font-normal text-accent">
-                        {formatCurrency(item.total)}
+                        {formatCurrency(item.total, order.currency)}
                       </td>
                     </tr>
                   ))}
@@ -265,17 +265,17 @@ export function OrderDetailPage() {
             <div className="border-t border-line px-5 py-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted">Sous-total</span>
-                <span className="text-ink">{formatCurrency(subtotal)}</span>
+                <span className="text-ink">{formatCurrency(subtotal, order.currency)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted">
                   Commission ({subtotal > 0 ? Math.round((order.commission / subtotal) * 100) : 0}%)
                 </span>
-                <span className="text-muted">- {formatCurrency(order.commission)}</span>
+                <span className="text-muted">- {formatCurrency(order.commission, order.currency)}</span>
               </div>
               <div className="flex items-center justify-between text-sm border-t border-line pt-2 mt-2">
                 <span className="text-ink font-medium">Net prestataire</span>
-                <span className="text-accent font-medium">{formatCurrency(netToProvider)}</span>
+                <span className="text-accent font-medium">{formatCurrency(netToProvider, order.currency)}</span>
               </div>
             </div>
           </Card>
@@ -371,7 +371,7 @@ export function OrderDetailPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted">Montant</span>
                     <span className="text-sm font-normal text-accent">
-                      {formatCurrency(order.payment.amount)}
+                      {formatCurrency(order.payment.amount, order.payment.currency ?? order.currency)}
                     </span>
                   </div>
                   {order.payment.paidAt && (

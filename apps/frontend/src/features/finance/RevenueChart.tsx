@@ -8,9 +8,16 @@ interface DataPoint {
 
 interface RevenueChartProps {
   data: DataPoint[];
+  /** All points are in this currency (never mixed). */
+  currency?: string;
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+const symbolOf = (currency: string) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+    .formatToParts(0)
+    .find((p) => p.type === 'currency')?.value ?? currency;
+
+export function RevenueChart({ data, currency = 'EUR' }: RevenueChartProps) {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; point: DataPoint } | null>(null);
 
   if (!data || data.length === 0) {
@@ -71,7 +78,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 fontSize="10"
                 className="fill-muted tabular"
               >
-                {value >= 1000 ? `${Math.round(value / 1000)}k` : Math.round(value)}€
+                {value >= 1000 ? `${Math.round(value / 1000)}k` : Math.round(value)} {symbolOf(currency)}
               </text>
             </g>
           );
@@ -156,7 +163,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
             })}
           </p>
           <p className="text-sm font-medium text-accent">
-            {formatCurrency(tooltip.point.amount)}
+            {formatCurrency(tooltip.point.amount, currency)}
           </p>
         </div>
       )}

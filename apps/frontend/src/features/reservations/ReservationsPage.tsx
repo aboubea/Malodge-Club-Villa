@@ -35,13 +35,15 @@ const SELECT_CLS =
 
 interface Reservation {
   id: string;
-  checkIn: string;
-  checkOut: string;
+  checkIn: string | null;
+  checkOut: string | null;
   status: string;
   totalAmount: number;
+  /** Currency of totalAmount (Lodgify's); null = the villa's. */
+  currency?: string | null;
   guests?: number;
   notes?: string;
-  villa: { id: string; name: string; city: string };
+  villa: { id: string; name: string; city: string; currency?: string };
   client: { id: string; firstName: string; lastName: string; email: string };
 }
 
@@ -351,7 +353,7 @@ export function ReservationsPage() {
                       <td className="px-4 py-3.5">
                         <span className="px-2 py-0.5 rounded-full text-[10px] border border-line text-muted capitalize">{r.status}</span>
                       </td>
-                      <td className="px-4 py-3.5 text-accent font-normal">{formatCurrency(r.totalAmount)}</td>
+                      <td className="px-4 py-3.5 text-accent font-normal">{formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}</td>
                     </motion.tr>
                   ))
                 }
@@ -461,7 +463,7 @@ export function ReservationsPage() {
                         <Badge variant={sc.variant}>{sc.label}</Badge>
                       </td>
                       <td className="px-4 py-3.5 text-accent font-normal whitespace-nowrap">
-                        {formatCurrency(r.totalAmount)}
+                        {formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {canEdit && (
@@ -639,7 +641,7 @@ export function ReservationsPage() {
               onChange={set('guests')}
             />
             <Input
-              label="Montant total (€) *"
+              label={`Montant total (${villas.find((v: any) => v.id === form.villaId)?.currency ?? 'EUR'}) *`}
               type="number"
               min="0"
               step="0.01"

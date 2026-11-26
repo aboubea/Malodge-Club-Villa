@@ -247,7 +247,7 @@ export function OrdersPage() {
                       {!isClient && (
                         <>
                           <td className="px-4 py-3 text-sm font-normal text-accent">
-                            {formatCurrency(order.totalAmount)}
+                            {formatCurrency(order.totalAmount, order.currency)}
                           </td>
                           <td className="px-4 py-3">
                             <OrderStatusBadge status={order.status} />
@@ -269,7 +269,7 @@ export function OrdersPage() {
                       {isClient && (
                         <>
                           <td className="px-4 py-3 text-sm font-normal text-accent">
-                            {formatCurrency(order.totalAmount)}
+                            {formatCurrency(order.totalAmount, order.currency)}
                           </td>
                           <td className="px-4 py-3">
                             <OrderStatusBadge status={order.status} />

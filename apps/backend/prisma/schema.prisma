@@ -256,6 +256,8 @@ model Reservation {
   checkOut       DateTime?
   guests         Int               @default(1)
   totalAmount    Float
+  /// Currency of totalAmount (Lodgify's currency_code); null = the villa's currency
+  currency       String?
   status         ReservationStatus @default(PENDING)
   notes          String?
   source         String?           @default("manual")

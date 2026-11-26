@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { VillaCurrencies, orderCurrency } from '../../common/money';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@malodge/shared';
 
@@ -85,10 +86,19 @@ export class OrdersService {
       this.prisma.order.count({ where }),
     ]);
 
+    // Each order carries its currency (its villa's): dirhams are never shown as euros.
+    const villaCur = await this.villaCurrencies([...orders.flatMap((o) => [o.villaId, o.reservation?.villaId])]);
     return {
-      data: orders,
+      data: orders.map((o) => ({ ...o, currency: orderCurrency(villaCur, o) })),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  private async villaCurrencies(ids: (string | null | undefined)[]): Promise<VillaCurrencies> {
+    const wanted = [...new Set(ids.filter((x): x is string => !!x))];
+    if (!wanted.length) return new Map();
+    const villas = await this.prisma.villa.findMany({ where: { id: { in: wanted } }, select: { id: true, currency: true } });
+    return new Map(villas.map((v) => [v.id, v.currency]));
   }
 
   async findOne(id: string) {
@@ -112,7 +122,8 @@ export class OrdersService {
     });
 
     if (!order) throw new NotFoundException(`Order ${id} not found`);
-    return order;
+    const villaCur = await this.villaCurrencies([order.villaId, order.reservation?.villaId]);
+    return { ...order, currency: orderCurrency(villaCur, order) };
   }
 
   async create(dto: CreateOrderDto & { clientId: string }) {
@@ -163,10 +174,12 @@ export class OrdersService {
       },
     });
 
+    const villaCur = await this.villaCurrencies([order.villaId, order.reservation?.villaId]);
+    const priced = { ...order, currency: orderCurrency(villaCur, order) };
     // Build WhatsApp URL for the preferred provider of the first service
-    const whatsappUrl = this.buildWhatsappUrl(order);
+    const whatsappUrl = this.buildWhatsappUrl(priced);
 
-    return { ...order, whatsappUrl };
+    return { ...priced, whatsappUrl };
   }
 
   private buildWhatsappUrl(order: any): string | null {
@@ -194,7 +207,7 @@ export class OrdersService {
       `✦ Service : ${serviceName}`,
       `🏠 Villa : ${villaName}`,
       `📅 Date : ${dateStr}`,
-      `💰 Montant : ${order.totalAmount?.toFixed(2)} €`,
+      `💰 Montant : ${order.totalAmount?.toFixed(2)} ${order.currency ?? 'EUR'}`,
       '',
       `Confirmez votre disponibilité :`,
       `✅ Accepter : ${appUrl}/confirmer?orderId=${order.id}&action=accept`,

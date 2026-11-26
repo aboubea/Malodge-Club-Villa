@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DEFAULT_CURRENCY, orderCurrency, totalsByCurrency } from '../../common/money';
 
 @Injectable()
 export class DashboardService {
@@ -12,8 +13,9 @@ export class DashboardService {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
     const [
-      totalRevenueResult,
-      lastMonthRevenueResult,
+      monthOrders,
+      lastMonthOrders,
+      villaRows,
       activeReservations,
       pendingOrders,
       recentReservations,
@@ -22,20 +24,15 @@ export class DashboardService {
       clientsThisMonth,
       ordersThisMonth,
     ] = await Promise.all([
-      this.prisma.order.aggregate({
-        where: {
-          status: { in: ['COMPLETED', 'IN_PROGRESS'] },
-          createdAt: { gte: startOfMonth },
-        },
-        _sum: { totalAmount: true },
+      this.prisma.order.findMany({
+        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, createdAt: { gte: startOfMonth } },
+        select: { totalAmount: true, villaId: true, reservation: { select: { villaId: true } } },
       }),
-      this.prisma.order.aggregate({
-        where: {
-          status: { in: ['COMPLETED', 'IN_PROGRESS'] },
-          createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-        },
-        _sum: { totalAmount: true },
+      this.prisma.order.findMany({
+        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        select: { totalAmount: true, villaId: true, reservation: { select: { villaId: true } } },
       }),
+      this.prisma.villa.findMany({ select: { id: true, currency: true } }),
       this.prisma.reservation.count({
         where: { status: { in: ['CONFIRMED', 'ACTIVE'] } },
       }),
@@ -60,11 +57,20 @@ export class DashboardService {
       }),
     ]);
 
-    const totalRevenue = totalRevenueResult._sum.totalAmount ?? 0;
-    const lastMonthRevenue = lastMonthRevenueResult._sum.totalAmount ?? 0;
-    const revenueChange = lastMonthRevenue > 0
-      ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
-      : 0;
+    // Revenue per currency: dirhams and euros are never added together.
+    const villaCur = new Map(villaRows.map((v) => [v.id, v.currency || DEFAULT_CURRENCY]));
+    const thisMonth = totalsByCurrency(monthOrders, (o) => orderCurrency(villaCur, o), (o) => o.totalAmount);
+    const lastMonth = totalsByCurrency(lastMonthOrders, (o) => orderCurrency(villaCur, o), (o) => o.totalAmount);
+    const revenueByCurrency = [...new Set([...thisMonth, ...lastMonth].map((t) => t.currency))]
+      .map((currency) => {
+        const amount = thisMonth.find((t) => t.currency === currency)?.amount ?? 0;
+        const previous = lastMonth.find((t) => t.currency === currency)?.amount ?? 0;
+        return { currency, amount, previous, change: previous > 0 ? Math.round(((amount - previous) / previous) * 100) : 0 };
+      })
+      .sort((a, b) => b.amount - a.amount);
+    const main = revenueByCurrency[0];
+    const totalRevenue = main?.amount ?? 0;
+    const revenueChange = main?.change ?? 0;
 
     const occupancyRate = villaCount > 0
       ? Math.round((activeReservations / villaCount) * 100)
@@ -73,6 +79,9 @@ export class DashboardService {
     return {
       kpis: {
         totalRevenue,
+        /** Currency of totalRevenue; the others are in revenueByCurrency. */
+        revenueCurrency: main?.currency ?? DEFAULT_CURRENCY,
+        revenueByCurrency,
         revenueChange: Math.round(revenueChange),
         activeReservations,
         pendingOrders,

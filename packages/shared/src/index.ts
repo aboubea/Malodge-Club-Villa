@@ -149,6 +149,9 @@ export interface VillaDto {
   bathrooms: number;
   isActive: boolean;
   logifyId?: string | null;
+  /** ISO 4217 code used for this villa's extras (MAD in Morocco, EUR in France…). */
+  currency?: string;
+  ownerId?: string | null;
   customFields?: Array<{ label: string; value: string }> | null;
   createdAt: string;
   updatedAt: string;

@@ -14,8 +14,8 @@ export class FinanceController {
   @Get('dashboard')
   @Roles(Role.MANAGER)
   @ApiOperation({ summary: 'Get finance dashboard KPIs — MANAGER+ only' })
-  getDashboard(@Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month') {
-    return this.financeService.getDashboard(period);
+  getDashboard(@Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month', @Query('currency') currency?: string) {
+    return this.financeService.getDashboard(period, currency);
   }
 
   @Get('provider-payouts')
@@ -53,7 +53,8 @@ export class FinanceController {
     @Query('period') period: string = 'month',
     @Query('format') format: 'pdf' | 'excel' | 'csv' = 'pdf',
     @Res() res: Response,
+    @Query('currency') currency?: string,
   ) {
-    return this.financeService.exportReport(period, format, res);
+    return this.financeService.exportReport(period, format, res, currency);
   }
 }

@@ -618,9 +618,9 @@ export function VillaDetailPage() {
                         ) : (
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="text-sm font-normal text-accent">{formatCurrency(effectivePrice)}</p>
+                              <p className="text-sm font-normal text-accent">{formatCurrency(effectivePrice, vs.service.currency ?? villa.currency ?? 'EUR')}</p>
                               {vs.customPrice && (
-                                <p className="text-[10px] text-muted">défaut: {formatCurrency(vs.service.basePrice)}</p>
+                                <p className="text-[10px] text-muted">défaut: {formatCurrency(vs.service.basePrice, vs.service.currency ?? villa.currency ?? 'EUR')}</p>
                               )}
                               <p className="text-[10px] text-muted">Comm. {vs.commission ?? 15}% → {
                                 vs.commissionTo === 'owner' ? 'Proprio' :
@@ -673,7 +673,7 @@ export function VillaDetailPage() {
                 <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-surface border border-line hover:border-accent/20 transition-colors">
                   <div>
                     <p className="text-sm text-ink">{s.name}</p>
-                    <p className="text-[11px] text-muted">{s.category?.name} · {formatCurrency(s.basePrice)}</p>
+                    <p className="text-[11px] text-muted">{s.category?.name} · {formatCurrency(s.basePrice, s.currency ?? 'EUR')}</p>
                   </div>
                   <Button
                     size="sm"

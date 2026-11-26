@@ -148,6 +148,7 @@ async function bootstrap() {
       // A stay whose dates are not known has none (never an invented date).
       `ALTER TABLE "Reservation" ALTER COLUMN "checkIn" DROP NOT NULL`,
       `ALTER TABLE "Reservation" ALTER COLUMN "checkOut" DROP NOT NULL`,
+      `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "currency" TEXT`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DATA TYPE DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DEFAULT 1`,
       `CREATE TABLE IF NOT EXISTS "Settlement" (

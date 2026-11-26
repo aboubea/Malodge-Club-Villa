@@ -49,7 +49,7 @@ export class ReservationsService {
         skip,
         take: limit,
         include: {
-          villa: { select: { id: true, name: true, city: true, coverImage: true } },
+          villa: { select: { id: true, name: true, city: true, coverImage: true, currency: true } },
           client: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
         },
         orderBy: { checkIn: 'desc' },
@@ -117,7 +117,7 @@ export class ReservationsService {
         checkOut,
       },
       include: {
-        villa: { select: { id: true, name: true, city: true } },
+        villa: { select: { id: true, name: true, city: true, currency: true } },
         client: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
@@ -133,7 +133,7 @@ export class ReservationsService {
       where: { id },
       data,
       include: {
-        villa: { select: { id: true, name: true } },
+        villa: { select: { id: true, name: true, currency: true } },
         client: { select: { id: true, firstName: true, lastName: true } },
       },
     });

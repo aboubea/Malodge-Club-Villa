@@ -164,8 +164,17 @@ export function DashboardPage() {
               <Skeleton className="relative h-14 w-56 mt-6" />
             ) : (
               <BigNumber className="relative mt-5 text-[34px] sm:text-[38px]">
-                {formatCurrency(kpis?.totalRevenue ?? 0)}
+                {formatCurrency(kpis?.totalRevenue ?? 0, kpis?.revenueCurrency ?? 'EUR')}
               </BigNumber>
+            )}
+            {(kpis?.revenueByCurrency?.length ?? 0) > 1 && (
+              <p className="relative text-[13px] font-semibold text-ink-soft mt-2 tabular">
+                {kpis!.revenueByCurrency!
+                  .slice(1)
+                  .map((r) => `+ ${formatCurrency(r.amount, r.currency)}`)
+                  .join('  ·  ')}
+                <span className="font-normal text-muted"> (non convertis)</span>
+              </p>
             )}
             <p className="relative text-[13px] text-muted mt-4">
               {kpis && kpis.revenueChange !== 0

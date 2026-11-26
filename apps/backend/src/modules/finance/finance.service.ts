@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Response } from 'express';
+import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, reservationCurrency, totalsByCurrency } from '../../common/money';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -35,10 +36,20 @@ function getPeriodRange(period: Period): { start: Date; end: Date } {
 export class FinanceService {
   constructor(private prisma: PrismaService) {}
 
-  async getDashboard(period: Period) {
-    const { start, end } = getPeriodRange(period);
+  private async villaCurrencies(): Promise<VillaCurrencies> {
+    const villas = await this.prisma.villa.findMany({ select: { id: true, currency: true } });
+    return new Map(villas.map((v) => [v.id, v.currency || DEFAULT_CURRENCY]));
+  }
 
-    const completedOrders = await this.prisma.order.findMany({
+  /**
+   * Figures of one currency only (amounts in MAD and in EUR are never added):
+   * `currency` picks it, by default the one with the most revenue in the period.
+   */
+  async getDashboard(period: Period, askedCurrency?: string) {
+    const { start, end } = getPeriodRange(period);
+    const villaCur = await this.villaCurrencies();
+
+    const allOrders = await this.prisma.order.findMany({
       where: {
         status: { in: ['COMPLETED', 'IN_PROGRESS'] },
         createdAt: { gte: start, lte: end },
@@ -51,6 +62,27 @@ export class FinanceService {
       },
     });
 
+    // Accommodation revenue (from reservations in the same period)
+    const allReservations = await this.prisma.reservation.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'COMPLETED'] },
+        createdAt: { gte: start, lte: end },
+      },
+      include: { villa: { select: { currency: true } } },
+    });
+
+    const currencies = totalsByCurrency(
+      [
+        ...allOrders.map((o) => ({ c: orderCurrency(villaCur, o), a: o.totalAmount })),
+        ...allReservations.map((r) => ({ c: reservationCurrency(r), a: r.totalAmount })),
+      ],
+      (x) => x.c,
+      (x) => x.a,
+    );
+    const currency = pickCurrency(currencies, askedCurrency);
+    const completedOrders = allOrders.filter((o) => orderCurrency(villaCur, o) === currency);
+    const reservations = allReservations.filter((r) => reservationCurrency(r) === currency);
+
     // Total revenue
     const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
     const totalCommissions = completedOrders.reduce((sum, o) => sum + o.commission, 0);
@@ -59,13 +91,6 @@ export class FinanceService {
     const serviceRevenue = completedOrders.reduce((sum, o) =>
       sum + o.items.reduce((s, i) => s + i.total, 0), 0);
 
-    // Accommodation revenue (from reservations in the same period)
-    const reservations = await this.prisma.reservation.findMany({
-      where: {
-        status: { in: ['ACTIVE', 'COMPLETED'] },
-        createdAt: { gte: start, lte: end },
-      },
-    });
     const accommodationRevenue = reservations.reduce((sum, r) => sum + r.totalAmount, 0);
 
     // Concierge margin
@@ -136,6 +161,9 @@ export class FinanceService {
     ].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
     return {
+      currency,
+      /** Every currency with money in the period, largest first: switch with `currency`. */
+      currencies,
       totalRevenue,
       serviceRevenue,
       accommodationRevenue,
@@ -151,6 +179,7 @@ export class FinanceService {
   }
 
   async getProviderPayouts(month: number, year: number) {
+    const villaCur = await this.villaCurrencies();
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -172,6 +201,7 @@ export class FinanceService {
 
     const payoutMap = new Map<string, {
       providerId: string;
+      currency: string;
       name: string;
       email: string;
       grossAmount: number;
@@ -185,8 +215,12 @@ export class FinanceService {
       const providerId = order.provider.id;
       const name = `${order.provider.user.firstName} ${order.provider.user.lastName}`;
       const email = order.provider.user.email;
-      const existing = payoutMap.get(providerId) || {
+      // One line per provider and currency: MAD and EUR are never added together.
+      const currency = orderCurrency(villaCur, order);
+      const key = `${providerId}|${currency}`;
+      const existing = payoutMap.get(key) || {
         providerId,
+        currency,
         name,
         email,
         grossAmount: 0,
@@ -198,7 +232,7 @@ export class FinanceService {
       existing.commission += order.commission;
       existing.netAmount += order.totalAmount - order.commission;
       existing.orderCount += 1;
-      payoutMap.set(providerId, existing);
+      payoutMap.set(key, existing);
     }
 
     return Array.from(payoutMap.values()).sort((a, b) => b.netAmount - a.netAmount);
@@ -218,6 +252,7 @@ export class FinanceService {
           select: {
             id: true,
             name: true,
+            currency: true,
             managers: {
               include: {
                 user: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -230,6 +265,7 @@ export class FinanceService {
 
     const payoutMap = new Map<string, {
       villaId: string;
+      currency: string;
       name: string;
       ownerName: string;
       grossAmount: number;
@@ -242,8 +278,11 @@ export class FinanceService {
 
     for (const res of reservations) {
       const villaId = res.villa.id;
-      const existing = payoutMap.get(villaId) || {
+      const currency = reservationCurrency(res);
+      const key = `${villaId}|${currency}`;
+      const existing = payoutMap.get(key) || {
         villaId,
+        currency,
         name: res.villa.name,
         ownerName: res.villa.managers[0]
           ? `${res.villa.managers[0].user.firstName} ${res.villa.managers[0].user.lastName}`
@@ -258,17 +297,17 @@ export class FinanceService {
       existing.managementFee += fee;
       existing.netAmount += res.totalAmount - fee;
       existing.stayCount += 1;
-      payoutMap.set(villaId, existing);
+      payoutMap.set(key, existing);
     }
 
     return Array.from(payoutMap.values()).sort((a, b) => b.netAmount - a.netAmount);
   }
 
-  async exportReport(period: string, format: 'pdf' | 'excel' | 'csv', res: Response) {
+  async exportReport(period: string, format: 'pdf' | 'excel' | 'csv', res: Response, currency?: string) {
     const validPeriod = (['day', 'week', 'month', 'year'].includes(period) ? period : 'month') as Period;
-    const data = await this.getDashboard(validPeriod);
+    const data = await this.getDashboard(validPeriod, currency);
     const now = new Date();
-    const filename = `rapport-finances-${period}-${now.toISOString().split('T')[0]}`;
+    const filename = `rapport-finances-${period}-${data.currency}-${now.toISOString().split('T')[0]}`;
 
     if (format === 'csv') {
       const csv = this.generateCsv(data, period);
@@ -292,6 +331,7 @@ export class FinanceService {
     const lines: string[] = [];
     lines.push(`Rapport Finances - Période: ${period}`);
     lines.push(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`);
+    lines.push(`Devise: ${data.currency} (montants non convertis${data.currencies?.length > 1 ? `, autres devises : ${data.currencies.filter((c: any) => c.currency !== data.currency).map((c: any) => c.currency).join(', ')}` : ''})`);
     lines.push('');
     lines.push('RÉSUMÉ');
     lines.push(`CA Total,${data.totalRevenue}`);
@@ -331,7 +371,7 @@ export class FinanceService {
     const summarySheet = workbook.addWorksheet('Résumé');
     summarySheet.addRow(['Rapport Finances', `Période: ${period}`]);
     summarySheet.addRow([]);
-    summarySheet.addRow(['Indicateur', 'Valeur (€)']);
+    summarySheet.addRow(['Indicateur', `Valeur (${data.currency})`]);
     summarySheet.addRow(['CA Total', data.totalRevenue]);
     summarySheet.addRow(['CA Services', data.serviceRevenue]);
     summarySheet.addRow(['CA Hébergement', data.accommodationRevenue]);
@@ -340,21 +380,21 @@ export class FinanceService {
 
     // Villa sheet
     const villaSheet = workbook.addWorksheet('CA par Villa');
-    villaSheet.addRow(['Villa', 'Montant (€)']);
+    villaSheet.addRow(['Villa', `Montant (${data.currency})`]);
     for (const v of data.revenueByVilla) {
       villaSheet.addRow([v.name, v.amount]);
     }
 
     // Service sheet
     const serviceSheet = workbook.addWorksheet('CA par Service');
-    serviceSheet.addRow(['Service', 'Montant (€)']);
+    serviceSheet.addRow(['Service', `Montant (${data.currency})`]);
     for (const s of data.revenueByService) {
       serviceSheet.addRow([s.name, s.amount]);
     }
 
     // Provider payouts sheet
     const providerSheet = workbook.addWorksheet('Reversements Prestataires');
-    providerSheet.addRow(['Prestataire', 'Montant Net (€)']);
+    providerSheet.addRow(['Prestataire', `Montant net (${data.currency})`]);
     for (const p of data.providerPayouts) {
       providerSheet.addRow([p.name, p.amount]);
     }
@@ -385,11 +425,11 @@ export class FinanceService {
       doc.moveDown(0.5);
 
       const kpis = [
-        ['CA Total', `${data.totalRevenue.toLocaleString('fr-FR')} €`],
-        ['CA Services', `${data.serviceRevenue.toLocaleString('fr-FR')} €`],
-        ['CA Hébergement', `${data.accommodationRevenue.toLocaleString('fr-FR')} €`],
-        ['Commissions totales', `${data.totalCommissions.toLocaleString('fr-FR')} €`],
-        ['Marge conciergerie', `${data.conciergeMargin.toLocaleString('fr-FR')} €`],
+        ['CA Total', `${data.totalRevenue.toLocaleString('fr-FR')} ${data.currency}`],
+        ['CA Services', `${data.serviceRevenue.toLocaleString('fr-FR')} ${data.currency}`],
+        ['CA Hébergement', `${data.accommodationRevenue.toLocaleString('fr-FR')} ${data.currency}`],
+        ['Commissions totales', `${data.totalCommissions.toLocaleString('fr-FR')} ${data.currency}`],
+        ['Marge conciergerie', `${data.conciergeMargin.toLocaleString('fr-FR')} ${data.currency}`],
       ];
 
       for (const [label, value] of kpis) {
@@ -405,7 +445,7 @@ export class FinanceService {
         doc.moveDown(0.5);
         for (const v of data.revenueByVilla.slice(0, 10)) {
           doc.fontSize(10).fillColor('#333').text(v.name, { continued: true });
-          doc.fillColor('#555').text(` — ${v.amount.toLocaleString('fr-FR')} €`, { align: 'right' });
+          doc.fillColor('#555').text(` — ${v.amount.toLocaleString('fr-FR')} ${data.currency}`, { align: 'right' });
         }
         doc.moveDown(1.5);
       }
@@ -416,7 +456,7 @@ export class FinanceService {
         doc.moveDown(0.5);
         for (const s of data.revenueByService.slice(0, 10)) {
           doc.fontSize(10).fillColor('#333').text(s.name, { continued: true });
-          doc.fillColor('#555').text(` — ${s.amount.toLocaleString('fr-FR')} €`, { align: 'right' });
+          doc.fillColor('#555').text(` — ${s.amount.toLocaleString('fr-FR')} ${data.currency}`, { align: 'right' });
         }
         doc.moveDown(1.5);
       }
@@ -427,7 +467,7 @@ export class FinanceService {
         doc.moveDown(0.5);
         for (const p of data.providerPayouts) {
           doc.fontSize(10).fillColor('#333').text(p.name, { continued: true });
-          doc.fillColor('#555').text(` — ${p.amount.toLocaleString('fr-FR')} €`, { align: 'right' });
+          doc.fillColor('#555').text(` — ${p.amount.toLocaleString('fr-FR')} ${data.currency}`, { align: 'right' });
         }
       }
 

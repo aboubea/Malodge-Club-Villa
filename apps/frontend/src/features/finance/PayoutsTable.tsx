@@ -20,9 +20,11 @@ interface PayoutsTableProps {
   type: 'provider' | 'owner';
   data: PayoutRow[];
   onMarkPaid?: (id: string) => void;
+  /** Every row is in this currency (rows of other currencies are shown separately). */
+  currency?: string;
 }
 
-export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
+export function PayoutsTable({ type, data, onMarkPaid, currency = 'EUR' }: PayoutsTableProps) {
   const [paidIds, setPaidIds] = useState<Set<string>>(new Set());
 
   function handleMarkPaid(id: string) {
@@ -83,13 +85,13 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right text-sm text-ink">
-                  {formatCurrency(row.grossAmount)}
+                  {formatCurrency(row.grossAmount, currency)}
                 </td>
                 <td className="px-4 py-3 text-right text-sm text-muted">
-                  - {formatCurrency(fee)}
+                  - {formatCurrency(fee, currency)}
                 </td>
                 <td className="px-4 py-3 text-right text-sm font-medium text-accent">
-                  {formatCurrency(row.netAmount)}
+                  {formatCurrency(row.netAmount, currency)}
                 </td>
                 <td className="px-4 py-3 text-center">
                   {isPaid ? (
@@ -120,13 +122,13 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
           <tr>
             <td className="px-4 py-3 text-sm font-medium text-muted">Total</td>
             <td className="px-4 py-3 text-right text-sm font-medium text-ink">
-              {formatCurrency(data.reduce((s, r) => s + r.grossAmount, 0))}
+              {formatCurrency(data.reduce((s, r) => s + r.grossAmount, 0), currency)}
             </td>
             <td className="px-4 py-3 text-right text-sm text-muted">
-              - {formatCurrency(data.reduce((s, r) => s + (r.commission ?? r.managementFee ?? 0), 0))}
+              - {formatCurrency(data.reduce((s, r) => s + (r.commission ?? r.managementFee ?? 0), 0), currency)}
             </td>
             <td className="px-4 py-3 text-right text-sm font-medium text-accent">
-              {formatCurrency(data.reduce((s, r) => s + r.netAmount, 0))}
+              {formatCurrency(data.reduce((s, r) => s + r.netAmount, 0), currency)}
             </td>
             <td colSpan={2} />
           </tr>

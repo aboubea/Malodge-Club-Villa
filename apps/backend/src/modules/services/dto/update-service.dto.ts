@@ -1,7 +1,13 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, IsPositive } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, IsPositive, Matches } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateServiceDto {
+  /** ISO 4217 code of the prices (EUR, MAD…). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/)
+  currency?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
