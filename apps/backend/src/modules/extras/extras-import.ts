@@ -176,6 +176,14 @@ export async function parseWorkbook(buffer: Buffer) {
 
 /* ──────────────────────────────── Import ─────────────────────────────── */
 
+/** Ids are generated here so related rows can be written in batches without round trips. */
+const newId = () => `c${Date.now().toString(36)}${randomBytes(9).toString('hex')}`;
+
+/**
+ * Resolves everything in memory against preloaded data, then writes in a handful
+ * of batched statements (≈20 queries in total, whatever the file size), so the
+ * import fits comfortably in a serverless function even with a distant database.
+ */
 async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>, report: ImportReport, force: boolean) {
   const previous = await tx.appSetting.findUnique({ where: { key: IMPORT_KEY } });
   if (previous && !force) throw new ImportAlreadyDoneError(previous.value);
@@ -183,7 +191,6 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   const warn = (m: string) => report.warnings.push(m);
   const passwordHash = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
 
-  // Preload everything that is matched by name, to keep the number of queries low.
   const [users, providers, villaRows, categories, services] = await Promise.all([
     tx.user.findMany({ where: { role: { in: ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'] } }, select: { id: true, firstName: true, lastName: true, role: true } }),
     tx.provider.findMany({ select: { id: true, userId: true } }),
@@ -191,6 +198,7 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     tx.serviceCategory.findMany({ select: { id: true, name: true, slug: true } }),
     tx.service.findMany({ select: { id: true, name: true, slug: true } }),
   ]);
+
   const userIds = new Map<string, string>(users.map((u) => [`${u.role}|${key(`${u.firstName} ${u.lastName}`)}`, u.id]));
   const providerByUser = new Map(providers.map((p) => [p.userId, p.id]));
   const villaIds = new Map(villaRows.map((v) => [key(v.name), v.id]));
@@ -199,7 +207,6 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   const categorySlugs = new Set(categories.map((c) => c.slug));
   const serviceIds = new Map(services.map((s) => [key(s.name), s.id]));
   const serviceSlugs = new Set(services.map((s) => s.slug));
-  const touched = new Set<string>();
   const uniqueSlug = (base: string, taken: Set<string>) => {
     let slug = slugify(base);
     while (taken.has(slug)) slug = `${slugify(base)}-${randomBytes(2).toString('hex')}`;
@@ -207,34 +214,52 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     return slug;
   };
 
-  async function person(role: Role, name: string, data: Record<string, unknown> = {}) {
+  // Pending writes
+  const newUsers = new Map<string, Prisma.UserCreateManyInput>();
+  const userUpdates = new Map<string, Prisma.UserUpdateInput>();
+  const newProviders: Prisma.ProviderCreateManyInput[] = [];
+  const newVillas: Prisma.VillaCreateManyInput[] = [];
+  const villaUpdates = new Map<string, Prisma.VillaUncheckedUpdateInput>();
+  const newCategories: Prisma.ServiceCategoryCreateManyInput[] = [];
+  const newServices: Prisma.ServiceCreateManyInput[] = [];
+  const serviceUpdates = new Map<string, Prisma.ServiceUncheckedUpdateInput>();
+  const newStays: Prisma.ReservationCreateManyInput[] = [];
+  const newOrders: Prisma.OrderCreateManyInput[] = [];
+  const newItems: Prisma.OrderItemCreateManyInput[] = [];
+  const newSettlements: Prisma.SettlementCreateManyInput[] = [];
+  const counted = new Set<string>();
+
+  function person(role: Role, name: string, fields: Record<string, unknown> = {}) {
     const k = `${role}|${key(name)}`;
     let id = userIds.get(k);
-    if (id) {
-      if (Object.keys(data).length) await tx.user.update({ where: { id }, data });
-      if (!touched.has(k)) report.people[role].reused++;
-    } else {
+    if (!id) {
+      id = newId();
       const [firstName, ...rest] = name.split(/\s+/);
-      id = (
-        await tx.user.create({
-          data: {
-            email: `${slugify(name)}-${randomBytes(4).toString('hex')}@fiche.malodge.invalid`,
-            password: passwordHash,
-            firstName,
-            lastName: rest.join(' '),
-            role,
-            canLogin: false,
-            ...data,
-          },
-          select: { id: true },
-        })
-      ).id;
+      newUsers.set(id, {
+        id,
+        email: `${slugify(name)}-${randomBytes(4).toString('hex')}@fiche.malodge.invalid`,
+        password: passwordHash,
+        firstName,
+        lastName: rest.join(' '),
+        role,
+        canLogin: false,
+      });
       userIds.set(k, id);
       report.people[role].created++;
+      counted.add(k);
+    } else if (!counted.has(k)) {
+      report.people[role].reused++;
+      counted.add(k);
     }
-    touched.add(k);
+    if (Object.keys(fields).length) {
+      const pending = newUsers.get(id);
+      if (pending) Object.assign(pending, fields);
+      else userUpdates.set(id, { ...(userUpdates.get(id) ?? {}), ...fields });
+    }
     if (role === 'PROVIDER' && !providerByUser.has(id)) {
-      providerByUser.set(id, (await tx.provider.create({ data: { userId: id }, select: { id: true } })).id);
+      const providerId = newId();
+      providerByUser.set(id, providerId);
+      newProviders.push({ id: providerId, userId: id });
     }
     return id;
   }
@@ -246,7 +271,7 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       warn(`Type de personne inconnu « ${p.type} » pour ${p.name} : ligne ignorée.`);
       continue;
     }
-    await person(role, p.name, {
+    person(role, p.name, {
       ...(p.contact ? { phone: p.contact } : {}),
       ...(p.notes ? { notes: p.notes } : {}),
       ...(role === 'OWNER' || role === 'EMPLOYEE' ? { commissionRate: p.rate } : {}),
@@ -262,17 +287,15 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   }
   for (const [k, name] of villaNames) {
     const ownerName = data.villas.find((v) => key(v.name) === k)?.owner;
-    const ownerId = ownerName ? await person('OWNER', ownerName) : null;
+    const ownerId = ownerName ? person('OWNER', ownerName) : null;
     const existing = villaIds.get(k);
     if (existing) {
-      await tx.villa.update({ where: { id: existing }, data: { currency: CURRENCY, ...(ownerId ? { ownerId } : {}) } });
+      villaUpdates.set(existing, { currency: CURRENCY, ...(ownerId ? { ownerId } : {}) });
       report.villas.updated.push(name);
     } else {
-      const v = await tx.villa.create({
-        data: { name, slug: uniqueSlug(name, villaSlugs), address: 'À compléter', city: 'Marrakech', country: 'Maroc', currency: CURRENCY, ownerId, isActive: true },
-        select: { id: true },
-      });
-      villaIds.set(k, v.id);
+      const id = newId();
+      newVillas.push({ id, name, slug: uniqueSlug(name, villaSlugs), address: 'À compléter', city: 'Marrakech', country: 'Maroc', currency: CURRENCY, ownerId, isActive: true });
+      villaIds.set(k, id);
       report.villas.created.push(name);
     }
   }
@@ -282,11 +305,12 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   for (const c of data.catalogue) {
     let categoryId = categoryIds.get(key(c.category));
     if (!categoryId) {
-      categoryId = (await tx.serviceCategory.create({ data: { name: c.category, slug: uniqueSlug(c.category, categorySlugs) }, select: { id: true } })).id;
+      categoryId = newId();
+      newCategories.push({ id: categoryId, name: c.category, slug: uniqueSlug(c.category, categorySlugs) });
       categoryIds.set(key(c.category), categoryId);
       report.catalogue.categoriesCreated.push(c.category);
     }
-    const providerUser = c.provider ? await person('PROVIDER', c.provider) : null;
+    const providerUser = c.provider ? person('PROVIDER', c.provider) : null;
     const fields = {
       categoryId,
       unit: c.unit || null,
@@ -298,32 +322,31 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     };
     const existing = serviceIds.get(key(c.name));
     if (existing) {
-      await tx.service.update({ where: { id: existing }, data: fields });
+      serviceUpdates.set(existing, fields);
       report.catalogue.updated++;
     } else {
-      const s = await tx.service.create({ data: { ...fields, name: c.name, slug: uniqueSlug(c.name, serviceSlugs), isActive: true }, select: { id: true } });
-      serviceIds.set(key(c.name), s.id);
+      const id = newId();
+      newServices.push({ ...fields, id, name: c.name, slug: uniqueSlug(c.name, serviceSlugs), isActive: true });
+      serviceIds.set(key(c.name), id);
       report.catalogue.created++;
     }
   }
 
   // Stays (clients)
   const stays = new Map<string, { id: string; clientId: string; villaId: string }>();
-  async function stay(label: string, villaName: string, info?: (typeof data.people)[number]) {
+  function stay(label: string, villaName: string, info?: (typeof data.people)[number]) {
     const k = key(label);
     if (stays.has(k)) return stays.get(k)!;
     const villaId = villaIds.get(key(villaName));
     if (!villaId) return null;
-    const clientId = await person('CLIENT', label, info?.contact ? { phone: info.contact } : {});
+    const clientId = person('CLIENT', label, info?.contact ? { phone: info.contact } : {});
     const own = data.extras.filter((e) => key(e.stay) === k && e.date).map((e) => e.date!.getTime());
     const checkIn = info?.arrival ?? (own.length ? new Date(Math.min(...own)) : new Date());
     const checkOut = info?.departure ?? (own.length ? new Date(Math.max(...own)) : checkIn);
     const notes = [info?.notes, info?.arrival ? null : "Dates non renseignées dans l'Excel : déduites des extras, à vérifier."].filter(Boolean).join(' ');
-    const s = await tx.reservation.create({
-      data: { label, villaId, clientId, checkIn, checkOut, totalAmount: 0, status: 'CONFIRMED', archived: info?.archived ?? false, source: 'extras-import', notes: notes || null },
-      select: { id: true },
-    });
-    const entry = { id: s.id, clientId, villaId };
+    const id = newId();
+    newStays.push({ id, label, villaId, clientId, checkIn, checkOut, totalAmount: 0, status: 'CONFIRMED', archived: info?.archived ?? false, source: 'extras-import', notes: notes || null });
+    const entry = { id, clientId, villaId };
     stays.set(k, entry);
     report.stays.created++;
     return entry;
@@ -333,14 +356,14 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       warn(`Séjour « ${p.name} » sans villa : créé seulement s'il a des extras.`);
       continue;
     }
-    await stay(p.name, p.villa, p);
+    stay(p.name, p.villa, p);
   }
 
   // Extras
   for (const e of data.extras) {
     let s = stays.get(key(e.stay)) ?? null;
     if (!s && e.stay && e.villa) {
-      s = await stay(e.stay, e.villa);
+      s = stay(e.stay, e.villa);
       if (s) {
         report.stays.fromExtras.push(e.stay);
         warn(`Séjour « ${e.stay} » absent des réglages : créé depuis l'extra ligne ${e.row}, à vérifier.`);
@@ -351,27 +374,24 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       continue;
     }
     const serviceId = serviceIds.get(key(e.label)) ?? null;
-    const providerUser = e.provider ? await person('PROVIDER', e.provider) : null;
-    const sellerId = e.seller ? await person('EMPLOYEE', e.seller) : null;
+    const providerUser = e.provider ? person('PROVIDER', e.provider) : null;
+    const sellerId = e.seller ? person('EMPLOYEE', e.seller) : null;
     const qty = e.qty ?? 0;
     const total = e.price != null ? Math.round(qty * e.price * 100) / 100 : 0;
-    await tx.order.create({
-      data: {
-        clientId: s.clientId,
-        reservationId: s.id,
-        villaId: (e.villa && villaIds.get(key(e.villa))) || s.villaId,
-        providerId: providerUser ? providerByUser.get(providerUser)! : null,
-        sellerId,
-        status: e.status,
-        scheduledAt: e.date,
-        notes: e.note || null,
-        totalAmount: total,
-        items: {
-          create: { serviceId, label: serviceId ? null : e.label || 'À compléter', quantity: qty, unitPrice: e.price ?? 0, unitCost: e.cost, total },
-        },
-      },
-      select: { id: true },
+    const orderId = newId();
+    newOrders.push({
+      id: orderId,
+      clientId: s.clientId,
+      reservationId: s.id,
+      villaId: (e.villa && villaIds.get(key(e.villa))) || s.villaId,
+      providerId: providerUser ? providerByUser.get(providerUser)! : null,
+      sellerId,
+      status: e.status,
+      scheduledAt: e.date,
+      notes: e.note || null,
+      totalAmount: total,
     });
+    newItems.push({ id: newId(), orderId, serviceId, label: serviceId ? null : e.label || 'À compléter', quantity: qty, unitPrice: e.price ?? 0, unitCost: e.cost, total });
     report.extras++;
   }
 
@@ -393,21 +413,31 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       personId = s.clientId;
       reservationId = s.id;
     } else {
-      personId = await person(kind.startsWith('PROVIDER') ? 'PROVIDER' : kind.startsWith('OWNER') ? 'OWNER' : 'EMPLOYEE', st.person);
+      personId = person(kind.startsWith('PROVIDER') ? 'PROVIDER' : kind.startsWith('OWNER') ? 'OWNER' : 'EMPLOYEE', st.person);
     }
     const status = st.validation === 'Annulé' ? 'CANCELLED' : st.validation === 'Validé' && st.date ? 'VALIDATED' : 'PENDING';
     if (st.validation === 'Validé' && !st.date) warn(`Règlement de ${st.person} (${st.amount} ${CURRENCY}) sans date : importé « à valider ».`);
     const note = [st.note, st.validation === 'Validé' && !st.date ? "Importé « à valider » : date manquante dans l'Excel." : null].filter(Boolean).join(' ');
-    await tx.settlement.create({
-      data: {
-        kind: kind as any, status, personId, reservationId, date: st.date, amount: st.amount!, currency: CURRENCY,
-        method: st.method, reference: st.reference || null, note: note || null,
-        validatedAt: status === 'VALIDATED' ? new Date() : null,
-      },
-      select: { id: true },
+    newSettlements.push({
+      id: newId(), kind: kind as any, status, personId, reservationId, date: st.date, amount: st.amount!, currency: CURRENCY,
+      method: st.method, reference: st.reference || null, note: note || null, validatedAt: status === 'VALIDATED' ? new Date() : null,
     });
     report.settlements[status === 'VALIDATED' ? 'validated' : status === 'PENDING' ? 'pending' : 'cancelled']++;
   }
+
+  /* ── Batched writes, in foreign-key order ── */
+  if (newUsers.size) await tx.user.createMany({ data: [...newUsers.values()] });
+  for (const [id, fields] of userUpdates) await tx.user.update({ where: { id }, data: fields });
+  if (newProviders.length) await tx.provider.createMany({ data: newProviders });
+  if (newVillas.length) await tx.villa.createMany({ data: newVillas });
+  for (const [id, fields] of villaUpdates) await tx.villa.update({ where: { id }, data: fields });
+  if (newCategories.length) await tx.serviceCategory.createMany({ data: newCategories });
+  if (newServices.length) await tx.service.createMany({ data: newServices });
+  for (const [id, fields] of serviceUpdates) await tx.service.update({ where: { id }, data: fields });
+  if (newStays.length) await tx.reservation.createMany({ data: newStays });
+  if (newOrders.length) await tx.order.createMany({ data: newOrders });
+  if (newItems.length) await tx.orderItem.createMany({ data: newItems });
+  if (newSettlements.length) await tx.settlement.createMany({ data: newSettlements });
 
   await tx.appSetting.upsert({ where: { key: MARKUP_KEY }, update: {}, create: { key: MARKUP_KEY, value: 0.25 } });
   const stamp = { file: report.file, at: new Date().toISOString(), extras: report.extras, settlements: data.settlements.length };
@@ -442,7 +472,7 @@ export async function importExtrasWorkbook(
         await runImport(tx, data, report, !!opts.force);
         if (opts.dryRun) throw new Rollback();
       },
-      { maxWait: 10_000, timeout: 120_000 },
+      { maxWait: 10_000, timeout: 25_000 },
     );
   } catch (e) {
     if (!(e instanceof Rollback)) throw e;

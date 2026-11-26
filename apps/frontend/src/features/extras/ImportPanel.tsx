@@ -23,8 +23,13 @@ interface ImportReport {
 const PEOPLE_LABELS = { CLIENT: 'Clients', PROVIDER: 'Prestataires', OWNER: 'Propriétaires', EMPLOYEE: 'Salariés' } as const;
 
 function errorMessage(e: unknown) {
-  const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
-  return Array.isArray(msg) ? msg.join(' ') : msg ?? 'Import impossible.';
+  const err = e as { code?: string; response?: { status?: number; data?: { message?: string | string[] } } };
+  const msg = err?.response?.data?.message;
+  if (msg) return Array.isArray(msg) ? msg.join(' ') : msg;
+  if (err?.code === 'ECONNABORTED' || err?.response?.status === 504) {
+    return 'Le serveur n’a pas répondu à temps. Rien n’a été enregistré : réessayez dans un instant.';
+  }
+  return `Import impossible${err?.response?.status ? ` (erreur ${err.response.status})` : ''}.`;
 }
 
 function ReportView({ r }: { r: ImportReport }) {
