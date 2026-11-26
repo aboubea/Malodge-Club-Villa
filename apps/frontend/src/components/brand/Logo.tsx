@@ -44,7 +44,7 @@ export function Logo({ size = 'sm', className, inverted }: LogoProps) {
   return (
     <span className={cn('inline-flex items-center', s.gap, className)} role="img" aria-label="Malodge Club">
       <LogoMark size={s.mark} className={inverted ? 'text-white' : undefined} />
-      <span className="inline-flex flex-col leading-none" aria-hidden>
+      <span className="inline-flex flex-col leading-none font-brand" aria-hidden>
         <span className={cn('font-extrabold tracking-[0.14em]', s.name, inverted ? 'text-white' : 'text-ink')}>MALODGE</span>
         <span className={cn('font-bold tracking-[0.52em] text-accent', s.club)}>CLUB</span>
       </span>

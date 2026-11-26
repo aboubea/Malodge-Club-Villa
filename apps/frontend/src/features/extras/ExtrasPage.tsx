@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Route, Routes, Navigate, useSearchParams } from 'react-router-dom';
 import { Plus, Wallet } from 'lucide-react';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -27,6 +27,17 @@ export function ExtrasPage() {
   const { data: summary } = useExtrasSummary();
   const [extraOpen, setExtraOpen] = useState(false);
   const [settlementOpen, setSettlementOpen] = useState(false);
+  // ?new=extra | settlement (the "+ Nouveau" button, from anywhere): open the form at once.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const what = params.get('new');
+    if (what !== 'extra' && what !== 'settlement') return;
+    if (what === 'extra') setExtraOpen(true);
+    else setSettlementOpen(true);
+    const next = new URLSearchParams(params);
+    next.delete('new');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   return (
     <div className="space-y-6">

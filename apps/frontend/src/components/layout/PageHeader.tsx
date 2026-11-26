@@ -22,10 +22,10 @@ export function PageHeader({ title, description, eyebrow, children, className }:
         {eyebrow && (
           <p className="text-[12px] font-semibold text-accent mb-1.5">{eyebrow}</p>
         )}
-        <h1 className="text-[22px] sm:text-[26px] font-bold leading-tight tracking-tight text-ink">
+        <h1 className="text-[26px] sm:text-[32px] font-bold leading-[1.1] tracking-[-0.03em] text-ink">
           {title}
         </h1>
-        {description && <p className="text-[13.5px] text-muted mt-1">{description}</p>}
+        {description && <p className="text-[14px] text-muted mt-1.5">{description}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2 shrink-0">{children}</div>}
     </div>

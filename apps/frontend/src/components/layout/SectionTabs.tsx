@@ -10,10 +10,10 @@ export function SectionTabs() {
   const group = groupOf(pathname, role);
   if (!group || group.pages.length < 2) return null;
   return (
-    <nav aria-label={group.label} className="-mt-2 mb-6 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+    <nav aria-label={group.label} className="-mt-1 mb-6 inline-flex max-w-full items-center gap-0.5 p-1 rounded-full bg-surface-2 overflow-x-auto scrollbar-none">
       {group.pages.map((p) =>
         p.disabled ? (
-          <span key={p.path} title={p.disabled} aria-disabled="true" className="h-9 px-4 rounded-full inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted/60 cursor-not-allowed whitespace-nowrap">
+          <span key={p.path} title={p.disabled} aria-disabled="true" className="h-8 px-4 rounded-full inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted/60 cursor-not-allowed whitespace-nowrap">
             {p.label}
             <span className="h-5 px-1.5 rounded-full bg-surface-2 text-[10px] text-muted inline-flex items-center">Bientôt</span>
           </span>
@@ -23,8 +23,8 @@ export function SectionTabs() {
             to={p.path}
             end={p.exact}
             className={cn(
-              'h-9 px-4 rounded-full inline-flex items-center text-[13px] font-semibold whitespace-nowrap transition-colors border',
-              pageMatches(p, pathname) ? 'bg-primary text-on-primary border-primary' : 'bg-surface text-ink-soft border-line hover:text-ink hover:border-line-strong',
+              'h-8 px-4 rounded-full inline-flex items-center text-[13px] font-semibold whitespace-nowrap transition-all',
+              pageMatches(p, pathname) ? 'bg-surface dark:bg-line-strong text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-muted hover:text-ink',
             )}
           >
             {p.label}

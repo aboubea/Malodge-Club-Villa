@@ -89,4 +89,63 @@ export class DashboardService {
       recentReservations,
     };
   }
+  /**
+   * The home page: today's arrivals and departures, stays under way and the arrivals of the
+   * week (with the villa's photo), and what is waiting to be done.
+   */
+  async today() {
+    const DAY = 86_400_000;
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const in7 = new Date(today.getTime() + 7 * DAY);
+    const previousMonth = (() => {
+      const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    })();
+    const [stays, pendingRequests, overdueExtras, draftStatements] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where: { status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] }, checkIn: { lte: in7 }, checkOut: { gte: today } },
+        orderBy: { checkIn: 'asc' },
+        take: 200,
+        select: {
+          id: true, label: true, checkIn: true, checkOut: true, guests: true, invitedAt: true, logifyId: true, source: true,
+          client: { select: { firstName: true, lastName: true } },
+          villa: { select: { id: true, name: true, coverImage: true, images: true, parentVilla: { select: { id: true, name: true, coverImage: true, images: true } } } },
+        },
+      }),
+      // Requests from guests waiting for the team's answer.
+      this.prisma.order.count({ where: { status: 'PENDING', scheduledAt: { gte: today } } }),
+      // Extras whose day has passed but never closed (not in the revenue until they are).
+      this.prisma.order.count({ where: { status: { in: ['PENDING', 'CONFIRMED'] }, scheduledAt: { lt: today } } }),
+      this.prisma.ownerStatement.count({ where: { month: previousMonth, status: 'DRAFT' } }),
+    ]);
+    const card = (s: (typeof stays)[number]) => {
+      const house = s.villa.parentVilla ?? s.villa;
+      const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+      return {
+        id: s.id,
+        guest: s.label || [s.client?.firstName, s.client?.lastName].filter(Boolean).join(' ') || 'Voyageur',
+        villa: { id: house.id, name: house.name, photo: house.coverImage || house.images?.[0] || s.villa.coverImage || s.villa.images?.[0] || null },
+        checkIn: day(s.checkIn),
+        checkOut: day(s.checkOut),
+        nights: s.checkIn && s.checkOut ? Math.round((s.checkOut.getTime() - s.checkIn.getTime()) / DAY) : null,
+        guests: s.source?.startsWith('extras') ? null : s.guests,
+        invited: !!s.invitedAt,
+      };
+    };
+    const t = today.getTime();
+    const arrivals = stays.filter((s) => s.checkIn && s.checkIn.getTime() === t).map(card);
+    const departures = stays.filter((s) => s.checkOut && s.checkOut.getTime() === t).map(card);
+    const inHouse = stays.filter((s) => s.checkIn && s.checkOut && s.checkIn.getTime() < t && s.checkOut.getTime() > t).map(card);
+    const upcoming = stays.filter((s) => s.checkIn && s.checkIn.getTime() > t).map(card);
+    const toInvite = [...arrivals, ...upcoming].filter((c) => !c.invited).length;
+    return {
+      date: today.toISOString().slice(0, 10),
+      arrivals,
+      departures,
+      inHouse,
+      upcoming,
+      todo: { pendingRequests, overdueExtras, toInvite, draftStatements, statementsMonth: previousMonth },
+    };
+  }
 }

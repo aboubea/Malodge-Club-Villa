@@ -60,21 +60,21 @@ function NavItem({ group, collapsed, badge, onNavigate }: NavItemProps) {
       onClick={onNavigate}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] transition-colors duration-150',
+        'group relative flex items-center gap-3 h-10 px-3 rounded-xl text-[14px] transition-colors duration-150',
         isActive
-          ? 'bg-primary text-on-primary font-semibold shadow-[0_4px_12px_-4px_rgb(var(--c-primary)/0.45)]'
+          ? 'bg-primary/10 dark:bg-primary/15 text-ink font-semibold'
           : 'text-ink-soft font-medium hover:text-ink hover:bg-surface-2',
         collapsed && 'justify-center px-0 w-10 mx-auto',
       )}
     >
       <span className="relative shrink-0">
         <Icon
-          size={17}
-          strokeWidth={isActive ? 2.1 : 1.8}
-          className={cn(isActive ? 'text-on-primary' : 'text-muted group-hover:text-ink-soft')}
+          size={19}
+          strokeWidth={isActive ? 2.2 : 1.8}
+          className={cn(isActive ? 'text-accent' : 'text-muted group-hover:text-ink-soft')}
         />
         {hasBadge && collapsed && (
-          <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-gold ring-2 ring-surface" />
+          <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface" />
         )}
       </span>
       {!collapsed && <span className="truncate flex-1">{label}</span>}
@@ -82,7 +82,7 @@ function NavItem({ group, collapsed, badge, onNavigate }: NavItemProps) {
         <span
           className={cn(
             'ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[10.5px] font-bold flex items-center justify-center tabular',
-            isActive ? 'bg-on-primary/20 text-on-primary' : 'bg-gold text-[#2A1A12]',
+            'bg-primary text-on-primary',
           )}
         >
           {badge! > 99 ? '99+' : badge}
@@ -125,7 +125,7 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div className={cn('flex items-center h-[76px] shrink-0 px-6', collapsed && 'flex-col justify-center gap-2 px-0 h-[104px]')}>
+      <div className={cn('flex items-center h-16 shrink-0 px-5', collapsed && 'flex-col justify-center gap-2 px-0 h-[96px]')}>
         {collapsed ? <LogoMark size={26} /> : <Logo size="sm" />}
         {mobile ? (
           <button
@@ -151,21 +151,21 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
       </div>
 
       {/* Main nav: a few sections, their pages are tabs at the top of the page */}
-      <nav className={cn('flex-1 overflow-y-auto scrollbar-none pt-3 pb-4 space-y-0.5', collapsed ? 'px-2' : 'px-3')}>
+      <nav className={cn('flex-1 overflow-y-auto scrollbar-none pt-4 pb-4 space-y-1', collapsed ? 'px-2' : 'px-3')}>
         {groups.map((g) => (
-          <div key={g.key} className={cn(g.key === 'settings' && 'pt-3 mt-3 border-t border-line')}>
+          <div key={g.key} className={cn(g.key === 'settings' && 'pt-3 mt-3 border-t border-line/70')}>
             <NavItem group={g} collapsed={collapsed} onNavigate={onNavigate} badge={g.key === 'messages' ? unreadCount : undefined} />
           </div>
         ))}
       </nav>
 
       {/* Footer: logout + concierge card */}
-      <div className={cn('shrink-0 border-t border-line pt-3', collapsed ? 'px-2 pb-4' : 'px-3 pb-4')}>
+      <div className={cn('shrink-0 pt-2', collapsed ? 'px-2 pb-4' : 'px-3 pb-4')}>
         <button
           onClick={handleLogout}
           title={collapsed ? 'Se déconnecter' : undefined}
           className={cn(
-            'w-full flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] font-medium text-ink-soft hover:text-danger hover:bg-danger/5 transition-colors',
+            'w-full flex items-center gap-3 h-10 px-3 rounded-xl text-[14px] font-medium text-muted hover:text-danger hover:bg-danger/5 transition-colors',
             collapsed && 'justify-center px-0',
           )}
         >
@@ -181,7 +181,7 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
           </p>
         )}
 
-        {!collapsed && role && APP_USERS.includes(role as RoleKey) && (
+        {!collapsed && AI_CONCIERGE_ENABLED && role && APP_USERS.includes(role as RoleKey) && (
           <div
             className={cn(
               'hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center',
@@ -218,7 +218,7 @@ export function Sidebar() {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: sidebarCollapsed ? 76 : 248 }}
+      animate={{ width: sidebarCollapsed ? 76 : 236 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className="hidden lg:block h-full bg-surface border-r border-line overflow-hidden shrink-0"
     >

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { VillaCommissions } from './VillaCommissions';
 import { VillaOwnerPicker } from './VillaOwner';
+import { VillaFormulas } from './VillaMerge';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -364,6 +365,7 @@ export function VillaDetailPage() {
 
               <div className="pt-3 border-t border-line">
                 <VillaOwnerPicker villa={villa} />
+                <VillaFormulas villa={villa} canEdit={!!isStaff} />
               </div>
 
               {(villa.latitude || villa.longitude) && (

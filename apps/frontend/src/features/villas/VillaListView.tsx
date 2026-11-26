@@ -2,16 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2,
-  MapPin,
-  Users,
-  BedDouble,
-  Bath,
-  Sparkles,
-  ChevronDown,
   Pencil,
   Trash2,
   ArrowUpRight,
   Link2,
+  MoreHorizontal,
   GripVertical,
   Layers,
 } from 'lucide-react';
@@ -19,8 +14,6 @@ import { VillaDto } from '@malodge/shared';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/Button';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { VillaOwnerPicker } from './VillaOwner';
-import { VillaFormulas } from './VillaMerge';
 import { VillaActiveSwitch } from './VillaActiveSwitch';
 
 function plural(n: number, one: string, many: string) {
@@ -37,304 +30,153 @@ function capacityLine(v: VillaDto) {
   return parts.length ? parts.join(' • ') : 'Capacité non renseignée';
 }
 
-const orDash = (n: number) => (n > 0 ? n : '—');
-
 /** 'group*': two Lodgify listings, dropped one on the other they become formulas of one house. */
 type DropState = 'idle' | 'dragging' | 'target' | 'over' | 'group' | 'group-over';
 
-function VillaRow({
+/** One villa, Airbnb style: a big photo, its name and place, its capacity; drag it onto a duplicate to merge. */
+function VillaCard({
   villa,
-  selected,
-  onClick,
+  onOpen,
+  menu,
   drag,
 }: {
   villa: VillaDto;
-  selected: boolean;
-  onClick: () => void;
+  onOpen: () => void;
+  menu: React.ReactNode;
   drag?: { state: DropState; handlers: React.HTMLAttributes<HTMLDivElement> & { draggable: boolean } };
 }) {
   const state = drag?.state ?? 'idle';
   return (
     <div
-      role="button"
+      role="link"
       tabIndex={0}
-      onClick={onClick}
+      onClick={onOpen}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === 'Enter') {
           e.preventDefault();
-          onClick();
+          onOpen();
         }
       }}
-      aria-pressed={selected}
       {...drag?.handlers}
       className={cn(
-        'group relative w-full text-left flex gap-4 p-3 rounded-2xl border bg-surface transition-all duration-200 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
-        selected && state === 'idle'
-          ? 'border-transparent shadow-pop ring-1 ring-line'
-          : 'border-line hover:border-line-strong hover:shadow-card',
+        'group relative rounded-[22px] p-2 -m-2 transition-all duration-200 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
         drag?.handlers.draggable && 'active:cursor-grabbing',
         state === 'dragging' && 'opacity-40',
-        state === 'target' && 'border-dashed border-accent/50',
-        state === 'over' && 'border-transparent ring-2 ring-accent bg-peach/50 shadow-pop',
-        state === 'group' && 'border-dashed border-info/50',
-        state === 'group-over' && 'border-transparent ring-2 ring-info bg-info/5 shadow-pop',
+        state === 'target' && 'ring-2 ring-dashed ring-accent/40',
+        state === 'over' && 'ring-2 ring-accent bg-peach/60',
+        state === 'group' && 'ring-2 ring-info/40',
+        state === 'group-over' && 'ring-2 ring-info bg-info/5',
       )}
     >
-      <div className="relative w-[124px] sm:w-[148px] aspect-[4/3] rounded-xl overflow-hidden bg-surface-2 shrink-0 pointer-events-none">
+      <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-2">
         {villa.coverImage ? (
-          <img
-            src={villa.coverImage}
-            alt=""
-            loading="lazy"
-            draggable={false}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          />
+          <img src={villa.coverImage} alt="" loading="lazy" draggable={false} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04] pointer-events-none" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Building2 size={26} className="text-line-strong" />
+          <div className="w-full h-full flex items-center justify-center pointer-events-none">
+            <Building2 size={34} className="text-line-strong" />
           </div>
         )}
-      </div>
-      <div className="min-w-0 flex-1 flex flex-col py-0.5 pointer-events-none">
-        <p className="text-[12px] text-muted truncate">
-          {villa.city}, {villa.country}
-          {villa.logifyId && <span className="ml-1.5 font-semibold text-accent">· Lodgify</span>}
-        </p>
-        <p className="text-[15px] font-bold text-ink truncate mt-0.5">{villa.name}</p>
-        <p className="text-[12.5px] text-muted mt-1 truncate">
-          {capacityLine(villa)}
-        </p>
-        {!!villa.formulas?.length && (
-          <p className="text-[12px] text-info mt-0.5 truncate">
-            + {villa.formulas.length} formule{villa.formulas.length > 1 ? 's' : ''} :{' '}
-            {villa.formulas.map((f) => [f.bedrooms ? `${f.bedrooms} ch.` : null, f.maxGuests ? `${f.maxGuests} pers.` : null].filter(Boolean).join(' / ') || f.name).join(' · ')}
-          </p>
+        {/* On the photo: Lodgify, the on/off switch, the menu */}
+        {villa.logifyId && (
+          <span className="absolute top-3 left-3 h-7 px-2.5 rounded-full bg-surface/95 text-[12px] font-semibold text-ink inline-flex items-center shadow-card pointer-events-none">Lodgify</span>
         )}
-        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-soft">
-            <Sparkles size={13} className="text-muted" />
-            {plural(Array.isArray(villa.amenities) ? villa.amenities.length : 0, 'équipement', 'équipements')}
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <span className="h-8 pl-2.5 pr-1 rounded-full bg-surface/95 shadow-card inline-flex items-center">
+            <VillaActiveSwitch villaId={villa.id} active={villa.isActive} size="sm" />
           </span>
-          <VillaActiveSwitch villaId={villa.id} active={villa.isActive} size="sm" />
+          {menu}
         </div>
-      </div>
-      {state === 'over' && (
-        <span className="absolute right-3 top-3 h-7 px-3 inline-flex items-center gap-1.5 rounded-full bg-accent text-on-accent text-[12px] font-semibold pointer-events-none">
-          <Link2 size={13} /> Déposer pour fusionner
-        </span>
-      )}
-      {state === 'group-over' && (
-        <span className="absolute right-3 top-3 h-7 px-3 inline-flex items-center gap-1.5 rounded-full bg-info text-white text-[12px] font-semibold pointer-events-none">
-          <Layers size={13} /> Déposer pour regrouper en formules
-        </span>
-      )}
-    </div>
-  );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 min-w-0">
-      <span className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center shrink-0">
-        <Icon size={17} className="text-ink-soft" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[12px] text-muted leading-tight">{label}</p>
-        <p className="text-[15px] font-bold text-ink leading-tight mt-0.5">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function VillaPreview({
-  villa,
-  onOpen,
-  onEdit,
-  onDelete,
-  others,
-  onMergeWith,
-}: {
-  villa: VillaDto;
-  onOpen: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  others?: VillaDto[];
-  onMergeWith?: (other: VillaDto) => void;
-}) {
-  const images = [villa.coverImage, ...(villa.images ?? [])].filter(
-    (src, i, arr): src is string => !!src && arr.indexOf(src) === i,
-  );
-  const [active, setActive] = useState(0);
-  const [detailsOpen, setDetailsOpen] = useState(true);
-  useEffect(() => setActive(0), [villa.id]);
-  const amenities: string[] = Array.isArray(villa.amenities) ? (villa.amenities as string[]) : [];
-  const thumbs = images.slice(0, 4).filter((_, i) => i !== active).slice(0, 3);
-
-  return (
-    <motion.div
-      key={villa.id}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="rounded-3xl border border-line bg-surface p-5 sm:p-6"
-    >
-      {/* Gallery */}
-      <div
-        className={cn(
-          'grid gap-3 h-[260px] sm:h-[300px]',
-          images.length > 1 ? 'grid-cols-[minmax(0,1fr)_96px] sm:grid-cols-[minmax(0,1fr)_120px]' : 'grid-cols-1',
+        {!villa.isActive && <div className="absolute inset-0 bg-canvas/45 pointer-events-none" />}
+        {state === 'over' && (
+          <span className="absolute inset-x-3 bottom-3 h-8 inline-flex items-center justify-center gap-1.5 rounded-full bg-accent text-on-accent text-[12.5px] font-semibold pointer-events-none">
+            <Link2 size={13} /> Déposer pour fusionner
+          </span>
         )}
-      >
-        <div className="relative rounded-2xl overflow-hidden bg-surface-2">
-          {images[active] ? (
-            <img src={images[active]} alt={villa.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Building2 size={44} className="text-line-strong" />
-            </div>
-          )}
-          {images.length > 1 && (
-            <span className="absolute top-3 right-3 px-2.5 h-6 inline-flex items-center rounded-full bg-surface/90 text-[11.5px] font-semibold text-ink tabular">
-              {active + 1} / {images.length}
-            </span>
-          )}
-        </div>
-        {images.length > 1 && (
-        <div className="grid grid-rows-3 gap-3">
-          {[0, 1, 2].map((i) => {
-            const src = thumbs[i];
-            return src ? (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setActive(images.indexOf(src))}
-                className="rounded-xl overflow-hidden bg-surface-2 hover:opacity-90 transition-opacity"
-                aria-label={`Photo ${images.indexOf(src) + 1}`}
-              >
-                <img src={src} alt="" className="w-full h-full object-cover" />
+        {state === 'group-over' && (
+          <span className="absolute inset-x-3 bottom-3 h-8 inline-flex items-center justify-center gap-1.5 rounded-full bg-info text-white text-[12.5px] font-semibold pointer-events-none">
+            <Layers size={13} /> Déposer pour regrouper
+          </span>
+        )}
+      </div>
+      <div className="pt-3 px-1 pointer-events-none">
+        <p className="text-[15px] font-semibold text-ink truncate">{villa.name}</p>
+        <p className="text-[13.5px] text-muted truncate">
+          {[villa.city, villa.country].filter(Boolean).join(', ')}
+        </p>
+        <p className="text-[13.5px] text-ink-soft truncate mt-0.5">{capacityLine(villa)}</p>
+        {!!villa.formulas?.length && (
+          <p className="text-[12.5px] text-info mt-0.5 truncate">
+            + {villa.formulas.length} formule{villa.formulas.length > 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The "⋯" of a card: open, edit, merge with another villa (also without dragging), delete. */
+function CardMenu({ villa, onOpen, onEdit, onDelete, others, onMergeWith }: { villa: VillaDto; onOpen: () => void; onEdit: () => void; onDelete: () => void; others?: VillaDto[]; onMergeWith?: (other: VillaDto) => void }) {
+  const [open, setOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  const item = 'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[14px] text-left hover:bg-surface-2';
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label={`Actions pour ${villa.name}`} className="w-8 h-8 rounded-full bg-surface/95 shadow-card inline-flex items-center justify-center text-ink hover:bg-surface">
+        <MoreHorizontal size={16} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: 4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.97 }} transition={{ duration: 0.12 }} className="absolute right-0 top-10 z-20 w-56 rounded-2xl border border-line bg-surface shadow-pop p-1.5">
+            <button type="button" className={item} onClick={onOpen}>
+              <ArrowUpRight size={15} className="text-muted" /> Ouvrir la fiche
+            </button>
+            <button type="button" className={item} onClick={() => { setOpen(false); onEdit(); }}>
+              <Pencil size={15} className="text-muted" /> Modifier
+            </button>
+            {onMergeWith && others && others.length > 0 && (
+              <button type="button" className={item} onClick={() => setMerging((m) => !m)}>
+                <Link2 size={15} className="text-muted" /> Fusionner avec…
               </button>
-            ) : (
-              <div key={i} className="rounded-xl bg-surface-2" />
-            );
-          })}
-        </div>
+            )}
+            {merging && onMergeWith && others && (
+              <select
+                autoFocus
+                defaultValue=""
+                onChange={(e) => {
+                  const other = others.find((o) => o.id === e.target.value);
+                  if (other) {
+                    setOpen(false);
+                    setMerging(false);
+                    onMergeWith(other);
+                  }
+                }}
+                className="mx-1.5 my-1 w-[calc(100%-12px)] h-10 px-3 rounded-xl border border-line-strong bg-surface text-[13.5px]"
+              >
+                <option value="" disabled>
+                  Choisir la villa…
+                </option>
+                {others.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="my-1 h-px bg-line" />
+            <button type="button" className={cn(item, 'text-danger hover:bg-danger/10')} onClick={() => { setOpen(false); onDelete(); }}>
+              <Trash2 size={15} /> Supprimer
+            </button>
+          </motion.div>
         )}
-      </div>
-
-      {/* Title */}
-      <div className="flex items-start justify-between gap-4 mt-5">
-        <div className="min-w-0">
-          <h2 className="text-[20px] font-bold text-ink tracking-tight truncate">{villa.name}</h2>
-          <p className="flex items-center gap-1.5 text-[13px] text-muted mt-1">
-            <MapPin size={14} className="shrink-0" />
-            <span className="truncate">{[villa.address, villa.city, villa.country].filter(Boolean).join(', ')}</span>
-          </p>
-        </div>
-        <Button variant="secondary" size="sm" onClick={onOpen} className="shrink-0">
-          Voir la fiche <ArrowUpRight size={14} />
-        </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 mt-5 border-y border-line">
-        <Stat icon={BedDouble} label="Chambres" value={orDash(villa.bedrooms)} />
-        <Stat icon={Bath} label="Salles de bain" value={orDash(villa.bathrooms)} />
-        <Stat icon={Users} label="Voyageurs" value={orDash(villa.maxGuests)} />
-        <Stat icon={Sparkles} label="Équipements" value={amenities.length} />
-      </div>
-
-      {/* Details */}
-      <div className="py-4">
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((o) => !o)}
-          className="w-full flex items-center justify-between text-[14px] font-bold text-ink"
-          aria-expanded={detailsOpen}
-        >
-          Détails de la villa
-          <ChevronDown size={18} className={cn('text-muted transition-transform', detailsOpen && 'rotate-180')} />
-        </button>
-        <AnimatePresence initial={false}>
-          {detailsOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <p className="text-[13px] text-muted leading-relaxed mt-2 line-clamp-3">
-                {villa.description?.replace(/<[^>]+>/g, ' ').trim() || 'Aucune description pour cette villa.'}
-              </p>
-              {amenities.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {amenities.slice(0, 8).map((a) => (
-                    <span key={a} className="h-7 px-3 inline-flex items-center rounded-full bg-surface-2 text-[12px] text-ink-soft">
-                      {a}
-                    </span>
-                  ))}
-                  {amenities.length > 8 && (
-                    <span className="h-7 px-3 inline-flex items-center rounded-full text-[12px] text-muted">
-                      +{amenities.length - 8}
-                    </span>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <VillaFormulas villa={villa} canEdit={!!onMergeWith} />
-      <VillaOwnerPicker villa={villa} className="mb-3" />
-
-      {onMergeWith && others && others.length > 0 && (
-        <label className="mb-4 flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
-          <Link2 size={14} />
-          <span>C’est un doublon ?</span>
-          <select
-            value=""
-            onChange={(e) => {
-              const other = others.find((o) => o.id === e.target.value);
-              if (other) onMergeWith(other);
-            }}
-            className="h-8 min-w-0 flex-1 rounded-full border border-line bg-surface px-3 text-[12.5px] text-ink"
-          >
-            <option value="">Fusionner avec…</option>
-            {others.map((o) => (
-              <option key={o.id} value={o.id} disabled={!!villa.logifyId && !!o.logifyId}>
-                {o.name}
-                {o.logifyId ? ' (Lodgify)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {/* Status panel */}
-      <div className="rounded-2xl bg-peach p-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-[15px] font-bold text-ink">{villa.isActive ? 'Villa active' : 'Villa inactive'}</p>
-          <p className="text-[12.5px] text-ink-soft mt-0.5">
-            {villa.isActive ? 'Comptée dans l’occupation et la performance, proposée aux réservations et services.' : 'Hors activité : ni dans l’occupation, ni proposée aux réservations et services.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <VillaActiveSwitch villaId={villa.id} active={villa.isActive} />
-          <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={onEdit}>
-            Modifier
-          </Button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-danger hover:bg-surface/70 transition-colors"
-            aria-label="Supprimer la villa"
-            title="Supprimer"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      </div>
-    </motion.div>
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -349,14 +191,12 @@ interface VillaListViewProps {
   focusId?: string | null;
 }
 
-/** Master–detail layout on wide screens; a simple list that opens the villa page elsewhere. */
+/** The villas as a grid of photo cards (Airbnb); a card opens the villa page. */
 export function VillaListView({ villas, onOpen, onEdit, onDelete, onMergeRequest, focusId }: VillaListViewProps) {
-  const wide = useMediaQuery('(min-width: 1280px)');
-  const [selectedId, setSelectedId] = useState<string | null>(villas[0]?.id ?? null);
+  const wide = useMediaQuery('(min-width: 1024px)');
   useEffect(() => {
-    if (focusId) setSelectedId(focusId);
+    if (focusId) document.getElementById(`villa-${focusId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [focusId]);
-  const selected = villas.find((v) => v.id === selectedId) ?? villas[0];
 
   // Drag a villa onto its duplicate to merge them; two Lodgify listings are grouped as formulas instead.
   // The ref is read by the drag events (set at once), the state drives the styling.
@@ -416,41 +256,38 @@ export function VillaListView({ villas, onOpen, onEdit, onDelete, onMergeRequest
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6 items-start">
-      <div className="space-y-3">
-        <p className="text-[13px] text-muted px-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span>
-            <span className="font-bold text-ink">{villas.length}</span> villa{villas.length > 1 ? 's' : ''} affichée
-            {villas.length > 1 ? 's' : ''}
+    <div className="space-y-4">
+      <p className="text-[13.5px] text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span>
+          <span className="font-semibold text-ink">{villas.length}</span> villa{villas.length > 1 ? 's' : ''}
+        </span>
+        {onMergeRequest && wide && (
+          <span className="inline-flex items-center gap-1 text-[12.5px]">
+            <GripVertical size={13} /> Glissez une villa sur son doublon pour les fusionner
           </span>
-          {onMergeRequest && wide && (
-            <span className="inline-flex items-center gap-1 text-[12px]">
-              <GripVertical size={13} /> Glissez une villa sur son doublon pour les fusionner
-            </span>
-          )}
-        </p>
+        )}
+      </p>
+      <div className="grid grid-cols-1 min-[560px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-8">
         {villas.map((villa) => (
-          <VillaRow
-            key={villa.id}
-            villa={villa}
-            selected={wide && selected?.id === villa.id}
-            onClick={() => (wide ? setSelectedId(villa.id) : onOpen(villa))}
-            drag={wide ? dragFor(villa) : undefined}
-          />
+          <div key={villa.id} id={`villa-${villa.id}`}>
+            <VillaCard
+              villa={villa}
+              onOpen={() => onOpen(villa)}
+              drag={wide ? dragFor(villa) : undefined}
+              menu={
+                <CardMenu
+                  villa={villa}
+                  onOpen={() => onOpen(villa)}
+                  onEdit={() => onEdit(villa)}
+                  onDelete={() => onDelete(villa)}
+                  others={onMergeRequest ? villas.filter((v) => v.id !== villa.id) : undefined}
+                  onMergeWith={onMergeRequest ? (other) => onMergeRequest(villa, other) : undefined}
+                />
+              }
+            />
+          </div>
         ))}
       </div>
-      {wide && selected && (
-        <div className="sticky top-0">
-          <VillaPreview
-            villa={selected}
-            onOpen={() => onOpen(selected)}
-            onEdit={() => onEdit(selected)}
-            onDelete={() => onDelete(selected)}
-            others={onMergeRequest ? villas.filter((v) => v.id !== selected.id) : undefined}
-            onMergeWith={onMergeRequest ? (other) => onMergeRequest(selected, other) : undefined}
-          />
-        </div>
-      )}
     </div>
   );
 }

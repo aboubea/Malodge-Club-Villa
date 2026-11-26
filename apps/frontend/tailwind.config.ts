@@ -39,8 +39,18 @@ const config: Config = {
         'chart-2': token('chart-2'),
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Apple's typeface on Apple devices, Inter elsewhere.
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Inter', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'Inter', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        // The MALODGE wordmark keeps its own typeface.
+        brand: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+      },
+      // Airbnb roundness: cards 20 px, windows 28 px, controls 14 px, buttons in pills.
+      borderRadius: {
+        lg: '10px',
+        xl: '14px',
+        '2xl': '20px',
+        '3xl': '28px',
       },
       fontSize: {
         body: ['14px', { lineHeight: '1.6', letterSpacing: '0.005em' }],
@@ -48,6 +58,7 @@ const config: Config = {
       },
       boxShadow: {
         card: 'var(--shadow-card)',
+        lift: 'var(--shadow-lift)',
         pop: 'var(--shadow-pop)',
       },
       animation: {

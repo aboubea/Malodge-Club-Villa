@@ -189,7 +189,7 @@ export function IntroSplash() {
               {'MALODGE'.split('').map((ch, i) => (
                 <motion.span
                   key={i}
-                  className="inline-block font-extrabold text-white text-[34px] leading-none tracking-[0.16em]"
+                  className="inline-block font-brand font-extrabold text-white text-[34px] leading-none tracking-[0.16em]"
                   style={{ transformOrigin: '50% 100%', textShadow: '0 6px 24px rgba(0,0,0,0.45)' }}
                   initial={{ rotateX: -100, opacity: 0, y: 14 }}
                   animate={{ rotateX: 0, opacity: 1, y: 0 }}
@@ -200,7 +200,7 @@ export function IntroSplash() {
               ))}
             </div>
             <motion.span
-              className="mt-2.5 font-bold text-[14px] pl-[0.7em]"
+              className="mt-2.5 font-brand font-bold text-[14px] pl-[0.7em]"
               style={{ color: '#F2A888' }}
               initial={{ opacity: 0, letterSpacing: '1.4em' }}
               animate={{ opacity: 1, letterSpacing: '0.7em' }}

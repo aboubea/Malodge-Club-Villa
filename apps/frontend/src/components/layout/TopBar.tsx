@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bell, Search, LogOut, User, Settings, ChevronDown, Menu, Moon, Sun, CalendarDays, KeyRound } from 'lucide-react';
+import { Bell, Search, LogOut, User, Settings, ChevronDown, Moon, Sun, KeyRound } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { formatDistanceToNow } from '../../lib/utils';
@@ -11,6 +11,9 @@ import { Avatar } from '../ui/Avatar';
 import { useUIStore } from '../../store/uiStore';
 import { useIsDark } from '../../hooks/useTheme';
 import { SHORTCUT } from './CommandPalette';
+import { QuickAdd } from './QuickAdd';
+import { STAFF_ROLES } from './quickActions';
+import { LogoMark } from '../brand/Logo';
 import { ROLES_LABELS } from '../../lib/constants';
 import { ChangePasswordModal } from '../../features/auth/ChangePasswordModal';
 
@@ -25,7 +28,7 @@ interface Notification {
 
 export function TopBar() {
   const { user, logout } = useAuthStore();
-  const { setMobileNavOpen, setTheme, currency, setCurrency, setSearchOpen } = useUIStore();
+  const { setTheme, currency, setCurrency, setSearchOpen } = useUIStore();
   const isDark = useIsDark();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -75,73 +78,45 @@ export function TopBar() {
     navigate('/login');
   };
 
-  const hour = new Date().getHours();
-  const greeting = hour >= 18 || hour < 5 ? 'Bonsoir' : 'Bonjour';
-  const todayRaw = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
+  const staff = !!user?.role && STAFF_ROLES.includes(user.role);
 
   return (
-    <header className="h-[76px] flex items-center gap-3 px-4 sm:px-6 lg:px-8 bg-surface border-b border-line shrink-0 relative z-30">
-      {/* Mobile menu */}
+    <header className="h-16 flex items-center gap-2 px-4 sm:px-6 lg:px-10 bg-canvas/80 backdrop-blur-xl border-b border-line/70 shrink-0 relative z-30">
+      {/* Phone: the brand (navigation is the tab bar at the bottom) */}
+      <Link to="/" className="lg:hidden shrink-0" aria-label="Accueil">
+        <LogoMark size={26} />
+      </Link>
+
+      {/* Search: opens the global search (Ctrl+K) */}
       <button
-        onClick={() => setMobileNavOpen(true)}
-        className="lg:hidden w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
-        aria-label="Ouvrir le menu"
+        type="button"
+        onClick={() => setSearchOpen(true)}
+        className="hidden md:flex items-center gap-2.5 w-[300px] lg:w-[380px] h-10 pl-3.5 pr-2 rounded-full bg-surface-2 text-[14px] text-muted hover:bg-line/70 transition-colors"
       >
-        <Menu size={20} />
+        <Search size={16} />
+        Rechercher un voyageur, une villa…
+        <kbd className="ml-auto h-6 px-2 inline-flex items-center rounded-full bg-surface text-[11px] font-sans font-semibold text-muted">{SHORTCUT}</kbd>
       </button>
 
-      {/* Greeting */}
-      <div className="min-w-0">
-        <p className="text-[17px] sm:text-[19px] text-ink leading-tight truncate">
-          {greeting}, <span className="font-bold">{user?.firstName}</span>
-        </p>
-        <p className="hidden sm:flex items-center gap-1.5 text-[12.5px] text-muted mt-1">
-          <CalendarDays size={13} />
-          {today}
-        </p>
-      </div>
-
       {/* Right side */}
-      <div className="flex items-center gap-2 ml-auto">
-        {/* Search: opens the global search (Ctrl+K) */}
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          className={cn(
-            'relative hidden md:flex items-center w-56 lg:w-64 h-10 pl-10 pr-2 rounded-xl text-[13px] text-muted',
-            'bg-surface border border-line hover:border-line-strong transition-colors',
-          )}
-        >
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" />
-          Rechercher
-          <kbd className="ml-auto h-6 px-1.5 inline-flex items-center rounded-md border border-line bg-surface-2 text-[11px] font-sans text-muted">{SHORTCUT}</kbd>
-        </button>
+      <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="Rechercher"
-          className="md:hidden w-10 h-10 rounded-full border border-line bg-surface flex items-center justify-center text-ink-soft"
+          className="md:hidden w-10 h-10 rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-2"
         >
-          <Search size={16} />
+          <Search size={19} />
         </button>
 
-        {/* Theme */}
-        <button
-          onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
-          title={isDark ? 'Passer en thème clair' : 'Passer en thème sombre'}
-          aria-label={isDark ? 'Passer en thème clair' : 'Passer en thème sombre'}
-        >
-          {isDark ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
+        {staff && <QuickAdd />}
 
         {/* Display currency: every amount on screen in MAD or in € (today's rate) */}
         <div
           role="group"
           aria-label="Devise affichée"
           title="Devise affichée : les montants sont convertis au taux du jour"
-          className="h-10 rounded-full border border-line p-1 flex items-center"
+          className="h-9 rounded-full bg-surface-2 p-0.5 flex items-center"
         >
           {(['MAD', 'EUR'] as const).map((c) => (
             <button
@@ -150,8 +125,8 @@ export function TopBar() {
               onClick={() => setCurrency(c)}
               aria-pressed={currency === c}
               className={cn(
-                'h-8 min-w-[40px] px-2.5 rounded-full text-[12.5px] font-bold transition-colors',
-                currency === c ? 'bg-primary text-on-primary' : 'text-ink-soft hover:text-ink',
+                'h-8 min-w-[38px] px-2.5 rounded-full text-[12.5px] font-bold transition-all',
+                currency === c ? 'bg-surface dark:bg-line-strong text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-muted hover:text-ink',
               )}
             >
               {c === 'EUR' ? '€' : 'MAD'}
@@ -164,16 +139,16 @@ export function TopBar() {
           <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className={cn(
-              'relative w-10 h-10 rounded-full border border-line flex items-center justify-center',
+              'relative w-10 h-10 rounded-full flex items-center justify-center',
               'text-ink-soft hover:text-ink hover:bg-surface-2',
               'transition-colors duration-150',
               notificationsOpen && 'text-ink bg-surface-2',
             )}
             aria-label="Notifications"
           >
-            <Bell size={17} />
+            <Bell size={19} />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-gold ring-2 ring-surface text-[9px] font-bold text-[#2A1A12] flex items-center justify-center tabular">
+              <span className="absolute top-1 right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-primary ring-2 ring-canvas text-[9.5px] font-bold text-on-primary flex items-center justify-center tabular">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -257,7 +232,7 @@ export function TopBar() {
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className={cn(
-              'flex items-center gap-2.5 pl-1 pr-2 sm:pr-2.5 py-1 ml-1 rounded-full',
+              'flex items-center gap-1.5 p-1 sm:pr-2 rounded-full',
               'hover:bg-surface-2 transition-colors duration-150',
               userMenuOpen && 'bg-surface-2',
             )}
@@ -269,15 +244,10 @@ export function TopBar() {
               lastName={user?.lastName}
               size="sm"
             />
-            <div className="hidden sm:block text-left">
-              <p className="text-[13.5px] font-semibold text-ink leading-none">
-                {user?.firstName}
-              </p>
-            </div>
             <ChevronDown
               size={12}
               className={cn(
-                'text-muted transition-transform duration-150',
+                'hidden sm:block text-muted transition-transform duration-150',
                 userMenuOpen && 'rotate-180',
               )}
             />
@@ -316,6 +286,12 @@ export function TopBar() {
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
                   >
                     <Settings size={14} /> Paramètres
+                  </button>
+                  <button
+                    onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+                  >
+                    {isDark ? <Sun size={14} /> : <Moon size={14} />} {isDark ? 'Thème clair' : 'Thème sombre'}
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); setPasswordOpen(true); }}

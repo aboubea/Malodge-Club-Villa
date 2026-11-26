@@ -16,4 +16,11 @@ export class DashboardController {
   getSummary() {
     return this.dashboardService.getSummary();
   }
+
+  @Get('today')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Home page: today’s arrivals and departures, the week’s arrivals, what is waiting to be done' })
+  getToday() {
+    return this.dashboardService.today();
+  }
 }

@@ -8,69 +8,76 @@
  * Light is the default theme; `.dark` on <html> switches to the dark theme.
  */
 @layer base {
+  /*
+   * Light (default): Apple — very light grey page, white cards, near-black text,
+   * the Malodge terracotta for actions, selection and accents.
+   */
   :root {
     color-scheme: light;
 
-    --c-canvas: 247 247 249;      /* very light gray page background */
-    --c-surface: 255 255 255;     /* cards, panels, sidebar */
-    --c-surface-2: 243 243 246;   /* subtle fills, hovers */
-    --c-line: 233 233 238;        /* hairline borders */
-    --c-line-strong: 212 212 220;
-    --c-ink: 28 29 41;            /* navy-black text */
-    --c-ink-soft: 76 78 94;       /* secondary text */
-    --c-muted: 112 114 130;       /* tertiary text, AA on white */
-    --c-accent: 178 89 58;        /* terracotta — readable as text */
-    --c-accent-hover: 150 72 45;
+    --c-canvas: 245 245 247;      /* page background (Apple #F5F5F7) */
+    --c-surface: 255 255 255;     /* cards, panels, windows */
+    --c-surface-2: 238 238 241;   /* fills, hovers, segmented controls */
+    --c-line: 229 229 234;        /* hairlines (Apple separator) */
+    --c-line-strong: 210 210 215;
+    --c-ink: 29 29 31;            /* text (Apple #1D1D1F) */
+    --c-ink-soft: 66 66 69;       /* secondary text */
+    --c-muted: 100 100 105;       /* tertiary text, AA on every background */
+    --c-accent: 168 74 40;        /* terracotta, readable as text */
+    --c-accent-hover: 140 60 30;
     --c-on-accent: 255 255 255;
-    --c-gold: 233 166 134;        /* decorative peach */
-    --c-peach: 246 233 224;       /* soft peach panels */
-    --c-primary: 31 33 48;        /* dark navy pills & buttons */
-    --c-primary-hover: 52 55 74;
+    --c-gold: 232 168 130;        /* sand, decorative */
+    --c-peach: 250 238 230;       /* sand panels */
+    --c-primary: 178 80 44;       /* terracotta buttons and selections */
+    --c-primary-hover: 152 66 34;
     --c-on-primary: 255 255 255;
-    --c-success: 26 127 78;
-    --c-danger: 196 50 50;
-    --c-warning: 166 100 6;
-    --c-info: 37 99 195;
+    --c-success: 28 120 52;
+    --c-danger: 200 40 40;
+    --c-warning: 148 86 0;
+    --c-info: 0 100 200;
     --c-plum: 116 70 196;
-    --c-copper: 190 92 30;
+    --c-copper: 176 84 26;
     /* Charts: accommodation / extras (validated for colour blindness on the surface) */
     --c-chart-1: 63 99 168;
     --c-chart-2: 208 104 61;
 
-    --shadow-card: 0 1px 2px rgb(20 22 40 / 0.03);
-    --shadow-pop: 0 18px 40px -12px rgb(20 22 40 / 0.18), 0 2px 6px rgb(20 22 40 / 0.05);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
+    --shadow-lift: 0 6px 16px rgb(0 0 0 / 0.10);
+    --shadow-pop: 0 18px 44px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.06);
   }
 
+  /* Dark: Spotify — deep black, charcoal cards, a brighter terracotta with dark text on it. */
   .dark {
     color-scheme: dark;
 
-    --c-canvas: 17 18 24;
-    --c-surface: 25 26 34;
-    --c-surface-2: 34 35 45;
-    --c-line: 44 45 57;
-    --c-line-strong: 66 68 82;
-    --c-ink: 240 240 245;
-    --c-ink-soft: 190 191 204;
-    --c-muted: 150 152 168;
-    --c-accent: 242 168 136;
-    --c-accent-hover: 249 196 172;
-    --c-on-accent: 24 20 18;
-    --c-gold: 233 166 134;
-    --c-peach: 56 42 38;
-    --c-primary: 240 240 245;
-    --c-primary-hover: 214 215 226;
-    --c-on-primary: 22 23 31;
-    --c-success: 95 205 145;
-    --c-danger: 245 125 125;
-    --c-warning: 235 190 85;
-    --c-info: 120 170 250;
+    --c-canvas: 18 18 18;
+    --c-surface: 24 24 24;
+    --c-surface-2: 40 40 40;
+    --c-line: 44 44 44;
+    --c-line-strong: 68 68 68;
+    --c-ink: 245 245 245;
+    --c-ink-soft: 179 179 179;
+    --c-muted: 160 160 160;
+    --c-accent: 240 140 100;
+    --c-accent-hover: 246 166 134;
+    --c-on-accent: 20 14 10;
+    --c-gold: 232 168 130;
+    --c-peach: 52 36 30;
+    --c-primary: 232 122 82;
+    --c-primary-hover: 240 142 106;
+    --c-on-primary: 20 14 10;
+    --c-success: 30 215 96;
+    --c-danger: 255 110 100;
+    --c-warning: 245 190 80;
+    --c-info: 100 170 255;
     --c-plum: 190 150 250;
     --c-copper: 245 155 95;
     --c-chart-1: 125 155 224;
     --c-chart-2: 219 119 77;
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.25);
-    --shadow-pop: 0 18px 44px -10px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.03);
+    --shadow-card: 0 0 0 0 transparent;
+    --shadow-lift: 0 8px 24px rgb(0 0 0 / 0.5);
+    --shadow-pop: 0 18px 48px -8px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04);
   }
 
   * {
@@ -86,18 +93,20 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Apple's own typeface on Apple devices (SF Pro), Inter elsewhere. */
   body {
     background-color: rgb(var(--c-canvas));
     color: rgb(var(--c-ink));
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
-    line-height: 1.6;
-    letter-spacing: 0.005em;
+    line-height: 1.55;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 500;
-    letter-spacing: -0.015em;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.022em;
     color: rgb(var(--c-ink));
   }
 
@@ -107,8 +116,14 @@
   }
 
   :focus-visible {
-    outline: 2px solid rgb(var(--c-accent) / 0.6);
+    outline: 2px solid rgb(var(--c-accent) / 0.7);
     outline-offset: 2px;
+  }
+
+  /* Taps feel instant on touch screens (no grey flash, no 300 ms delay). */
+  button, a, [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   input:focus-visible,
@@ -137,7 +152,7 @@
   }
 
   ::selection {
-    background: rgb(var(--c-gold) / 0.3);
+    background: rgb(var(--c-primary) / 0.18);
     color: rgb(var(--c-ink));
   }
 

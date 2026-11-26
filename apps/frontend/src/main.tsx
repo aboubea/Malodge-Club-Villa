@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
       {Devtools && (
         <Suspense fallback={null}>
-          <Devtools initialIsOpen={false} buttonPosition="bottom-right" />
+          <Devtools initialIsOpen={false} buttonPosition="top-left" />
         </Suspense>
       )}
     </QueryClientProvider>

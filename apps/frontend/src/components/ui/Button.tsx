@@ -14,9 +14,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary text-on-primary hover:bg-primary-hover border-transparent shadow-[0_6px_16px_-6px_rgb(var(--c-primary)/0.5)]',
+    'bg-primary text-on-primary hover:bg-primary-hover border-transparent',
   secondary:
-    'bg-surface text-ink border-line-strong/70 hover:bg-surface-2 hover:border-line-strong',
+    'bg-surface text-ink border-line-strong hover:bg-surface-2',
   destructive:
     'bg-danger/10 text-danger border-danger/25 hover:bg-danger/15 hover:border-danger/40',
   ghost:
@@ -24,9 +24,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3.5 text-[12.5px] gap-1.5 rounded-full',
-  md: 'h-10 px-5 text-[13.5px] gap-2 rounded-full',
-  lg: 'h-12 px-7 text-[14.5px] gap-2 rounded-full',
+  sm: 'h-8 px-3.5 text-[13px] gap-1.5 rounded-full',
+  md: 'h-10 px-5 text-[14px] gap-2 rounded-full',
+  lg: 'h-12 px-7 text-[15px] gap-2 rounded-full',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -51,8 +51,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         className={cn(
           'inline-flex items-center justify-center whitespace-nowrap border font-semibold select-none',
-          'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.98]',
-          'focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/15',
+          'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.97]',
+          'focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/20',
           'disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100',
           variantClasses[variant],
           sizeClasses[size],

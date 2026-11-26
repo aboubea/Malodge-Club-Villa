@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { MadEquivalent } from '../../lib/fx';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -209,6 +210,17 @@ export function ReservationsPage() {
     setModalOpen(true);
   }
 
+  // ?new=1 (the "+ Nouveau" button, from anywhere): open the form at once.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('new') !== '1') return;
+    openCreate();
+    const next = new URLSearchParams(params);
+    next.delete('new');
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
   function openEdit(r: Reservation) {
     setMode('edit');
     setEditingId(r.id);
@@ -372,7 +384,7 @@ export function ReservationsPage() {
       )}
 
       {source === 'local' && (
-        <div className="flex items-center gap-1 bg-surface border border-line rounded-full p-1 w-fit" role="tablist" aria-label="Affichage">
+        <div className="flex items-center gap-0.5 bg-surface-2 rounded-full p-1 w-fit" role="tablist" aria-label="Affichage">
           {([
             ['calendar', 'Calendrier', CalendarDays],
             ['list', 'Liste', List],
@@ -382,7 +394,7 @@ export function ReservationsPage() {
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-[13px] font-medium transition-all ${view === v ? 'bg-primary text-on-primary' : 'text-ink-soft hover:text-ink'}`}
+              className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-[13px] font-semibold transition-all ${view === v ? 'bg-surface dark:bg-line-strong text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-muted hover:text-ink'}`}
             >
               <Icon size={14} /> {label}
             </button>

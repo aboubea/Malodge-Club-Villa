@@ -18,6 +18,9 @@ interface UIState {
   /** The global search (Ctrl+K) is open. */
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
+  /** The "add" sheet of the phone tab bar is open. */
+  addOpen: boolean;
+  setAddOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -34,6 +37,8 @@ export const useUIStore = create<UIState>()(
       setTheme: (theme) => set({ theme }),
       searchOpen: false,
       setSearchOpen: (searchOpen) => set({ searchOpen }),
+      addOpen: false,
+      setAddOpen: (addOpen) => set({ addOpen }),
     }),
     {
       name: 'malodge-ui',

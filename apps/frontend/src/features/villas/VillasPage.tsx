@@ -414,10 +414,10 @@ export function VillasPage() {
   const filterBtn = (label: string, value: ActiveFilter) => (
     <button
       onClick={() => { setActiveFilter(value); setPage(1); }}
-      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
-        activeFilter === value
-          ? 'border-primary bg-primary text-on-primary'
-          : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
+      role="tab"
+      aria-selected={activeFilter === value}
+      className={`inline-flex items-center h-8 px-4 rounded-full text-[13px] font-semibold transition-all ${
+        activeFilter === value ? 'bg-surface dark:bg-line-strong text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-muted hover:text-ink'
       }`}
     >
       {label}
@@ -429,23 +429,6 @@ export function VillasPage() {
       <PageHeader title="Villas" description={source === 'lodgify' ? `${lodgifyProperties.length} logements Lodgify` : `${meta?.total ?? villas.length} villas au total`}>
         {source === 'local' && (
           <div className="flex items-center gap-2">
-            {isSuperAdmin && (
-              <Button
-                variant="destructive"
-                size="sm"
-                icon={<Trash size={13} />}
-                loading={deleteAllVillasMutation.isPending}
-                onClick={() => {
-                  if (confirm('Supprimer TOUTES les villas de la base de données ?\n\nCette action est irréversible. Lodgify n\'est pas affecté.')) {
-                    if (confirm('Confirmation finale : supprimer toutes les villas ?')) {
-                      deleteAllVillasMutation.mutate();
-                    }
-                  }
-                }}
-              >
-                Tout supprimer
-              </Button>
-            )}
             <Button
               variant="primary"
               icon={<Plus size={14} />}
@@ -579,35 +562,33 @@ export function VillasPage() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="max-w-xs w-full">
           <Input
-            placeholder="Rechercher une villa..."
-            leftIcon={<Search size={13} />}
+            placeholder="Rechercher une villa…"
+            className="rounded-full h-10"
+            leftIcon={<Search size={15} />}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="inline-flex p-1 rounded-full bg-surface-2" role="tablist" aria-label="État">
           {filterBtn('Toutes', '')}
           {filterBtn('Actives', 'true')}
           {filterBtn('Inactives', 'false')}
         </div>
         {countries.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => { setCountryFilter(''); setPage(1); }}
-              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
-            >
-              Tous les pays
-            </button>
+          <select
+            value={countryFilter}
+            onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
+            aria-label="Pays"
+            className="h-10 pl-4 pr-9 rounded-full border border-line-strong bg-surface text-[14px] font-medium text-ink appearance-none bg-[length:14px] bg-[right_14px_center] bg-no-repeat"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
+          >
+            <option value="">Tous les pays</option>
             {countries.map((c) => (
-              <button
-                key={c.code}
-                onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
-              >
+              <option key={c.code} value={c.name}>
                 {c.flag} {c.name}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         )}
       </div>
 
@@ -719,6 +700,25 @@ export function VillasPage() {
           onSuccess={handleClose}
         />
       </Modal>
+      {source === 'local' && isSuperAdmin && (
+        <div className="pt-6 border-t border-line/70 text-right">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Trash size={13} />}
+                loading={deleteAllVillasMutation.isPending}
+                onClick={() => {
+                  if (confirm('Supprimer TOUTES les villas de la base de données ?\n\nCette action est irréversible. Lodgify n\'est pas affecté.')) {
+                    if (confirm('Confirmation finale : supprimer toutes les villas ?')) {
+                      deleteAllVillasMutation.mutate();
+                    }
+                  }
+                }}
+              >
+                Tout supprimer
+              </Button>
+        </div>
+      )}
     </div>
   );
 }

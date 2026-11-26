@@ -716,6 +716,12 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
       {s && (
         <div className={cn('grid gap-6', invite && 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
         <div className="space-y-5">
+          {/* The villa, as on Airbnb */}
+          {s.villa?.coverImage && (
+            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-surface-2">
+              <img src={s.villa.coverImage} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={STATUS[s.status]?.badge ?? 'confirmed'}>{STATUS[s.status]?.label ?? s.status}</Badge>
             <span className="text-[12px] text-muted">{origin}</span>

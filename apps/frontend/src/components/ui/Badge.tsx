@@ -26,21 +26,21 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-surface-2 text-ink-soft border-line',
-  gold: 'bg-gold/15 text-accent border-gold/30',
-  admin: 'bg-info/10 text-info border-info/20',
-  super_admin: 'bg-danger/10 text-danger border-danger/20',
-  manager: 'bg-plum/10 text-plum border-plum/20',
-  provider: 'bg-copper/10 text-copper border-copper/20',
-  client: 'bg-success/10 text-success border-success/20',
-  active: 'bg-success/10 text-success border-success/20',
-  inactive: 'bg-surface-2 text-muted border-line',
-  pending: 'bg-warning/10 text-warning border-warning/20',
-  confirmed: 'bg-info/10 text-info border-info/20',
-  cancelled: 'bg-danger/10 text-danger border-danger/20',
-  completed: 'bg-surface-2 text-muted border-line',
-  success: 'bg-success/10 text-success border-success/20',
-  error: 'bg-danger/10 text-danger border-danger/20',
+  default: 'bg-surface-2 text-ink-soft',
+  gold: 'bg-gold/15 text-accent',
+  admin: 'bg-info/10 text-info',
+  super_admin: 'bg-danger/10 text-danger',
+  manager: 'bg-plum/10 text-plum',
+  provider: 'bg-copper/10 text-copper',
+  client: 'bg-success/10 text-success',
+  active: 'bg-success/10 text-success',
+  inactive: 'bg-surface-2 text-muted',
+  pending: 'bg-warning/10 text-warning',
+  confirmed: 'bg-info/10 text-info',
+  cancelled: 'bg-danger/10 text-danger',
+  completed: 'bg-surface-2 text-muted',
+  success: 'bg-success/10 text-success',
+  error: 'bg-danger/10 text-danger',
 };
 
 const DOT_VARIANTS = new Set<BadgeVariant>(['active', 'inactive', 'pending', 'confirmed', 'cancelled', 'completed', 'success', 'error']);
@@ -52,7 +52,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          'inline-flex items-center gap-1.5 border rounded-full font-medium whitespace-nowrap leading-none',
+          'inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap leading-none',
           size === 'sm' ? 'text-[11.5px] h-6 px-2.5' : 'text-xs h-7 px-3',
           variantClasses[variant],
           className,

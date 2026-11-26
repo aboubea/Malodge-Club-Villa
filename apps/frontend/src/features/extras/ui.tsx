@@ -3,8 +3,8 @@ import { ChevronDown, Inbox } from 'lucide-react';
 import { cn, formatMoney } from '../../lib/utils';
 
 const fieldBase =
-  'w-full h-10 rounded-xl bg-surface border border-line text-ink text-[13.5px] placeholder:text-muted/80 ' +
-  'hover:border-line-strong focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5 transition-[border-color,box-shadow] ' +
+  'w-full h-10 rounded-xl bg-surface border border-line-strong text-ink text-[14px] placeholder:text-muted/80 ' +
+  'hover:border-muted/60 focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 transition-[border-color,box-shadow] ' +
   'disabled:opacity-50 disabled:cursor-not-allowed';
 
 export function Field({ label, hint, error, children, className }: { label?: string; hint?: ReactNode; error?: string; children: ReactNode; className?: string }) {
@@ -103,7 +103,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             'h-8 px-3.5 rounded-full text-[12.5px] font-semibold whitespace-nowrap transition-colors inline-flex items-center gap-1.5',
-            value === o.value ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink',
+            value === o.value ? 'bg-surface dark:bg-line-strong text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-muted hover:text-ink',
           )}
         >
           {o.label}
@@ -140,7 +140,7 @@ export function TableCard({ children, className }: { children: ReactNode; classN
   );
 }
 
-export const th = 'px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap bg-surface-2/60 border-b border-line';
+export const th = 'px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap border-b border-line';
 export const td = 'px-4 py-3 text-[13px] text-ink align-middle';
 
 export function IssueTag({ issue }: { issue: string | null }) {

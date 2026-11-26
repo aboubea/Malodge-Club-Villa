@@ -1,382 +1,294 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { MadEquivalent, FxNote } from '../../lib/fx';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  ArrowUpRight,
   ArrowDownRight,
-  ArrowRight,
-  CalendarDays,
-  CalendarRange,
-  ShoppingBag,
+  ArrowUpRight,
+  BedDouble,
   Building2,
-  Users,
-  BrainCircuit,
-  Plus,
+  CheckCircle2,
+  ChevronRight,
+  CircleAlert,
+  FileText,
+  Hourglass,
+  Inbox,
+  KeyRound,
+  LogIn,
+  LogOut,
+  Moon,
+  Percent,
+  Send,
+  Sparkles,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react';
-import { PageHeader } from '../../components/layout/PageHeader';
-import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Avatar } from '../../components/ui/Avatar';
-import { Button } from '../../components/ui/Button';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { apiClient } from '../../lib/apiClient';
 import { cn, formatCurrency } from '../../lib/utils';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { useAuthStore } from '../../store/authStore';
+import { useExtrasSummary } from '../extras/api';
 import { useDashboard } from './useDashboard';
-import { AI_CONCIERGE_ENABLED } from '../../lib/features';
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'active' | 'confirmed' | 'pending' | 'completed' | 'cancelled' }> = {
-  ACTIVE: { label: 'En cours', variant: 'active' },
-  CONFIRMED: { label: 'Confirmée', variant: 'confirmed' },
-  PENDING: { label: 'En attente', variant: 'pending' },
-  COMPLETED: { label: 'Terminée', variant: 'completed' },
-  CANCELLED: { label: 'Annulée', variant: 'cancelled' },
-};
-
-const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: { delay, duration: 0.35, ease: [0.22, 1, 0.36, 1] },
-});
-
-function shortDate(value: string | null) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+interface StayCard {
+  id: string;
+  guest: string;
+  villa: { id: string; name: string; photo: string | null };
+  checkIn: string | null;
+  checkOut: string | null;
+  nights: number | null;
+  guests: number | null;
+  invited: boolean;
+}
+interface Today {
+  date: string;
+  arrivals: StayCard[];
+  departures: StayCard[];
+  inHouse: StayCard[];
+  upcoming: StayCard[];
+  todo: { pendingRequests: number; overdueExtras: number; toInvite: number; draftStatements: number; statementsMonth: string };
 }
 
-function nights(from: string | null, to: string | null) {
-  if (!from || !to) return null;
-  const n = Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
+const ease = [0.22, 1, 0.36, 1] as const;
+const rise = (i: number) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.04 * i, duration: 0.35, ease } });
+const shortDay = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—');
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
 
-function ChangePill({ value }: { value: number }) {
-  const positive = value >= 0;
+/** One guest, Airbnb style: the villa's photo, who, where, when. Opens the stay. */
+function GuestCard({ s, kind }: { s: StayCard; kind: 'arrival' | 'departure' | 'inHouse' | 'upcoming' }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11.5px] font-semibold tabular',
-        positive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger',
-      )}
-    >
-      {positive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-      {positive ? '+' : ''}
-      {value}%
-    </span>
+    <Link to={`/reservations?stay=${s.id}`} className="group block w-[230px] sm:w-[250px] shrink-0 snap-start">
+      <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-2">
+        {s.villa.photo ? (
+          <img src={s.villa.photo} alt="" loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-line-strong">
+            <Building2 size={34} />
+          </div>
+        )}
+        {(kind === 'arrival' || kind === 'upcoming') && (
+          <span
+            className={cn(
+              'absolute top-2.5 left-2.5 h-7 px-2.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1 shadow-card',
+              s.invited ? 'bg-surface/95 text-ink' : 'bg-primary text-on-primary',
+            )}
+          >
+            {s.invited ? <CheckCircle2 size={13} className="text-success" /> : <Send size={12} />}
+            {s.invited ? 'Invité' : 'À inviter'}
+          </span>
+        )}
+      </div>
+      <div className="mt-2.5 px-0.5">
+        <p className="text-[15px] font-semibold text-ink truncate">{s.guest}</p>
+        <p className="text-[13px] text-muted truncate">{s.villa.name}</p>
+        <p className="text-[13px] text-ink-soft mt-0.5">
+          {kind === 'departure' ? `Départ · arrivé ${shortDay(s.checkIn)}` : kind === 'inHouse' ? `Jusqu’au ${shortDay(s.checkOut)}` : shortDay(s.checkIn)}
+          {s.nights ? ` · ${plural(s.nights, 'nuit')}` : ''}
+          {s.guests ? ` · ${s.guests} pers.` : ''}
+        </p>
+      </div>
+    </Link>
   );
 }
 
-function StatLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[13px] font-medium text-muted">{children}</p>;
-}
-
-function BigNumber({ children, className }: { children: React.ReactNode; className?: string }) {
+/** A thing waiting to be done, with how many and where to go. */
+function TodoRow({ icon: Icon, label, hint, count, to, tone = 'accent' }: { icon: React.ElementType; label: string; hint: string; count: number; to: string; tone?: 'accent' | 'warning' }) {
   return (
-    <p className={cn('font-display font-semibold text-[30px] leading-none tracking-tight text-ink tabular', className)}>
-      {children}
-    </p>
+    <Link to={to} className="flex items-center gap-3.5 px-4 sm:px-5 py-3 hover:bg-surface-2/70 active:bg-surface-2 transition-colors">
+      <span className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', tone === 'warning' ? 'bg-warning/10 text-warning' : 'bg-peach text-accent')}>
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-ink">{label}</span>
+        <span className="block text-[13px] text-muted truncate">{hint}</span>
+      </span>
+      <span className="min-w-[28px] h-7 px-2 rounded-full bg-surface-2 text-[13px] font-bold text-ink inline-flex items-center justify-center tabular">{count}</span>
+      <ChevronRight size={18} className="text-line-strong shrink-0" />
+    </Link>
   );
 }
 
-function ProgressBar({ value, className }: { value: number; className?: string }) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className={cn('h-1.5 rounded-full bg-surface-2 overflow-hidden', className)}>
-      <motion.div
-        initial={{ width: 0 }}
-        animate={{ width: `${pct}%` }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-        className="h-full rounded-full bg-gold"
-      />
-    </div>
+/** A figure, Apple widget style. */
+function Widget({ icon: Icon, label, value, sub, to, delay }: { icon: React.ElementType; label: string; value: React.ReactNode; sub?: React.ReactNode; to?: string; delay: number }) {
+  const body = (
+    <motion.div {...rise(delay)} className="h-full rounded-2xl bg-surface border border-line/80 p-4 sm:p-5 hover:shadow-lift transition-shadow">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+        <Icon size={15} /> {label}
+      </p>
+      <p className="mt-2 font-display text-[26px] sm:text-[30px] leading-none font-bold tracking-[-0.03em] text-ink tabular">{value}</p>
+      {sub && <p className="mt-2 text-[12.5px] text-ink-soft">{sub}</p>}
+    </motion.div>
+  );
+  return to ? (
+    <Link to={to} className="block">
+      {body}
+    </Link>
+  ) : (
+    body
   );
 }
 
+type Tab = 'arrivals' | 'departures' | 'inHouse' | 'upcoming';
+const TABS: { key: Tab; label: string; icon: React.ElementType; kind: 'arrival' | 'departure' | 'inHouse' | 'upcoming'; empty: string }[] = [
+  { key: 'arrivals', label: 'Arrivées', icon: LogIn, kind: 'arrival', empty: 'Aucune arrivée aujourd’hui.' },
+  { key: 'departures', label: 'Départs', icon: LogOut, kind: 'departure', empty: 'Aucun départ aujourd’hui.' },
+  { key: 'inHouse', label: 'En cours', icon: KeyRound, kind: 'inHouse', empty: 'Aucun séjour en cours.' },
+  { key: 'upcoming', label: 'Cette semaine', icon: BedDouble, kind: 'upcoming', empty: 'Aucune arrivée dans les 7 jours.' },
+];
+
+/** Home, like Airbnb's host "Today": what to do first, today's guests, then the figures. */
 export function DashboardPage() {
-  const { data, isLoading } = useDashboard();
-  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const { data: dash, isLoading: loadingKpis } = useDashboard();
+  const { data: summary } = useExtrasSummary();
+  const { data: today, isLoading } = useQuery({
+    queryKey: ['dashboard', 'today'],
+    queryFn: async () => {
+      const r = await apiClient.get('/dashboard/today');
+      return (r.data?.data ?? r.data) as Today;
+    },
+    refetchInterval: 60_000,
+  });
+  const [tab, setTab] = useState<Tab | null>(null);
 
-  
-  const kpis = data?.kpis;
-  const recentReservations = data?.recentReservations ?? [];
-  const villaRatio = kpis && kpis.totalVillas > 0 ? (kpis.activeVillas / kpis.totalVillas) * 100 : 0;
+  const hour = new Date().getHours();
+  const hello = hour >= 18 || hour < 5 ? 'Bonsoir' : 'Bonjour';
+  const dateLine = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const k = dash?.kpis;
+  const a = summary?.alerts;
 
-  const glance = [
-    {
-      label: 'Commandes en attente',
-      value: kpis?.pendingOrders ?? 0,
-      icon: ShoppingBag,
-      tone: 'text-warning bg-warning/10',
-      to: '/commandes',
-    },
-    {
-      label: 'Commandes ce mois',
-      value: kpis?.ordersThisMonth ?? 0,
-      icon: CalendarRange,
-      tone: 'text-plum bg-plum/10',
-      to: '/commandes',
-    },
-    {
-      label: 'Nouveaux clients',
-      value: kpis?.activeClients ?? 0,
-      icon: Users,
-      tone: 'text-info bg-info/10',
-      to: '/reservations',
-    },
-  ];
+  // What is waiting, most urgent first (only what is not zero).
+  const todo = [
+    today && today.todo.pendingRequests > 0 && { icon: Inbox, label: 'Demandes de voyageurs', hint: 'Extras demandés, à confirmer', count: today.todo.pendingRequests, to: '/commandes' },
+    today && today.todo.toInvite > 0 && { icon: Send, label: 'Voyageurs à inviter', hint: 'Arrivent dans les 7 jours, sans leur lien séjour', count: today.todo.toInvite, to: '/accueil' },
+    today && today.todo.overdueExtras > 0 && { icon: Hourglass, label: 'Extras passés à clôturer', hint: 'Pas encore « Réalisée » : hors chiffre d’affaires', count: today.todo.overdueExtras, to: '/extras/saisie?stays=all', tone: 'warning' as const },
+    a && a.pendingSettlements > 0 && { icon: Wallet, label: 'Règlements à valider', hint: 'Saisis, en attente de validation', count: a.pendingSettlements, to: '/extras/reglements?status=PENDING' },
+    a && a.incompleteExtras > 0 && { icon: CircleAlert, label: 'Extras à compléter', hint: 'Prix, coût, date ou séjour manquant', count: a.incompleteExtras, to: '/extras/saisie?incomplete=true', tone: 'warning' as const },
+    a && a.settingsToCheck > 0 && { icon: Percent, label: 'Taux de commission à renseigner', hint: 'Propriétaires ou salariés sans taux', count: a.settingsToCheck, to: '/extras/reglages?section=commissions' },
+    today && today.todo.draftStatements > 0 && { icon: FileText, label: 'Relevés propriétaires à envoyer', hint: 'Brouillons du mois écoulé', count: today.todo.draftStatements, to: '/releves' },
+  ].filter(Boolean) as { icon: React.ElementType; label: string; hint: string; count: number; to: string; tone?: 'accent' | 'warning' }[];
+
+  // Open on the first tab that has someone.
+  const shown: Tab = tab ?? (today ? (TABS.find((t) => today[t.key].length)?.key ?? 'arrivals') : 'arrivals');
+  const current = TABS.find((t) => t.key === shown)!;
+  const list = today?.[shown] ?? [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Tableau de bord"
-        description="Voici l'essentiel de l'activité de vos villas."
-      >
-        <Button variant="secondary" icon={<CalendarRange size={15} />} onClick={() => navigate('/agenda')}>
-          Agenda
-        </Button>
-        <Button icon={<Plus size={15} />} onClick={() => navigate('/reservations')}>
-          Nouvelle réservation
-        </Button>
-      </PageHeader>
-
-      {/* Headline metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <motion.div {...fadeUp(0)} className="sm:col-span-2">
-          <Card className="relative h-full overflow-hidden p-6 sm:p-7 bg-peach border-transparent shadow-none">
-            <svg
-              aria-hidden
-              viewBox="0 0 300 120"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute right-6 top-14 w-[42%] h-20 opacity-80"
-            >
-              <path
-                d="M0 95 C 40 90, 60 70, 95 74 S 150 98, 185 70 S 245 30, 300 22"
-                fill="none"
-                stroke="rgb(var(--c-gold))"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <circle cx="300" cy="22" r="5" fill="rgb(var(--c-gold))" />
-            </svg>
-            <div className="relative flex items-start justify-between gap-4">
-              <StatLabel>Chiffre d'affaires · ce mois</StatLabel>
-              {kpis && kpis.revenueChange !== 0 && <ChangePill value={kpis.revenueChange} />}
-            </div>
-            {isLoading ? (
-              <Skeleton className="relative h-14 w-56 mt-6" />
-            ) : (
-              <BigNumber className="relative mt-5 text-[34px] sm:text-[38px]">
-                {formatCurrency(kpis?.totalRevenue ?? 0, kpis?.revenueCurrency ?? 'EUR')}
-              </BigNumber>
-            )}
-            {kpis?.accommodationRevenue != null && (
-              <p className="relative text-[13px] text-ink-soft mt-2 tabular flex flex-wrap gap-x-3">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-[2px] bg-chart-1" /> Hébergement {formatCurrency(Math.round(kpis.accommodationRevenue), kpis.revenueCurrency ?? 'MAD')}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-[2px] bg-chart-2" /> Extras {formatCurrency(Math.round(kpis.extrasRevenue ?? 0), kpis.revenueCurrency ?? 'MAD')}
-                </span>
-              </p>
-            )}
-            {kpis?.revenueConverted && (
-              <p className="relative text-[12px] text-muted mt-1">
-                Euros convertis au taux du jour · <FxNote className="text-muted" />
-              </p>
-            )}
-            <p className="relative text-[13px] text-muted mt-4">
-              {kpis && kpis.revenueChange !== 0 ? `${kpis.revenueChange >= 0 ? 'En hausse' : 'En baisse'} par rapport à ${kpis.previousMonth ?? 'le mois dernier'} · ` : ''}
-              <Link to="/finances" className="font-semibold text-accent hover:underline">
-                Détail dans Finances
-              </Link>
-            </p>
-          </Card>
-        </motion.div>
-
-        <motion.div {...fadeUp(0.05)}>
-          <Card className="h-full p-6 flex flex-col">
-            <div className="flex items-center justify-between">
-              <StatLabel>Taux d'occupation</StatLabel>
-              <CalendarDays size={17} className="text-muted" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-11 w-24 mt-6" />
-            ) : (
-              <BigNumber className="mt-5 mb-8">
-                {kpis?.occupancyRate ?? 0}
-                <span className="text-[28px] text-muted ml-0.5">%</span>
-              </BigNumber>
-            )}
-            <ProgressBar value={kpis?.occupancyRate ?? 0} className="mt-auto" />
-          </Card>
-        </motion.div>
-
-        <motion.div {...fadeUp(0.1)}>
-          <Card className="h-full p-6 flex flex-col">
-            <div className="flex items-center justify-between">
-              <StatLabel>Villas actives</StatLabel>
-              <Building2 size={17} className="text-muted" />
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-11 w-24 mt-6" />
-            ) : (
-              <BigNumber className="mt-5 mb-8">
-                {kpis?.activeVillas ?? 0}
-                <span className="text-[28px] text-muted"> / {kpis?.totalVillas ?? 0}</span>
-              </BigNumber>
-            )}
-            <ProgressBar value={villaRatio} className="mt-auto" />
-          </Card>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Recent reservations */}
-        <motion.div {...fadeUp(0.15)} className="xl:col-span-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <CardTitle>Réservations récentes</CardTitle>
-                <p className="text-[12.5px] text-muted mt-0.5">
-                  {isLoading
-                    ? 'Chargement…'
-                    : `${kpis?.activeReservations ?? 0} séjour${(kpis?.activeReservations ?? 0) > 1 ? 's' : ''} en cours`}
-                </p>
-              </div>
-              <Link
-                to="/reservations"
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:text-accent-hover transition-colors"
-              >
-                Tout voir <ArrowRight size={14} />
-              </Link>
-            </CardHeader>
-
-            {isLoading ? (
-              <div className="divide-y divide-line">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 px-6 py-4">
-                    <Skeleton className="w-9 h-9 rounded-full" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-36" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : recentReservations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-12 h-12 rounded-full bg-surface-2 flex items-center justify-center mb-3">
-                  <CalendarDays size={20} className="text-muted" />
-                </div>
-                <p className="text-sm text-ink-soft">Aucune réservation récente</p>
-                <p className="text-[12.5px] text-muted mt-1">Les nouveaux séjours apparaîtront ici.</p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-line">
-                {recentReservations.map((res) => {
-                  const statusConf = STATUS_CONFIG[res.status] ?? { label: res.status, variant: 'completed' as const };
-                  const n = nights(res.checkIn, res.checkOut);
-                  return (
-                    <li key={res.id}>
-                      <Link
-                        to="/reservations"
-                        className="flex items-center gap-4 px-5 sm:px-6 py-3.5 hover:bg-surface-2/50 transition-colors"
-                      >
-                        <Avatar
-                          firstName={res.client.firstName}
-                          lastName={res.client.lastName}
-                          src={res.client.avatar}
-                          size="sm"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-medium text-ink truncate">
-                            {res.client.firstName} {res.client.lastName}
-                          </p>
-                          <p className="text-[12.5px] text-muted truncate">{res.villa.name}</p>
-                        </div>
-                        <div className="hidden md:block text-right shrink-0">
-                          <p className="text-[13px] text-ink-soft tabular">
-                            {shortDate(res.checkIn)} <span className="text-muted">→</span> {shortDate(res.checkOut)}
-                          </p>
-                          {n && <p className="text-[11.5px] text-muted">{n} nuit{n > 1 ? 's' : ''}</p>}
-                        </div>
-                        <div className="w-[104px] flex justify-end shrink-0">
-                          <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-        </motion.div>
-
-        {/* At a glance + shortcuts */}
-        <motion.div {...fadeUp(0.2)} className="space-y-6">
-          <Card className="overflow-hidden">
-            <CardHeader>
-              <CardTitle>En un coup d'œil</CardTitle>
-            </CardHeader>
-            <ul className="divide-y divide-line">
-              {glance.map(({ label, value, icon: Icon, tone, to }) => (
-                <li key={label}>
-                  <Link
-                    to={to}
-                    className="group flex items-center gap-3.5 px-5 sm:px-6 py-4 hover:bg-surface-2/50 transition-colors"
-                  >
-                    <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', tone)}>
-                      <Icon size={16} />
-                    </span>
-                    <span className="flex-1 text-[13.5px] text-ink-soft">{label}</span>
-                    {isLoading ? (
-                      <Skeleton className="h-6 w-10" />
-                    ) : (
-                      <span className="font-display font-semibold text-[22px] leading-none text-ink tabular">{value}</span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Card>
-
-          {AI_CONCIERGE_ENABLED ? (
-            <Link to="/concierge-ia" className="block group">
-            <Card className="relative overflow-hidden p-6 hover:border-line-strong transition-colors">
-              <div className="relative flex items-start gap-4">
-                <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-                  <BrainCircuit size={18} className="text-on-primary" />
-                </span>
-                <div className="flex-1">
-                  <p className="font-display font-semibold text-[17px] leading-tight text-ink">Concierge IA</p>
-                  <p className="text-[13px] text-muted mt-1">
-                    Posez une question sur vos villas, réservations ou documents.
-                  </p>
-                </div>
-                <ArrowUpRight
-                  size={18}
-                  className="text-muted group-hover:text-accent group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all"
-                />
-              </div>
-            </Card>
-            </Link>
-          ) : (
-            // Greyed out for everybody until the AI concierge is switched on.
-            <Card className="relative overflow-hidden p-6 opacity-60 grayscale cursor-not-allowed" aria-disabled="true" title="Bientôt disponible">
-              <div className="relative flex items-start gap-4">
-                <span className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center shrink-0">
-                  <BrainCircuit size={18} className="text-muted" />
-                </span>
-                <div className="flex-1">
-                  <p className="font-display font-semibold text-[17px] leading-tight text-ink">Concierge IA</p>
-                  <p className="text-[13px] text-muted mt-1">Bientôt disponible.</p>
-                </div>
-              </div>
-            </Card>
+    <div className="space-y-8 max-w-[1240px]">
+      <motion.header {...rise(0)}>
+        <h1 className="text-[30px] sm:text-[36px] font-bold leading-[1.08] tracking-[-0.035em] text-ink">
+          {hello}, {user?.firstName}
+        </h1>
+        <p className="mt-1.5 text-[15px] text-muted first-letter:uppercase">
+          {dateLine}
+          {today && (
+            <>
+              {' · '}
+              {plural(today.arrivals.length, 'arrivée')}, {plural(today.departures.length, 'départ')} aujourd’hui
+            </>
           )}
-        </motion.div>
-      </div>
+        </p>
+      </motion.header>
+
+      {/* What to do first */}
+      <motion.section {...rise(1)} aria-label="À faire">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] mb-3">À faire</h2>
+        {isLoading ? (
+          <Skeleton className="h-40 rounded-2xl" />
+        ) : todo.length === 0 ? (
+          <div className="rounded-2xl bg-surface border border-line/80 px-5 py-6 flex items-center gap-3 text-[15px] text-ink-soft">
+            <CheckCircle2 size={22} className="text-success" /> Tout est à jour. Rien n’attend.
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-surface border border-line/80 divide-y divide-line/70 overflow-hidden">
+            {todo.map((t) => (
+              <TodoRow key={t.label} {...t} />
+            ))}
+          </div>
+        )}
+      </motion.section>
+
+      {/* Today's guests, Airbnb style */}
+      <motion.section {...rise(2)} aria-label="Voyageurs">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 className="text-[20px] font-bold tracking-[-0.02em]">Voyageurs</h2>
+          <Link to="/reservations" className="text-[14px] font-semibold text-accent hover:underline">
+            Calendrier
+          </Link>
+        </div>
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+          {TABS.map((t) => {
+            const n = today?.[t.key].length ?? 0;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'h-10 px-4 rounded-full text-[14px] font-semibold inline-flex items-center gap-2 whitespace-nowrap border transition-colors',
+                  shown === t.key ? 'bg-ink text-surface border-ink' : 'bg-surface text-ink border-line-strong hover:border-ink/40',
+                )}
+              >
+                {t.label}
+                <span className={cn('tabular text-[13px]', shown === t.key ? 'opacity-70' : 'text-muted')}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-4">
+          {isLoading ? (
+            <div className="flex gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="w-[250px] aspect-[4/3] rounded-2xl" />
+              ))}
+            </div>
+          ) : list.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-line-strong px-5 py-8 text-center text-[14px] text-muted">{current.empty}</p>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-2 -mx-1 px-1">
+              {list.map((s) => (
+                <GuestCard key={`${shown}-${s.id}`} s={s} kind={current.kind} />
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.section>
+
+      {/* The figures */}
+      <section aria-label="Chiffres">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] mb-3">Ce mois-ci</h2>
+        {loadingKpis || !k ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[124px] rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Widget
+              delay={3}
+              icon={TrendingUp}
+              label="Chiffre d’affaires"
+              to="/finances"
+              value={formatCurrency(Math.round(k.totalRevenue), k.revenueCurrency ?? 'MAD')}
+              sub={
+                k.revenueChange !== 0 ? (
+                  <span className={cn('inline-flex items-center gap-0.5 font-semibold', k.revenueChange > 0 ? 'text-success' : 'text-danger')}>
+                    {k.revenueChange > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                    {k.revenueChange > 0 ? '+' : ''}
+                    {k.revenueChange} % <span className="font-normal text-muted">vs {k.previousMonth ?? 'mois dernier'}</span>
+                  </span>
+                ) : (
+                  'Hébergement + extras'
+                )
+              }
+            />
+            <Widget delay={4} icon={Moon} label="Occupation ce soir" value={`${k.occupancyRate} %`} sub={`${k.activeVillas} villas actives`} to="/performance" />
+            <Widget delay={5} icon={KeyRound} label="Séjours en cours" value={k.activeReservations} sub="Arrivés, pas encore partis" to="/reservations" />
+            <Widget delay={6} icon={Sparkles} label="Extras du mois" value={k.ordersThisMonth} sub={`${k.pendingOrders} en attente`} to="/extras/saisie" />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

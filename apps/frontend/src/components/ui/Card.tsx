@@ -12,9 +12,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-2xl border border-line bg-surface shadow-card',
+          'rounded-2xl border border-line/80 bg-surface shadow-card',
           'transition-[border-color,box-shadow,transform] duration-200',
-          hover && 'hover:border-line-strong hover:shadow-pop cursor-pointer',
+          hover && 'hover:shadow-lift cursor-pointer',
           gold && 'bg-peach border-transparent',
           className,
         )}
@@ -34,7 +34,7 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-5 sm:px-6 py-4 border-b border-line', className)}
+      className={cn('px-5 sm:px-6 pt-5 pb-1', className)}
       {...props}
     >
       {children}
@@ -48,7 +48,7 @@ interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
 
 export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
   ({ children, className, ...props }, ref) => (
-    <div ref={ref} className={cn('px-5 sm:px-6 py-5', className)} {...props}>
+    <div ref={ref} className={cn('px-5 sm:px-6 py-4', className)} {...props}>
       {children}
     </div>
   ),
@@ -78,7 +78,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
   ({ children, className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-[15px] font-bold tracking-tight text-ink', className)}
+      className={cn('font-display text-[17px] font-semibold tracking-[-0.02em] text-ink', className)}
       {...props}
     >
       {children}
