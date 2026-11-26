@@ -5,6 +5,7 @@ import { AlertOctagon, AlertTriangle, ArrowUpRight, CheckCircle2, Info, RefreshC
 import { apiClient } from '../../lib/apiClient';
 import { cn } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { FileCheck } from './FileCheck';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { HealthPanel } from './HealthPanel';
@@ -96,6 +97,8 @@ export function CoherencePage() {
       </PageHeader>
 
       <HealthPanel />
+
+      <FileCheck />
 
       {isLoading || !data ? (
         <div className="space-y-3">

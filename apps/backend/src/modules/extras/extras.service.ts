@@ -25,6 +25,7 @@ import { calendarDay, currencyForCountry } from '../../common/money';
 import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import { duplicatePeople, mergeIdenticalPeople, mergePeople, mergePeoplePreview } from './people-merge';
+import { checkExtrasFile } from './extras-file-check';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -1065,6 +1066,16 @@ export class ExtrasService {
 
   mergePeople(sourceId: string, targetId: string, mergeStays: boolean) {
     return mergePeople(this.prisma as any, sourceId, targetId, { mergeStays });
+  }
+
+  /** The spreadsheet compared with the app, line by line (read-only). */
+  async checkFile(buffer: Buffer) {
+    try {
+      return await checkExtrasFile(this.prisma as any, buffer);
+    } catch (e: any) {
+      if (e instanceof Error && /Onglet|illisible/.test(e.message)) throw new BadRequestException(e.message);
+      throw e;
+    }
   }
 
   mergeIdenticalPeople() {

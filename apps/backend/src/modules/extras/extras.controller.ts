@@ -284,6 +284,16 @@ export class ExtrasController {
     return this.extras.coherence(actor);
   }
 
+  @Post('import/check-file')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Compare the extras spreadsheet with the app line by line (extras, payments, stays, rates). Read-only.' })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 4 * 1024 * 1024, files: 1 } }))
+  checkFile(@UploadedFile() file: { buffer: Buffer; originalname: string; size: number } | undefined) {
+    if (!file?.buffer?.length) throw new BadRequestException('Aucun fichier reçu.');
+    if (!/\.xlsx$/i.test(file.originalname)) throw new BadRequestException('Format attendu : classeur Excel .xlsx');
+    return this.extras.checkFile(file.buffer);
+  }
+
   @Post('import/check-dates')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Compare the app dates with the extras spreadsheet; `apply` (JSON list of ids) puts the file dates back' })
