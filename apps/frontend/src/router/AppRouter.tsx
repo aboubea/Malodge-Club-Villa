@@ -20,6 +20,7 @@ const OrdersPage = lazy(() => import('../features/orders/OrdersPage').then((m) =
 const OrderDetailPage = lazy(() => import('../features/orders/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })));
 const FinancePage = lazy(() => import('../features/finance/FinancePage').then((m) => ({ default: m.FinancePage })));
 const PerformancePage = lazy(() => import('../features/finance/PerformancePage').then((m) => ({ default: m.PerformancePage })));
+const OwnerStatementsPage = lazy(() => import('../features/finance/OwnerStatementsPage').then((m) => ({ default: m.OwnerStatementsPage })));
 const ChatPage = lazy(() => import('../features/chat/ChatPage').then((m) => ({ default: m.ChatPage })));
 const AiConciergePage = lazy(() => import('../features/ai/AiConciergePage').then((m) => ({ default: m.AiConciergePage })));
 const DocumentsPage = lazy(() => import('../features/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })));
@@ -93,6 +94,7 @@ export function AppRouter() {
                 <Route path="/prestataires" element={<RoleGuard roles={STAFF}><ProvidersPage /></RoleGuard>} />
                 <Route path="/finances" element={<RoleGuard roles={STAFF}><FinancePage /></RoleGuard>} />
                 <Route path="/performance" element={<RoleGuard roles={STAFF}><PerformancePage /></RoleGuard>} />
+                <Route path="/releves" element={<RoleGuard roles={ADMIN_UP}><OwnerStatementsPage /></RoleGuard>} />
                 <Route path="/documents" element={<RoleGuard roles={STAFF}><DocumentsPage /></RoleGuard>} />
                 <Route path="/messages" element={<RoleGuard roles={ALL_ROLES}><ChatPage /></RoleGuard>} />
                 <Route path="/concierge-ia" element={<RoleGuard roles={ALL_ROLES}><AiConciergePage /></RoleGuard>} />

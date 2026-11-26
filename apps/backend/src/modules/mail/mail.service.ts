@@ -9,6 +9,11 @@ export interface MailResult {
   error?: string;
 }
 
+export interface Attachment {
+  filename: string;
+  content: Buffer;
+}
+
 const esc = (s: string | null | undefined) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -59,8 +64,8 @@ export class MailService {
     };
   }
 
-  private async deliver(to: string, subject: string, html: string, what: string): Promise<MailResult> {
-    const result = await this.send(to, subject, html, what);
+  private async deliver(to: string, subject: string, html: string, what: string, attachments?: Attachment[]): Promise<MailResult> {
+    const result = await this.send(to, subject, html, what, attachments);
     // A missing address is not a failure of the mail system.
     if (!result.sent && result.error && !result.error.startsWith('Pas d’adresse')) {
       try {
@@ -72,14 +77,14 @@ export class MailService {
     return result;
   }
 
-  private async send(to: string, subject: string, html: string, what: string): Promise<MailResult> {
+  private async send(to: string, subject: string, html: string, what: string, attachments?: Attachment[]): Promise<MailResult> {
     if (!this.apiKey) {
       this.logger.warn(`${what} non envoyé à ${to} : RESEND_API_KEY absente`);
       return { sent: false, error: 'RESEND_API_KEY absente dans les variables d’environnement du serveur' };
     }
     if (!to || /\.(invalid|local)$/i.test(to)) return { sent: false, error: 'Pas d’adresse e-mail réelle pour ce destinataire' };
     try {
-      const { data, error } = await new Resend(this.apiKey).emails.send({ from: this.from, to, subject, html });
+      const { data, error } = await new Resend(this.apiKey).emails.send({ from: this.from, to, subject, html, ...(attachments?.length ? { attachments } : {}) });
       if (error) {
         const raw = `${(error as any).name ?? 'erreur'} : ${error.message}`;
         this.logger.error(`${what} refusé par Resend pour ${to} — ${raw}`);
@@ -173,6 +178,20 @@ export class MailService {
       `${title} — Malodge Club`,
       this.layout(title, `<p>Bonjour ${esc(firstName)},</p><p>${esc(body).replace(/\n/g, '<br/>')}</p>`, { label: 'Ouvrir l’application', url: this.appUrl }),
       'Notification',
+    );
+  }
+
+  /** Monthly statement of an owner, as a PDF attachment. */
+  sendOwnerStatement(to: string, firstName: string, monthLabel: string, pdf: Buffer, filename: string) {
+    return this.deliver(
+      to,
+      `Votre relevé de ${monthLabel} — Malodge Club`,
+      this.layout(
+        `Votre relevé de ${monthLabel}`,
+        `<p>Bonjour ${esc(firstName)},</p><p>Vous trouverez ci-joint le relevé de ${esc(monthLabel)} pour vos villas : nuits louées, chiffre d’affaires, commission de gestion, votre part sur les extras et les versements du mois.</p><p>Une question ? Répondez simplement à cet e-mail.</p>`,
+      ),
+      'Relevé propriétaire',
+      [{ filename, content: pdf }],
     );
   }
 

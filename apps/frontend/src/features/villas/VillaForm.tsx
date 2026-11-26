@@ -28,6 +28,9 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
     coverImage: villa?.coverImage || '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateVillaDto, string>>>({});
+  // Management fee on accommodation, typed in % (stored as a fraction).
+  const initialRate = (villa as (VillaDto & { managementFeeRate?: number }) | null | undefined)?.managementFeeRate;
+  const [feePct, setFeePct] = useState(initialRate != null ? String(Math.round(initialRate * 1000) / 10) : '20');
 
   const mutation = useMutation({
     mutationFn: async (data: CreateVillaDto) => {
@@ -58,6 +61,8 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
     // An empty figure is left out rather than saved as 0 or 1.
     const body = { ...form };
     for (const k of ['maxGuests', 'bedrooms', 'bathrooms'] as const) if (!(Number(body[k]) > 0)) delete body[k];
+    const pct = Number(feePct.replace(',', '.'));
+    if (feePct.trim() !== '' && Number.isFinite(pct) && pct >= 0 && pct <= 100) (body as any).managementFeeRate = pct / 100;
     mutation.mutate(body);
   };
 
@@ -93,6 +98,10 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
         <Input label="Voyageurs max" type="number" min="1" placeholder="—" value={form.maxGuests ? String(form.maxGuests) : ''} onChange={set('maxGuests')} />
         <Input label="Chambres" type="number" min="1" placeholder="—" value={form.bedrooms ? String(form.bedrooms) : ''} onChange={set('bedrooms')} />
         <Input label="Salles de bain" type="number" min="1" placeholder="—" value={form.bathrooms ? String(form.bathrooms) : ''} onChange={set('bathrooms')} />
+      </div>
+      <div>
+        <Input label="Commission de gestion sur l’hébergement (%)" type="number" min="0" max="100" step="0.5" value={feePct} onChange={(e) => setFeePct(e.target.value)} />
+        <p className="mt-1 text-[12px] text-muted">Déduite du CA hébergement sur le relevé mensuel du propriétaire. Les formules d’une maison prennent le taux de la maison.</p>
       </div>
 
       <Input label="URL image principale" placeholder="https://..." value={form.coverImage || ''} onChange={set('coverImage')} />

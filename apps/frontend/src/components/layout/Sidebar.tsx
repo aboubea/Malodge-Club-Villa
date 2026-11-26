@@ -23,6 +23,7 @@ import {
   Wallet,
   ShieldCheck,
   Gauge,
+  FileText,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -61,6 +62,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/agenda', label: 'Agenda', icon: CalendarRange, roles: STAFF },
       { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
       { path: '/performance', label: 'Performance', icon: Gauge, roles: STAFF },
+      { path: '/releves', label: 'Relevés propriétaires', icon: FileText, roles: ADMIN_UP },
       { path: '/extras', label: 'Suivi des extras', icon: Wallet, roles: STAFF },
     ],
   },

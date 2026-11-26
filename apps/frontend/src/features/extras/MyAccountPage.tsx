@@ -7,6 +7,7 @@ import { cn, formatDay, formatMoney } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { AccountState, ExtraStatus, METHOD_LABELS, STATE_BADGE, STATUS_BADGE, STATUS_LABELS, pct } from './api';
 import { EmptyState, Money, TableCard, td, th } from './ui';
+import { MyStatements } from '../finance/OwnerStatementsPage';
 
 interface MyLine {
   id: string;
@@ -54,6 +55,7 @@ export function MyAccountPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={copy.title} description={copy.description} />
+      {role === 'OWNER' && <MyStatements />}
 
       {isLoading || !data ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

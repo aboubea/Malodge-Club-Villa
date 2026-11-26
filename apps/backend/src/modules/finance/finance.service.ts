@@ -310,11 +310,10 @@ export class FinanceService {
             id: true,
             name: true,
             currency: true,
-            managers: {
-              include: {
-                user: { select: { id: true, firstName: true, lastName: true, email: true } },
-              },
-            },
+            managementFeeRate: true,
+            owner: { select: { firstName: true, lastName: true } },
+            // A formula is paid out with its house: the house's name, owner and rate.
+            parentVilla: { select: { id: true, name: true, managementFeeRate: true, owner: { select: { firstName: true, lastName: true } } } },
           },
         },
       },
@@ -331,10 +330,10 @@ export class FinanceService {
       stayCount: number;
     }>();
 
-    const MANAGEMENT_FEE_RATE = 0.20; // 20% management fee
-
     for (const res of reservations) {
-      const villaId = res.villa.id;
+      const house = res.villa.parentVilla ?? res.villa;
+      const villaId = house.id;
+      const owner = res.villa.parentVilla ? res.villa.parentVilla.owner : res.villa.owner;
       const own = reservationCurrency(res);
       const f = convert ? this.fx.rateOf(q, own, 'MAD') : 1;
       if (f == null) continue;
@@ -343,17 +342,15 @@ export class FinanceService {
       const existing = payoutMap.get(key) || {
         villaId,
         currency,
-        name: res.villa.name,
-        ownerName: res.villa.managers[0]
-          ? `${res.villa.managers[0].user.firstName} ${res.villa.managers[0].user.lastName}`
-          : 'Non assigné',
+        name: house.name,
+        ownerName: owner ? `${owner.firstName} ${owner.lastName}`.trim() : 'Non assigné',
         grossAmount: 0,
         managementFee: 0,
         netAmount: 0,
         stayCount: 0,
       };
       const amount = res.totalAmount * f;
-      const fee = amount * MANAGEMENT_FEE_RATE;
+      const fee = amount * house.managementFeeRate;
       existing.grossAmount += amount;
       existing.managementFee += fee;
       existing.netAmount += amount - fee;
@@ -467,7 +464,8 @@ export class FinanceService {
   }
 
   private async generatePdf(data: any, period: string): Promise<Buffer> {
-    const PDFDocument = (await import('pdfkit')).default;
+    const pdfkit: any = await import('pdfkit');
+    const PDFDocument = pdfkit.default ?? pdfkit; // CommonJS module: no default export once compiled
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50, size: 'A4' });

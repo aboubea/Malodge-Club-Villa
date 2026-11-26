@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateVillaDto {
@@ -76,6 +76,14 @@ export class UpdateVillaDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Management fee on accommodation revenue, as a fraction (0.2 = 20 %). */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  managementFeeRate?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
