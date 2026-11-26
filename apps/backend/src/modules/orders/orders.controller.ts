@@ -22,7 +22,8 @@ function stripInternal<T>(data: T, role: string): T {
   if ([Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER].includes(role as Role)) return data;
   const clean = (order: any) => {
     if (!order || typeof order !== 'object') return order;
-    const { sellerId: _seller, ...rest } = order;
+    // The provider's WhatsApp message carries their signed accept/refuse links: team only.
+    const { sellerId: _seller, whatsappUrl: _wa, ...rest } = order;
     if (Array.isArray(rest.items)) {
       rest.items = rest.items.map(({ unitCost: _cost, ...item }: any) => item);
     }
@@ -91,12 +92,12 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new order — CLIENT auto-assigns themselves' })
-  create(
+  async create(
     @CurrentUser() user: { id: string; role: string },
     @Body() dto: CreateOrderDto,
   ) {
     const clientId = user.role === Role.CLIENT ? user.id : (dto.clientId ?? user.id);
-    return this.ordersService.create({ ...dto, clientId });
+    return stripInternal(await this.ordersService.create({ ...dto, clientId }), user.role);
   }
 
   @Patch(':id/status')

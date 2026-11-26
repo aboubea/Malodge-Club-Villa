@@ -29,6 +29,7 @@ const ProvidersPage = lazy(() => import('../features/providers/ProvidersPage').t
 const ReservationsPage = lazy(() => import('../features/reservations/ReservationsPage').then((m) => ({ default: m.ReservationsPage })));
 const ServiceCataloguePage = lazy(() => import('../features/catalogue/ServiceCataloguePage').then((m) => ({ default: m.ServiceCataloguePage })));
 const CalendarPage = lazy(() => import('../features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })));
+const ProviderSpacePage = lazy(() => import('../features/provider-space/ProviderSpacePage').then((m) => ({ default: m.ProviderSpacePage })));
 const ProviderConfirmPage = lazy(() => import('../features/confirm/ProviderConfirmPage').then((m) => ({ default: m.ProviderConfirmPage })));
 const ClientStaysPage = lazy(() => import('../features/stays/ClientStaysPage').then((m) => ({ default: m.ClientStaysPage })));
 const ExtrasPage = lazy(() => import('../features/extras/ExtrasPage').then((m) => ({ default: m.ExtrasPage })));
@@ -72,6 +73,9 @@ export function AppRouter() {
       <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
       <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
       <Route path="/confirmer" element={<ProviderConfirmPage />} />
+      {/* Provider space: personal link (WhatsApp) or provider account, outside the app layout. */}
+      <Route path="/prestataire" element={<ProviderSpacePage />} />
+      <Route path="/prestataire/:token" element={<ProviderSpacePage />} />
       <Route
         path="/*"
         element={

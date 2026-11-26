@@ -75,7 +75,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Mon espace',
-    items: [{ path: '/mon-compte', label: 'Mon compte', icon: Wallet, roles: ACCOUNT_HOLDERS }],
+    items: [
+      { path: '/prestataire', label: 'Mes missions', icon: Briefcase, roles: ['PROVIDER'] },
+      { path: '/mon-compte', label: 'Mon compte', icon: Wallet, roles: ACCOUNT_HOLDERS },
+    ],
   },
   {
     title: 'Gestion',

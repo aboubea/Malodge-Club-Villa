@@ -25,6 +25,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { StatementsModule } from './modules/statements/statements.module';
+import { ProviderSpaceModule } from './modules/provider-space/provider-space.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -50,6 +51,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     FxModule,
     MonitoringModule,
     StatementsModule,
+    ProviderSpaceModule,
     CalendarModule,
     DashboardModule,
     LodgifyModule,

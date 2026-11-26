@@ -12,6 +12,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { apiClient } from '../../lib/apiClient';
 import { formatDate, displayEmail } from '../../lib/utils';
 import { useCountries } from '../../hooks/useCountries';
+import { ProviderLinkPanel } from './ProviderLinkPanel';
 
 interface Category {
   id: string;
@@ -357,6 +358,8 @@ export function ProvidersPage() {
                 </div>
               </div>
             )}
+
+            <ProviderLinkPanel providerId={detailProvider.id} />
 
             <div className="flex items-center justify-between pt-2 border-t border-line">
               <p className="text-xs text-muted">Membre depuis {formatDate(detailProvider.createdAt)}</p>
