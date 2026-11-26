@@ -16,7 +16,7 @@ export interface Finding {
   detail?: string;
   /** Where to fix it in the app. */
   href?: string;
-  items: { label: string; href?: string }[];
+  items: { label: string; href?: string; attach?: { from: string; to: string } }[];
 }
 
 export interface CoherenceReport {
@@ -213,9 +213,12 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
     stayFindings.push({
       severity: 'warning',
       title: 'Séjour du suivi des extras qui chevauche une réservation Lodgify',
-      detail: 'Souvent le même séjour saisi deux fois : il apparaît en double dans l’agenda.',
+      detail: 'Souvent le même séjour saisi deux fois : il apparaît en double dans l’agenda. « Rattacher » met ses extras, règlements et messages sur la réservation Lodgify et supprime le doublon.',
       href: '/reservations',
-      items: lodgifyPair.map((p) => ({ label: pairLabel(p) })),
+      items: lodgifyPair.map((p) => {
+        const [extras, lodgify] = p.a.logifyId ? [p.b, p.a] : [p.a, p.b];
+        return { label: pairLabel(p), attach: { from: extras.id, to: lodgify.id } };
+      }),
     });
   if (otherOverlap.length)
     stayFindings.push({ severity: 'warning', title: 'Séjours qui se chevauchent sur la même villa', href: '/reservations', items: otherOverlap.map((p) => ({ label: pairLabel(p) })) });

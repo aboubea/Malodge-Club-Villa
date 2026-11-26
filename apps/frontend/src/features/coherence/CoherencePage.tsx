@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { AlertOctagon, AlertTriangle, ArrowUpRight, CheckCircle2, Info, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
 import { cn } from '../../lib/utils';
@@ -16,7 +17,7 @@ interface Finding {
   title: string;
   detail?: string;
   href?: string;
-  items: { label: string; href?: string }[];
+  items: { label: string; href?: string; attach?: { from: string; to: string } }[];
 }
 interface Report {
   generatedAt: string;
@@ -31,9 +32,24 @@ const STYLE: Record<Severity, { icon: React.ElementType; tone: string; chip: str
 };
 
 function FindingCard({ f }: { f: Finding }) {
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const S = STYLE[f.severity];
   const shown = open ? f.items : f.items.slice(0, 5);
+  // The extras stay that duplicates a Lodgify booking: attached to it (one by one, or all).
+  const attach = useMutation({
+    mutationFn: async (pairs: { from: string; to: string }[]) => {
+      let extras = 0;
+      for (const p of pairs) extras += ((await apiClient.post(`/extras/stays/${p.from}/attach`, { toId: p.to })).data?.data ?? {}).extras ?? 0;
+      return { stays: pairs.length, extras };
+    },
+    onSuccess: (r) => {
+      toast.success(`${r.stays} séjour${r.stays > 1 ? 's' : ''} rattaché${r.stays > 1 ? 's' : ''} à Lodgify (${r.extras} extra${r.extras > 1 ? 's' : ''} déplacé${r.extras > 1 ? 's' : ''})`);
+      for (const k of [['coherence'], ['extras'], ['reservations'], ['users'], ['people-duplicates']]) qc.invalidateQueries({ queryKey: k });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Rattachement impossible'),
+  });
+  const attachable = f.items.filter((it) => it.attach).map((it) => it.attach!);
   return (
     <div className="rounded-2xl border border-line bg-surface p-4">
       <div className="flex items-start gap-3">
@@ -46,18 +62,33 @@ function FindingCard({ f }: { f: Finding }) {
                 Corriger <ArrowUpRight size={13} />
               </Link>
             )}
+            {attachable.length > 1 && (
+              <Button size="sm" className="ml-auto" loading={attach.isPending} onClick={() => confirm(`Rattacher les ${attachable.length} séjours à leur réservation Lodgify ?`) && attach.mutate(attachable)}>
+                Tout rattacher
+              </Button>
+            )}
           </div>
           {f.detail && <p className="text-[12.5px] text-muted mt-0.5">{f.detail}</p>}
           {f.items.length > 0 && (
             <ul className="mt-2.5 space-y-1">
               {shown.map((it, i) => (
-                <li key={i} className="text-[12.5px] text-ink-soft">
+                <li key={i} className="text-[12.5px] text-ink-soft flex flex-wrap items-center gap-x-2 gap-y-1">
                   {it.href ? (
                     <Link to={it.href} className="hover:underline">
                       {it.label}
                     </Link>
                   ) : (
-                    it.label
+                    <span>{it.label}</span>
+                  )}
+                  {it.attach && (
+                    <button
+                      type="button"
+                      disabled={attach.isPending}
+                      onClick={() => attach.mutate([it.attach!])}
+                      className="h-6 px-2.5 rounded-full border border-line text-[11.5px] font-semibold text-ink hover:border-line-strong disabled:opacity-50"
+                    >
+                      Rattacher au séjour Lodgify
+                    </button>
                   )}
                 </li>
               ))}

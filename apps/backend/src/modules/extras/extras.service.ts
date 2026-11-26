@@ -26,6 +26,7 @@ import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import { duplicatePeople, mergeIdenticalPeople, mergePeople, mergePeoplePreview } from './people-merge';
 import { checkExtrasFile } from './extras-file-check';
+import { attachStayToLodgify } from './stay-attach';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -1076,6 +1077,11 @@ export class ExtrasService {
       if (e instanceof Error && /Onglet|illisible/.test(e.message)) throw new BadRequestException(e.message);
       throw e;
     }
+  }
+
+  /** The extras stay that duplicates a Lodgify booking: everything moves to the booking. */
+  attachStay(fromId: string, toId: string) {
+    return attachStayToLodgify(this.prisma as any, fromId, toId);
   }
 
   mergeIdenticalPeople() {

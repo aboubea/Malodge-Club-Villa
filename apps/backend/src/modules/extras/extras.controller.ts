@@ -237,6 +237,14 @@ export class ExtrasController {
     return this.extras.createStay(dto);
   }
 
+  @Post('stays/:id/attach')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Attach an extras stay to the Lodgify booking it duplicates (extras, payments, messages move; the duplicate is deleted)' })
+  attachStay(@Param('id') id: string, @Body('toId') toId: string) {
+    if (!toId) throw new BadRequestException('toId requis');
+    return this.extras.attachStay(id, toId);
+  }
+
   @Put('stays/:id')
   @Roles(Role.MANAGER)
   updateStay(@Param('id') id: string, @Body() dto: UpsertStayDto) {
