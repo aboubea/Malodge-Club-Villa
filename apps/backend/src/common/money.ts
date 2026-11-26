@@ -73,3 +73,28 @@ export function providerCost(o: { totalAmount: number; commission: number; items
   if (items.length && items.every((i) => i.unitCost != null)) return items.reduce((s, i) => s + i.quantity * (i.unitCost as number), 0);
   return o.totalAmount - (o.commission ?? 0);
 }
+
+const DAY = 86_400_000;
+
+/** Prisma filter: stays with nights in [start, end] (a stay without dates cannot be dated). */
+export function stayNightsBetween(start: Date, end: Date) {
+  return { checkIn: { lte: end }, checkOut: { gte: start } };
+}
+
+/**
+ * Accommodation revenue is counted night by night, on the nights spent in [start, end]:
+ * a stay from 28 Nov to 3 Dec (5 nights) counts 3/5 of its amount in November, 2/5 in December.
+ * A stay without dates counts nothing; one with arrival and departure the same day counts
+ * entirely on that day.
+ */
+export function stayRevenueBetween(s: { checkIn?: Date | null; checkOut?: Date | null; totalAmount: number }, start: Date, end: Date): number {
+  if (!s.checkIn || !s.checkOut || !s.totalAmount) return 0;
+  const arrival = Math.floor(s.checkIn.getTime() / DAY);
+  const departure = Math.floor(s.checkOut.getTime() / DAY);
+  const first = Math.ceil(start.getTime() / DAY);
+  const last = Math.floor(end.getTime() / DAY); // inclusive
+  const nights = departure - arrival;
+  if (nights <= 0) return arrival >= first && arrival <= last ? s.totalAmount : 0;
+  const inPeriod = Math.max(0, Math.min(departure, last + 1) - Math.max(arrival, first));
+  return Math.round(((s.totalAmount * inPeriod) / nights) * 100) / 100;
+}

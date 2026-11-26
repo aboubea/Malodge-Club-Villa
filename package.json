@@ -12,7 +12,9 @@
     "build": "npm run build:shared && npm run build:backend && npm run build:frontend",
     "build:shared": "npm -w packages/shared run build",
     "build:backend": "npm -w apps/backend run build",
-    "build:frontend": "npm -w apps/frontend run build"
+    "build:frontend": "npm -w apps/frontend run build",
+    "test": "npm -w apps/backend run test && npm -w apps/frontend run test",
+    "test:db": "npm -w apps/backend run test:db"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

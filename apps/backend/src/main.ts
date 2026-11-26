@@ -1,20 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { execSync } from 'child_process';
 import { AppModule } from './app.module';
 import { AuthService } from './modules/auth/auth.service';
 
 async function bootstrap() {
-  try {
-    execSync('npx prisma db push --skip-generate --accept-data-loss', {
-      stdio: 'inherit',
-      env: process.env,
-    });
-  } catch (e) {
-    console.error('prisma db push failed:', e);
-  }
-
+  // The schema is updated by the versioned migrations (scripts/migrate.js, run by
+  // start:prod and the Vercel build), never by `db push`, which can drop data.
   const app = await NestFactory.create(AppModule);
 
   const allowedOrigins = [

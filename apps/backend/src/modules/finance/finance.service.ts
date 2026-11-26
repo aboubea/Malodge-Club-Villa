@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Response } from 'express';
 import { FxService } from '../fx/fx.service';
-import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, providerCost, reservationCurrency, serviceDate, serviceDateBetween, totalsByCurrency } from '../../common/money';
+import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, providerCost, reservationCurrency, serviceDate, serviceDateBetween, stayNightsBetween, stayRevenueBetween, totalsByCurrency } from '../../common/money';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -67,14 +67,18 @@ export class FinanceService {
       },
     });
 
-    // Accommodation revenue (from reservations in the same period)
-    const allReservations = await this.prisma.reservation.findMany({
-      where: {
-        status: { in: ['ACTIVE', 'COMPLETED'] },
-        createdAt: { gte: start, lte: end },
-      },
-      include: { villa: { select: { currency: true } } },
-    });
+    // Accommodation revenue: the nights spent in the period (not the day the booking was made).
+    const allReservations = (
+      await this.prisma.reservation.findMany({
+        where: {
+          status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] },
+          ...stayNightsBetween(start, end),
+        },
+        include: { villa: { select: { currency: true } } },
+      })
+    )
+      .map((r) => ({ ...r, totalAmount: stayRevenueBetween(r, start, end) }))
+      .filter((r) => r.totalAmount !== 0);
 
     const currencies = totalsByCurrency(
       [
