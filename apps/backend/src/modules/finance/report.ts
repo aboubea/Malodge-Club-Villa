@@ -26,6 +26,23 @@ const fromDayNo = (n: number) => new Date(n * DAY);
 const endOf = (n: number) => new Date((n + 1) * DAY - 1);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Rounds to the cent while keeping the sum: each value is the rounded running total minus
+ * the previous one, so the parts always add up to the rounded total (1 000 over 3 nights
+ * gives 333.33 + 333.34 + 333.33, never 999.99).
+ */
+export function roundKeepingSum(values: number[]): number[] {
+  let run = 0;
+  let prev = 0;
+  return values.map((v) => {
+    run += v;
+    const r = round2(run);
+    const out = round2(r - prev);
+    prev = r;
+    return out;
+  });
+}
+
 /** The calendar period holding `ref` (UTC days; weeks run Monday to Sunday). */
 export function financeRange(period: FinancePeriod, ref: Date): Range {
   const y = ref.getUTCFullYear();
@@ -292,25 +309,37 @@ export function financeReport(stays: StayIn[], orders: OrderIn[], range: Range, 
   }
   t.revenue = t.accommodation + t.extras;
 
-  const series: SeriesPoint[] = buckets.map((b) => {
+  // Counted stays only (not the duplicates), per bar of the chart.
+  const counted = stays.filter((s) => {
+    const own = nightsOf(s, first, last);
+    return s.amount > 0 || !own.length || !own.every((n) => paid.get(s.house.id)?.has(n));
+  });
+  const rawSeries = buckets.map((b) => {
     const bf = dayNo(b.start);
     const bl = dayNo(b.end);
-    const accommodation = stays.reduce((sum, s) => sum + staySplit(s, Math.max(bf, first), Math.min(bl, last)).amount, 0);
+    const accommodation = counted.reduce((sum, s) => sum + staySplit(s, Math.max(bf, first), Math.min(bl, last)).amount, 0);
     const extras = inRange
       .filter((o) => dayNo(o.date) >= bf && dayNo(o.date) <= bl)
       .reduce((sum, o) => sum + orderLines(o).reduce((x, i) => x + i.total, 0), 0);
-    return { key: b.key, label: b.label, accommodation: round2(accommodation), extras: round2(extras), upcoming: bf > todayNo };
+    return { key: b.key, label: b.label, accommodation, extras, upcoming: bf > todayNo };
   });
+  // Rounded to the cent so that the bars, the villas and the activities add up exactly to the totals.
+  const accBars = roundKeepingSum(rawSeries.map((p) => p.accommodation));
+  const extBars = roundKeepingSum(rawSeries.map((p) => p.extras));
+  const series: SeriesPoint[] = rawSeries.map((p, i) => ({ ...p, accommodation: accBars[i], extras: extBars[i] }));
 
   const totals = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, k.endsWith('Count') || k === 'nights' || k === 'stays' ? v : round2(v)])) as unknown as Totals;
-  const byHouse = [...houses.values()]
-    .map((h) => ({ ...h, accommodation: round2(h.accommodation), extras: round2(h.extras), revenue: round2(h.accommodation + h.extras), extrasMargin: round2(h.extrasMargin) }))
-    .filter((h) => h.revenue || h.nights || h.extrasCount)
+  totals.revenue = round2(totals.accommodation + totals.extras);
+  const houseRows = [...houses.values()]
+    .filter((h) => round2(h.accommodation + h.extras) || h.nights || h.extrasCount)
     // The extras of no villa go last, whatever their amount.
-    .sort((a, b) => (a.id === NO_HOUSE.id ? 1 : b.id === NO_HOUSE.id ? -1 : b.revenue - a.revenue));
-  const byActivity = [...activities.values()]
-    .map((a) => ({ ...a, revenue: round2(a.revenue), cost: round2(a.cost), margin: round2(a.margin) }))
-    .sort((a, b) => b.revenue - a.revenue);
+    .sort((a, b) => (a.id === NO_HOUSE.id ? 1 : b.id === NO_HOUSE.id ? -1 : b.accommodation + b.extras - (a.accommodation + a.extras)));
+  const accHouses = roundKeepingSum(houseRows.map((h) => h.accommodation));
+  const extHouses = roundKeepingSum(houseRows.map((h) => h.extras));
+  const byHouse = houseRows.map((h, i) => ({ ...h, accommodation: accHouses[i], extras: extHouses[i], revenue: round2(accHouses[i] + extHouses[i]), extrasMargin: round2(h.extrasMargin) }));
+  const activityRows = [...activities.values()].sort((a, b) => b.revenue - a.revenue);
+  const actRevenue = roundKeepingSum(activityRows.map((a) => a.revenue));
+  const byActivity = activityRows.map((a, i) => ({ ...a, revenue: actRevenue[i], cost: round2(a.cost), margin: round2(a.margin) }));
 
   return { totals, series, byHouse, byActivity };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { change, chartBuckets, financeRange, financeReport, NO_HOUSE, OrderIn, previousRange, rangeLabel, StayIn } from './report';
+import { change, chartBuckets, financeRange, financeReport, NO_HOUSE, OrderIn, previousRange, rangeLabel, roundKeepingSum, StayIn } from './report';
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 const villa58 = { id: 'v58', name: 'Villa 58' };
@@ -99,5 +99,22 @@ describe('finance report', () => {
     expect(change(120, 100)).toBe(20);
     expect(change(50, 200)).toBe(-75);
     expect(change(10, 0)).toBeNull();
+  });
+});
+
+describe('rounding', () => {
+  it('keeps the sum when cutting an amount into cents', () => {
+    expect(roundKeepingSum([1_000 / 3, 1_000 / 3, 1_000 / 3])).toEqual([333.33, 333.34, 333.33]);
+    const nights = roundKeepingSum(Array.from({ length: 7 }, () => 9_000 / 7));
+    expect(Math.round(nights.reduce((a, b) => a + b, 0) * 100) / 100).toBe(9_000);
+  });
+
+  it('adds up to the cent on a stay that does not divide evenly', () => {
+    const range = financeRange('month', d('2026-11-15'));
+    const r = financeReport([stay('x', riad, '2026-11-01', '2026-11-08', 9_000), stay('y', villa58, '2026-11-03', '2026-11-06', 1_000)], [], range, d('2026-11-20'), chartBuckets('month', range));
+    const total = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+    expect(r.totals.accommodation).toBe(10_000);
+    expect(total(r.series.map((p) => p.accommodation))).toBe(10_000);
+    expect(total(r.byHouse.map((h) => h.revenue))).toBe(10_000);
   });
 });

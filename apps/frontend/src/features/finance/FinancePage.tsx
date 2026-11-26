@@ -430,7 +430,7 @@ export function FinancePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Par villa</CardTitle>
-            <span className="flex items-center gap-3 text-[11.5px] text-muted">
+            <span className="hidden sm:flex items-center gap-3 text-[11.5px] text-muted">
               <span className="inline-flex items-center gap-1">
                 <span className="w-2 h-2 rounded-[2px] bg-chart-1" /> Hébergement
               </span>
