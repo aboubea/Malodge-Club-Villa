@@ -27,7 +27,8 @@ export interface ImportReport {
   people: Record<Role, { created: number; reused: number }>;
   villas: { created: string[]; updated: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
-  stays: { created: number; fromExtras: string[] };
+  stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
+  adjusted: string[];
   extras: number;
   settlements: { validated: number; pending: number; cancelled: number };
   warnings: string[];
@@ -152,6 +153,9 @@ export async function parseWorkbook(buffer: Buffer) {
       price: num(r.getCell(7).value),
       cost: num(r.getCell(8).value),
       seller: str(r.getCell(9).value),
+      // Cached results: "Total client" and "Coût total" may have been typed over in the spreadsheet.
+      totalCell: num(r.getCell(10).value),
+      costTotalCell: num(r.getCell(22).value),
       status: STATUS[str(r.getCell(12).value)] ?? ('PENDING' as const),
       note: str(r.getCell(14).value),
     }))
@@ -339,13 +343,29 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     if (stays.has(k)) return stays.get(k)!;
     const villaId = villaIds.get(key(villaName));
     if (!villaId) return null;
-    const clientId = person('CLIENT', label, info?.contact ? { phone: info.contact } : {});
+    // Dates are never invented: they come from the settings, otherwise from the stay's
+    // own extras (then payments) and are flagged "to confirm"; with nothing, no stay.
+    const known = info?.arrival && info?.departure;
     const own = data.extras.filter((e) => key(e.stay) === k && e.date).map((e) => e.date!.getTime());
-    const checkIn = info?.arrival ?? (own.length ? new Date(Math.min(...own)) : new Date());
-    const checkOut = info?.departure ?? (own.length ? new Date(Math.max(...own)) : checkIn);
-    const notes = [info?.notes, info?.arrival ? null : "Dates non renseignées dans l'Excel : déduites des extras, à vérifier."].filter(Boolean).join(' ');
+    const paid = data.settlements.filter((st) => key(st.person) === k && st.date).map((st) => st.date!.getTime());
+    const hints = own.length ? own : paid;
+    if (!known && !info?.arrival && !info?.departure && hints.length === 0) {
+      report.stays.skipped.push(label);
+      warn(`Séjour « ${label} » non importé : ni dates ni extras dans l'Excel.`);
+      return null;
+    }
+    const checkIn = info?.arrival ?? new Date(Math.min(...(hints.length ? hints : [info!.departure!.getTime()])));
+    const checkOut = info?.departure ?? new Date(Math.max(...(hints.length ? hints : [checkIn.getTime()])));
+    const clientId = person('CLIENT', label, info?.contact ? { phone: info.contact } : {});
+    if (!known) {
+      report.stays.datesEstimated.push(label);
+      warn(`Séjour « ${label} » : dates absentes de l'Excel, déduites ${own.length ? 'des extras' : 'des règlements'} (${checkIn.toISOString().slice(0, 10)} → ${checkOut.toISOString().slice(0, 10)}) — à confirmer.`);
+    }
     const id = newId();
-    newStays.push({ id, label, villaId, clientId, checkIn, checkOut, totalAmount: 0, status: 'CONFIRMED', archived: info?.archived ?? false, source: 'extras-import', notes: notes || null });
+    newStays.push({
+      id, label, villaId, clientId, checkIn, checkOut, datesEstimated: !known, totalAmount: 0, status: 'CONFIRMED',
+      archived: info?.archived ?? false, source: 'extras-import', notes: info?.notes || null,
+    });
     const entry = { id, clientId, villaId };
     stays.set(k, entry);
     report.stays.created++;
@@ -376,8 +396,42 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
     const serviceId = serviceIds.get(key(e.label)) ?? null;
     const providerUser = e.provider ? person('PROVIDER', e.provider) : null;
     const sellerId = e.seller ? person('EMPLOYEE', e.seller) : null;
-    const qty = e.qty ?? 0;
-    const total = e.price != null ? Math.round(qty * e.price * 100) / 100 : 0;
+    // Quantity, sale and cost prices. When the spreadsheet's total was typed over
+    // (≠ quantity × price), the typed total wins: quantity or unit price is adjusted.
+    let qty = e.qty;
+    let price = e.price;
+    let cost = e.cost;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const what = `Extra ligne ${e.row} (${e.stay} — ${e.label})`;
+    if (e.status !== 'CANCELLED' && e.totalCell != null && e.totalCell > 0) {
+      const computed = qty != null && price != null ? qty * price : null;
+      if (computed === null || Math.abs(computed - e.totalCell) > 0.005) {
+        const q0 = qty;
+        const p0 = price;
+        const ratio = price ? e.totalCell / price : NaN;
+        if (price && Math.abs(ratio - Math.round(ratio)) < 1e-6 && Math.round(ratio) > 0) qty = Math.round(ratio);
+        else if (qty && qty > 0) price = r2(e.totalCell / qty);
+        else {
+          qty = 1;
+          price = e.totalCell;
+        }
+        const msg = `${what} : total saisi dans l'Excel ${e.totalCell} ≠ ${q0 ?? '—'} × ${p0 ?? '—'} ; repris en ${qty} × ${price}.`;
+        report.adjusted.push(msg);
+        warn(msg);
+      }
+    }
+    if (e.status !== 'CANCELLED' && e.costTotalCell != null && e.costTotalCell > 0 && qty) {
+      const origQty = e.qty ?? qty;
+      const computed = cost != null ? origQty * cost : null;
+      if (computed === null || Math.abs(computed - e.costTotalCell) > 0.005) {
+        const c0 = cost;
+        cost = r2(e.costTotalCell / qty);
+        const msg = `${what} : coût total saisi dans l'Excel ${e.costTotalCell} ≠ ${origQty} × ${c0 ?? '—'} ; coût unitaire repris à ${cost}.`;
+        report.adjusted.push(msg);
+        warn(msg);
+      }
+    }
+    const total = qty != null && price != null ? r2(qty * price) : 0;
     const orderId = newId();
     newOrders.push({
       id: orderId,
@@ -391,7 +445,7 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
       notes: e.note || null,
       totalAmount: total,
     });
-    newItems.push({ id: newId(), orderId, serviceId, label: serviceId ? null : e.label || 'À compléter', quantity: qty, unitPrice: e.price ?? 0, unitCost: e.cost, total });
+    newItems.push({ id: newId(), orderId, serviceId, label: serviceId ? null : e.label || 'À compléter', quantity: qty ?? 0, unitPrice: price, unitCost: cost, total });
     report.extras++;
   }
 
@@ -440,7 +494,23 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   if (newSettlements.length) await tx.settlement.createMany({ data: newSettlements });
 
   await tx.appSetting.upsert({ where: { key: MARKUP_KEY }, update: {}, create: { key: MARKUP_KEY, value: 0.25 } });
-  const stamp = { file: report.file, at: new Date().toISOString(), extras: report.extras, settlements: data.settlements.length };
+  const stamp = {
+    file: report.file,
+    at: new Date().toISOString(),
+    extras: report.extras,
+    settlements: newSettlements.length,
+    // Exact list of what this import created, used to undo it.
+    created: {
+      users: [...newUsers.keys()],
+      providers: newProviders.map((x) => x.id),
+      villas: newVillas.map((x) => x.id),
+      categories: newCategories.map((x) => x.id),
+      services: newServices.map((x) => x.id),
+      reservations: newStays.map((x) => x.id),
+      orders: newOrders.map((x) => x.id),
+      settlements: newSettlements.map((x) => x.id),
+    },
+  };
   await tx.appSetting.upsert({ where: { key: IMPORT_KEY }, update: { value: stamp }, create: { key: IMPORT_KEY, value: stamp } });
 }
 
@@ -459,7 +529,8 @@ export async function importExtrasWorkbook(
     people: { CLIENT: emptyPeople(), PROVIDER: emptyPeople(), OWNER: emptyPeople(), EMPLOYEE: emptyPeople() },
     villas: { created: [], updated: [] },
     catalogue: { created: 0, updated: 0, categoriesCreated: [] },
-    stays: { created: 0, fromExtras: [] },
+    stays: { created: 0, fromExtras: [], datesEstimated: [], skipped: [] },
+    adjusted: [],
     extras: 0,
     settlements: { validated: 0, pending: 0, cancelled: 0 },
     warnings: [],
@@ -478,5 +549,115 @@ export async function importExtrasWorkbook(
     if (!(e instanceof Rollback)) throw e;
   }
   report.durationMs = Date.now() - started;
+  return report;
+}
+
+/* ─────────────────────────────── Undo ─────────────────────────────── */
+
+export interface UndoReport {
+  dryRun: boolean;
+  file: string | null;
+  importedAt: string | null;
+  mode: 'exact' | 'markers';
+  toDelete: { stays: number; extras: number; settlements: number; people: number; villas: number; services: number; categories: number };
+  /** Imported records edited since the import: those edits would be lost. */
+  modifiedSince: { extras: number; settlements: number; stays: number };
+  /** Records created after the import that rely on imported data: undo is refused. */
+  blockers: string[];
+}
+
+type Created = { users: string[]; providers: string[]; villas: string[]; categories: string[]; services: string[]; reservations: string[]; orders: string[]; settlements: string[] };
+
+async function findCreated(prisma: PrismaClient | Tx, stamp: { at?: string; created?: Created }): Promise<{ created: Created; mode: 'exact' | 'markers' }> {
+  if (stamp.created) return { created: stamp.created, mode: 'exact' };
+  // Imports made before ids were recorded: rely on markers, within the import's time window.
+  const end = stamp.at ? new Date(new Date(stamp.at).getTime() + 5_000) : new Date();
+  const start = new Date(end.getTime() - 65_000);
+  const inWindow = { gte: start, lte: end };
+  const reservations = (await prisma.reservation.findMany({ where: { source: 'extras-import', createdAt: inWindow }, select: { id: true } })).map((r) => r.id);
+  const users = (await prisma.user.findMany({ where: { email: { endsWith: '@fiche.malodge.invalid' }, createdAt: inWindow }, select: { id: true } })).map((u) => u.id);
+  const orders = (await prisma.order.findMany({ where: { reservationId: { in: reservations }, createdAt: inWindow }, select: { id: true } })).map((o) => o.id);
+  const settlements = (
+    await prisma.settlement.findMany({
+      where: { createdAt: inWindow, OR: [{ reservationId: { in: reservations } }, { personId: { in: users } }] },
+      select: { id: true },
+    })
+  ).map((s) => s.id);
+  const providers = (await prisma.provider.findMany({ where: { userId: { in: users }, createdAt: inWindow }, select: { id: true } })).map((p) => p.id);
+  const villas = (await prisma.villa.findMany({ where: { createdAt: inWindow, address: 'À compléter' }, select: { id: true } })).map((v) => v.id);
+  const services = (await prisma.service.findMany({ where: { createdAt: inWindow, currency: CURRENCY }, select: { id: true } })).map((s) => s.id);
+  const categories = (await prisma.serviceCategory.findMany({ where: { createdAt: inWindow }, select: { id: true } })).map((c) => c.id);
+  return { created: { users, providers, villas, categories, services, reservations, orders, settlements }, mode: 'markers' };
+}
+
+export async function undoImport(prisma: PrismaClient, opts: { dryRun: boolean }): Promise<UndoReport> {
+  const row = await prisma.appSetting.findUnique({ where: { key: IMPORT_KEY } });
+  if (!row) throw new Error('Aucun import à annuler.');
+  const stamp = (row.value ?? {}) as { at?: string; file?: string; created?: Created };
+  const { created: c, mode } = await findCreated(prisma, stamp);
+  const after = stamp.at ? new Date(new Date(stamp.at).getTime() + 5_000) : new Date(0);
+
+  const notIn = (ids: string[]) => ({ notIn: ids.length ? ids : ['__none__'] });
+  const anyIn = (ids: string[]) => ({ in: ids.length ? ids : ['__none__'] });
+  const [ordersDep, itemsDep, settlementsDep, staysDep, servicesDep, villaServicesDep, eventsDep, conversationsDep] = await Promise.all([
+    prisma.order.count({ where: { id: notIn(c.orders), OR: [{ reservationId: anyIn(c.reservations) }, { clientId: anyIn(c.users) }, { providerId: anyIn(c.providers) }, { sellerId: anyIn(c.users) }, { villaId: anyIn(c.villas) }] } }),
+    prisma.orderItem.count({ where: { orderId: notIn(c.orders), serviceId: anyIn(c.services) } }),
+    prisma.settlement.count({ where: { id: notIn(c.settlements), OR: [{ personId: anyIn(c.users) }, { reservationId: anyIn(c.reservations) }] } }),
+    prisma.reservation.count({ where: { id: notIn(c.reservations), OR: [{ villaId: anyIn(c.villas) }, { clientId: anyIn(c.users) }] } }),
+    prisma.service.count({ where: { id: notIn(c.services), categoryId: anyIn(c.categories) } }),
+    prisma.villaService.count({ where: { OR: [{ villaId: anyIn(c.villas) }, { serviceId: anyIn(c.services) }] } }),
+    prisma.calendarEvent.count({ where: { OR: [{ orderId: anyIn(c.orders) }, { reservationId: anyIn(c.reservations) }, { villaId: anyIn(c.villas) }] } }),
+    prisma.conversation.count({ where: { reservationId: anyIn(c.reservations) } }),
+  ]);
+  const blockers = [
+    ordersDep && `${ordersDep} extra(s) saisi(s) depuis l'import sur des séjours, personnes ou villas importés`,
+    itemsDep && `${itemsDep} commande(s) utilisant des prestations importées`,
+    settlementsDep && `${settlementsDep} règlement(s) saisi(s) depuis l'import pour des personnes ou séjours importés`,
+    staysDep && `${staysDep} réservation(s) créée(s) depuis l'import sur des villas ou clients importés`,
+    servicesDep && `${servicesDep} prestation(s) ajoutée(s) depuis dans des catégories importées`,
+    villaServicesDep && `${villaServicesDep} service(s) de villa lié(s) aux villas ou prestations importées`,
+    eventsDep && `${eventsDep} événement(s) d'agenda lié(s) aux données importées`,
+    conversationsDep && `${conversationsDep} conversation(s) liée(s) aux séjours importés`,
+  ].filter(Boolean) as string[];
+
+  const [extrasModified, settlementsModified, staysModified] = await Promise.all([
+    prisma.order.count({ where: { id: anyIn(c.orders), updatedAt: { gt: after } } }),
+    prisma.settlement.count({ where: { id: anyIn(c.settlements), updatedAt: { gt: after } } }),
+    prisma.reservation.count({ where: { id: anyIn(c.reservations), updatedAt: { gt: after } } }),
+  ]);
+
+  const report: UndoReport = {
+    dryRun: opts.dryRun,
+    file: stamp.file ?? null,
+    importedAt: stamp.at ?? null,
+    mode,
+    toDelete: {
+      stays: c.reservations.length, extras: c.orders.length, settlements: c.settlements.length, people: c.users.length,
+      villas: c.villas.length, services: c.services.length, categories: c.categories.length,
+    },
+    modifiedSince: { extras: extrasModified, settlements: settlementsModified, stays: staysModified },
+    blockers,
+  };
+  if (opts.dryRun || blockers.length) return report;
+
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.settlement.deleteMany({ where: { id: anyIn(c.settlements) } });
+      await tx.orderItem.deleteMany({ where: { orderId: anyIn(c.orders) } });
+      await tx.order.deleteMany({ where: { id: anyIn(c.orders) } });
+      await tx.reservation.deleteMany({ where: { id: anyIn(c.reservations) } });
+      await tx.serviceProvider.deleteMany({ where: { OR: [{ serviceId: anyIn(c.services) }, { providerId: anyIn(c.providers) }] } });
+      await tx.service.deleteMany({ where: { id: anyIn(c.services) } });
+      await tx.serviceCategory.deleteMany({ where: { id: anyIn(c.categories) } });
+      await tx.service.updateMany({ where: { defaultProviderId: anyIn(c.providers) }, data: { defaultProviderId: null } });
+      await tx.providerCategory.deleteMany({ where: { providerId: anyIn(c.providers) } });
+      await tx.provider.deleteMany({ where: { id: anyIn(c.providers) } });
+      await tx.villa.updateMany({ where: { ownerId: anyIn(c.users) }, data: { ownerId: null } });
+      await tx.villa.deleteMany({ where: { id: anyIn(c.villas) } });
+      await tx.user.deleteMany({ where: { id: anyIn(c.users) } });
+      await tx.appSetting.delete({ where: { key: IMPORT_KEY } });
+    },
+    { maxWait: 10_000, timeout: 25_000 },
+  );
   return report;
 }

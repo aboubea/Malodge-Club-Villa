@@ -248,23 +248,25 @@ model ProviderCategory {
 }
 
 model Reservation {
-  id          String            @id @default(cuid())
-  logifyId    String?           @unique
-  villaId     String
-  clientId    String
-  checkIn     DateTime
-  checkOut    DateTime
-  guests      Int               @default(1)
-  totalAmount Float
-  status      ReservationStatus @default(PENDING)
-  notes       String?
-  source      String?           @default("manual")
+  id             String            @id @default(cuid())
+  logifyId       String?           @unique
+  villaId        String
+  clientId       String
+  checkIn        DateTime
+  checkOut       DateTime
+  guests         Int               @default(1)
+  totalAmount    Float
+  status         ReservationStatus @default(PENDING)
+  notes          String?
+  source         String?           @default("manual")
   /// Stay label used by the extras tracking ("Client / séjour"); a returning guest gets a new label
-  label       String?
+  label          String?
   /// Archived stays leave the extras overview; their accounts are kept
-  archived    Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  archived       Boolean           @default(false)
+  /// true when arrival/departure were deduced (e.g. from extras at import) and must be confirmed
+  datesEstimated Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   villa          Villa           @relation(fields: [villaId], references: [id])
   client         User            @relation(fields: [clientId], references: [id])
@@ -308,7 +310,8 @@ model OrderItem {
   serviceId String?
   label     String?
   quantity  Float   @default(1)
-  unitPrice Float
+  /// null when the sale price is still unknown (extra to complete)
+  unitPrice Float?
   /// Purchase cost per unit (internal)
   unitCost  Float?
   total     Float

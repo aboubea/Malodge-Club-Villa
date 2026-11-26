@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
-import { formatMoney } from '../../lib/utils';
+import { formatMoney, todayInput } from '../../lib/utils';
 import {
   AccountRole,
   ExtraLine,
@@ -41,7 +41,7 @@ export function ExtraFormModal({
     label: '',
     providerId: '',
     sellerId: '',
-    date: new Date().toISOString().slice(0, 10),
+    date: todayInput(),
     quantity: '1',
     unitPrice: '',
     unitCost: '',
@@ -294,7 +294,7 @@ export function SettlementFormModal({
   const [form, setForm] = useState({
     kind: 'CLIENT_PAYMENT',
     accountId: '',
-    date: new Date().toISOString().slice(0, 10),
+    date: todayInput(),
     amount: '',
     currency: 'MAD',
     method: 'CASH',
@@ -317,7 +317,7 @@ export function SettlementFormModal({
       reference: '',
       note: '',
       validate: false,
-      date: new Date().toISOString().slice(0, 10),
+      date: todayInput(),
     }));
   }, [open, preset]);
 

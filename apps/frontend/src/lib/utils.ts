@@ -80,3 +80,20 @@ export function formatMoney(amount: number | null | undefined, currency = 'EUR')
     return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${currency}`;
   }
 }
+
+/**
+ * Calendar day of a date-only value (stored at 00:00 UTC), shown the same
+ * whatever the viewer's time zone.
+ */
+export function formatDay(date: string | Date | null | undefined): string {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(d);
+}
+
+/** Today as YYYY-MM-DD in the viewer's own time zone (for date inputs). */
+export function todayInput(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

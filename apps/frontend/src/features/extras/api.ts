@@ -21,7 +21,7 @@ export interface ExtraLine {
   serviceId: string | null;
   currency: string;
   cancelled: boolean;
-  stay: { id: string; label: string; archived: boolean; clientId: string } | null;
+  stay: { id: string; label: string; archived: boolean; clientId: string; checkIn?: string | null; checkOut?: string | null; datesEstimated?: boolean } | null;
   villa: { id: string; name: string; country: string; currency: string } | null;
   provider: { id: string; name: string } | null;
   owner: { id: string; name: string } | null;
@@ -37,6 +37,8 @@ export interface ExtraLine {
   sellerShare: number | null;
   net: number | null;
   issue: string | null;
+  /** Non-blocking check, e.g. "Date hors séjour". */
+  warning: string | null;
 }
 
 export interface Totals {
@@ -66,7 +68,7 @@ export interface Account {
   incompleteCount: number;
   archived?: boolean;
   lastSettlement?: string | null;
-  meta?: { villa?: string; checkIn?: string; checkOut?: string; contact?: string | null; rate?: number | null; base?: string | null; villas?: string[] };
+  meta?: { villa?: string; checkIn?: string; checkOut?: string; datesEstimated?: boolean; contact?: string | null; rate?: number | null; base?: string | null; villas?: string[] };
 }
 
 export interface Settlement {
@@ -102,7 +104,7 @@ export interface Summary {
     activeNet: number;
     treasury: number;
   }[];
-  alerts: { incompleteExtras: number; pendingSettlements: number; settingsToCheck: number };
+  alerts: { incompleteExtras: number; dateWarnings: number; staysToDate: number; pendingSettlements: number; settingsToCheck: number };
   topClients: Account[];
   topOwners: Account[];
   topEmployees: Account[];
@@ -121,6 +123,7 @@ export interface Stay {
   checkIn: string;
   checkOut: string;
   archived: boolean;
+  datesEstimated: boolean;
   notes: string | null;
   issue: string | null;
 }

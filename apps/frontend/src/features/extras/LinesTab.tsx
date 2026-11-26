@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Pencil, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { cn, formatDate } from '../../lib/utils';
+import { cn, formatDay } from '../../lib/utils';
 import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, api, pct, useExtraLines, useExtrasMutation } from './api';
 import { ExtraFormModal } from './forms';
 import { EmptyState, IssueTag, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
@@ -69,7 +69,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
               filters.incomplete ? 'bg-warning/10 border-warning/30 text-warning' : 'border-line text-ink-soft hover:border-line-strong',
             )}
           >
-            À compléter uniquement
+            À compléter ou à vérifier
           </button>
           {activeCount > 0 && (
             <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true })} className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold text-muted hover:text-ink">
@@ -143,7 +143,8 @@ export function LinesTab({ options }: { options: Options | undefined }) {
       ))}
       <p className="text-[12.5px] text-muted -mt-2">
         {lines.length} extra{lines.length > 1 ? 's' : ''} affiché{lines.length > 1 ? 's' : ''}
-        {data?.totals[0]?.incomplete ? `, dont ${data.totals.reduce((s, t) => s + t.incomplete, 0)} à compléter (montants partiels)` : ''}.
+        {data?.totals[0]?.incomplete ? `, dont ${data.totals.reduce((s, t) => s + t.incomplete, 0)} à compléter (montants partiels)` : ''}
+        {lines.some((l) => l.warning) ? ` — ${lines.filter((l) => l.warning).length} date(s) hors séjour à vérifier` : ''}.
       </p>
 
       {/* Table */}
@@ -175,7 +176,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
             <tbody className="divide-y divide-line">
               {lines.map((l) => (
                 <tr key={l.id} className={cn('hover:bg-surface-2/50 transition-colors', l.cancelled && 'opacity-55')}>
-                  <td className={cn(td, 'whitespace-nowrap text-ink-soft tabular')}>{l.date ? formatDate(l.date) : <IssueTag issue="Sans date" />}</td>
+                  <td className={cn(td, 'whitespace-nowrap text-ink-soft tabular')}>{l.date ? formatDay(l.date) : <IssueTag issue="Sans date" />}</td>
                   <td className={td}>
                     <p className="font-semibold truncate max-w-[180px]">{l.stay?.label ?? '—'}</p>
                     <p className="text-[12px] text-muted truncate max-w-[180px]">{l.villa?.name ?? '—'}</p>
@@ -187,9 +188,17 @@ export function LinesTab({ options }: { options: Options | undefined }) {
                     <p className="text-[12px] text-muted truncate max-w-[300px]">
                       {[l.provider?.name, l.seller && `vendu par ${l.seller.name}`].filter(Boolean).join(' · ') || '—'}
                     </p>
-                    {l.issue && (
-                      <div className="mt-1">
+                    {(l.issue || l.warning) && (
+                      <div className="mt-1 flex flex-wrap gap-1">
                         <IssueTag issue={l.issue} />
+                        {l.warning && (
+                          <span
+                            className="inline-flex items-center h-6 px-2 rounded-full bg-info/10 text-info text-[11.5px] font-semibold whitespace-nowrap"
+                            title={l.stay?.checkIn ? `Séjour du ${formatDay(l.stay.checkIn)} au ${formatDay(l.stay.checkOut)}` : undefined}
+                          >
+                            {l.warning}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>

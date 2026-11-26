@@ -3,7 +3,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
-import { cn, formatDate, formatMoney } from '../../lib/utils';
+import { cn, formatDay, formatMoney } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { AccountState, ExtraStatus, METHOD_LABELS, STATE_BADGE, STATUS_BADGE, STATUS_LABELS, pct } from './api';
 import { EmptyState, Money, TableCard, td, th } from './ui';
@@ -117,7 +117,7 @@ export function MyAccountPage() {
                   <tbody className="divide-y divide-line">
                     {data.lines.map((l) => (
                       <tr key={l.id} className={l.status === 'CANCELLED' ? 'opacity-55' : undefined}>
-                        <td className={cn(td, 'tabular text-ink-soft whitespace-nowrap')}>{l.date ? formatDate(l.date) : '—'}</td>
+                        <td className={cn(td, 'tabular text-ink-soft whitespace-nowrap')}>{l.date ? formatDay(l.date) : '—'}</td>
                         <td className={td}>
                           <p className="max-w-[320px] truncate" title={l.label}>
                             {l.label}
@@ -170,7 +170,7 @@ export function MyAccountPage() {
                   <tbody className="divide-y divide-line">
                     {data.settlements.map((s) => (
                       <tr key={s.id}>
-                        <td className={cn(td, 'tabular text-ink-soft')}>{s.date ? formatDate(s.date) : '—'}</td>
+                        <td className={cn(td, 'tabular text-ink-soft')}>{s.date ? formatDay(s.date) : '—'}</td>
                         <td className={td}>
                           {s.kindLabel}
                           {s.stay && <span className="text-muted"> · {s.stay}</span>}

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Briefcase, Home, Landmark, UserRound, Users, Wallet } from 'lucide-react';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Badge } from '../../components/ui/Badge';
-import { formatDate, formatMoney } from '../../lib/utils';
+import { formatDay, formatMoney } from '../../lib/utils';
 import { Account, Options, STATE_BADGE, useExtrasSummary } from './api';
 import { EmptyState, Field, Money, StatTile, TextInput } from './ui';
 
@@ -113,7 +113,7 @@ export function OverviewTab({ options }: { options: Options | undefined }) {
   }
 
   const { alerts } = data;
-  const hasAlerts = alerts.incompleteExtras + alerts.pendingSettlements + alerts.settingsToCheck > 0;
+  const hasAlerts = alerts.incompleteExtras + alerts.dateWarnings + alerts.staysToDate + alerts.pendingSettlements + alerts.settingsToCheck > 0;
 
   return (
     <div className="space-y-6">
@@ -146,6 +146,16 @@ export function OverviewTab({ options }: { options: Options | undefined }) {
           {alerts.incompleteExtras > 0 && (
             <Link to="/extras/saisie?incomplete=true" className="text-ink-soft hover:text-ink underline-offset-2 hover:underline">
               {alerts.incompleteExtras} extra{alerts.incompleteExtras > 1 ? 's' : ''} à compléter
+            </Link>
+          )}
+          {alerts.dateWarnings > 0 && (
+            <Link to="/extras/saisie?incomplete=true&stays=all" className="text-ink-soft hover:text-ink underline-offset-2 hover:underline">
+              {alerts.dateWarnings} date{alerts.dateWarnings > 1 ? 's' : ''} hors séjour
+            </Link>
+          )}
+          {alerts.staysToDate > 0 && (
+            <Link to="/extras/reglages" className="text-ink-soft hover:text-ink underline-offset-2 hover:underline">
+              {alerts.staysToDate} séjour{alerts.staysToDate > 1 ? 's' : ''} aux dates à confirmer
             </Link>
           )}
           {alerts.pendingSettlements > 0 && (
@@ -185,7 +195,7 @@ export function OverviewTab({ options }: { options: Options | undefined }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13.5px] font-semibold text-ink truncate">{s.stay?.label ?? s.person.name}</p>
                     <p className="text-[12px] text-muted">
-                      {s.kindLabel} · {s.date ? formatDate(s.date) : 'sans date'}
+                      {s.kindLabel} · {s.date ? formatDay(s.date) : 'sans date'}
                     </p>
                   </div>
                   <div className="text-right">

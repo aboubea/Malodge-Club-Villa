@@ -139,10 +139,12 @@ async function bootstrap() {
       `ALTER TABLE "Service" ADD COLUMN IF NOT EXISTS "unitCost" DOUBLE PRECISION`,
       `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "archived" BOOLEAN NOT NULL DEFAULT false`,
       `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "label" TEXT`,
+      `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "datesEstimated" BOOLEAN NOT NULL DEFAULT false`,
       `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "sellerId" TEXT`,
       `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "label" TEXT`,
       `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "unitCost" DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "serviceId" DROP NOT NULL`,
+      `ALTER TABLE "OrderItem" ALTER COLUMN "unitPrice" DROP NOT NULL`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DATA TYPE DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DEFAULT 1`,
       `CREATE TABLE IF NOT EXISTS "Settlement" (

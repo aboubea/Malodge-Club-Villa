@@ -251,7 +251,7 @@ export function OrderDetailPage() {
                       </td>
                       <td className="px-5 py-3 text-sm text-muted">{item.quantity}</td>
                       <td className="px-5 py-3 text-sm text-muted">
-                        {formatCurrency(item.unitPrice)}
+                        {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
                       </td>
                       <td className="px-5 py-3 text-sm font-normal text-accent">
                         {formatCurrency(item.total)}

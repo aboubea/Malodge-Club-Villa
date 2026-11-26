@@ -122,6 +122,8 @@ export class UpsertStayDto {
   @IsOptional() @IsDateString() checkIn?: string | null;
   @IsOptional() @IsDateString() checkOut?: string | null;
   @IsOptional() @IsBoolean() archived?: boolean;
+  /** false = dates confirmed by hand; true = still to confirm. */
+  @IsOptional() @IsBoolean() datesEstimated?: boolean;
   @IsOptional() @IsString() @MaxLength(1000) notes?: string | null;
 }
 

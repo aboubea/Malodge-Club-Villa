@@ -13,11 +13,21 @@ interface ImportReport {
   people: Record<'CLIENT' | 'PROVIDER' | 'OWNER' | 'EMPLOYEE', { created: number; reused: number }>;
   villas: { created: string[]; updated: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
-  stays: { created: number; fromExtras: string[] };
+  stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
+  adjusted: string[];
   extras: number;
   settlements: { validated: number; pending: number; cancelled: number };
   warnings: string[];
   durationMs: number;
+}
+
+interface UndoReport {
+  dryRun: boolean;
+  file: string | null;
+  importedAt: string | null;
+  toDelete: { stays: number; extras: number; settlements: number; people: number; villas: number; services: number; categories: number };
+  modifiedSince: { extras: number; settlements: number; stays: number };
+  blockers: string[];
 }
 
 const PEOPLE_LABELS = { CLIENT: 'Clients', PROVIDER: 'Prestataires', OWNER: 'Propriétaires', EMPLOYEE: 'Salariés' } as const;
@@ -53,6 +63,30 @@ function ReportView({ r }: { r: ImportReport }) {
           </div>
         ))}
       </dl>
+      {r.adjusted.length > 0 && (
+        <div className="rounded-xl border border-info/25 bg-info/5 px-4 py-3">
+          <p className="text-[13px] font-bold text-ink">Montants saisis à la main dans l’Excel, repris tels quels ({r.adjusted.length})</p>
+          <ul className="mt-2 space-y-1 text-[12.5px] text-ink-soft list-disc pl-5">
+            {r.adjusted.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(r.stays.datesEstimated.length > 0 || r.stays.skipped.length > 0) && (
+        <p className="text-[12.5px] text-muted">
+          {r.stays.datesEstimated.length > 0 && (
+            <>
+              Séjours sans dates dans l’Excel, dates déduites et marquées « à confirmer » : <b className="text-ink-soft">{r.stays.datesEstimated.join(', ')}</b>.{' '}
+            </>
+          )}
+          {r.stays.skipped.length > 0 && (
+            <>
+              Non créés (ni dates ni extras) : <b className="text-ink-soft">{r.stays.skipped.join(', ')}</b>.
+            </>
+          )}
+        </p>
+      )}
       {r.villas.updated.length > 0 && (
         <p className="text-[12.5px] text-muted">
           Villas déjà présentes dans l’application, rattachées au suivi : <b className="text-ink-soft">{r.villas.updated.join(', ')}</b>.
@@ -83,6 +117,31 @@ export function ImportPanel() {
   const [done, setDone] = useState<ImportReport | null>(null);
   const [busy, setBusy] = useState<'preview' | 'import' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [undo, setUndo] = useState<UndoReport | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+
+  const runUndo = async (dryRun: boolean) => {
+    setError(null);
+    setUndoBusy(true);
+    try {
+      const r = await apiClient.post(`/extras/import/undo?dryRun=${dryRun}`, {}, { timeout: 60_000 });
+      const report = (r.data?.data ?? r.data) as UndoReport;
+      if (dryRun) setUndo(report);
+      else {
+        setUndo(null);
+        setDone(null);
+        setPreview(null);
+        setFile(null);
+        qc.invalidateQueries({ queryKey: ['extras'] });
+        toast.success('Import annulé : vous pouvez importer à nouveau');
+      }
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setUndoBusy(false);
+    }
+  };
 
   const { data: status } = useQuery({
     queryKey: ['extras', 'import-status'],
@@ -140,11 +199,59 @@ export function ImportPanel() {
       </div>
 
       {status?.imported ? (
-        <div className="rounded-xl bg-surface-2 px-4 py-3 text-[13px] text-ink-soft">
-          Un fichier a déjà été importé
-          {status.details?.file ? <> (<b className="text-ink">{status.details.file}</b>)</> : null}
-          {status.details?.at ? <> le {new Date(status.details.at).toLocaleString('fr-FR')}</> : null}. Un second import créerait des doublons :
-          il est bloqué. Les nouvelles données se saisissent directement dans l’application.
+        <div className="space-y-4">
+          <div className="rounded-xl bg-surface-2 px-4 py-3 text-[13px] text-ink-soft">
+            Un fichier a déjà été importé
+            {status.details?.file ? <> (<b className="text-ink">{status.details.file}</b>)</> : null}
+            {status.details?.at ? <> le {new Date(status.details.at).toLocaleString('fr-FR')}</> : null}. Un second import créerait des doublons :
+            il est bloqué. Pour corriger l’import, annulez-le puis importez à nouveau.
+          </div>
+
+          {error && <p className="rounded-xl bg-danger/10 text-danger text-[13px] px-4 py-3">{error}</p>}
+
+          {undo && (
+            <div className="rounded-xl border border-line px-4 py-4 space-y-3 text-[13px]">
+              <p className="font-bold text-ink">L’annulation supprimera ce que l’import a créé</p>
+              <p className="text-ink-soft">
+                {undo.toDelete.extras} extras, {undo.toDelete.settlements} règlements, {undo.toDelete.stays} séjours, {undo.toDelete.people} fiches,{' '}
+                {undo.toDelete.villas} villas, {undo.toDelete.services} prestations et {undo.toDelete.categories} catégories. Les villas, personnes et prestations
+                qui existaient avant l’import sont conservées.
+              </p>
+              {undo.modifiedSince.extras + undo.modifiedSince.settlements + undo.modifiedSince.stays > 0 && (
+                <p className="text-warning font-semibold">
+                  Modifié depuis l’import, et donc perdu : {undo.modifiedSince.extras} extra(s), {undo.modifiedSince.settlements} règlement(s),{' '}
+                  {undo.modifiedSince.stays} séjour(s).
+                </p>
+              )}
+              {undo.blockers.length > 0 ? (
+                <div className="rounded-lg bg-danger/10 text-danger px-3 py-2">
+                  <p className="font-semibold">Annulation impossible : des données saisies depuis s’appuient sur l’import.</p>
+                  <ul className="list-disc pl-5 mt-1">
+                    {undo.blockers.map((b) => (
+                      <li key={b}>{b}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setUndo(null)} disabled={undoBusy}>
+                    Garder l’import
+                  </Button>
+                  <Button variant="destructive" loading={undoBusy} onClick={() => runUndo(false)}>
+                    Supprimer les données importées
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!undo && (
+            <div className="flex justify-end">
+              <Button variant="secondary" loading={undoBusy} onClick={() => runUndo(true)}>
+                Annuler cet import…
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <>

@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuthStore } from '../../store/authStore';
-import { cn, formatDate } from '../../lib/utils';
+import { cn, formatDay } from '../../lib/utils';
 import { Person, Stay, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
 import { Field, IssueTag, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { ImportPanel } from './ImportPanel';
@@ -105,7 +105,7 @@ function PersonModal({ person, open, onClose, isAdmin }: { person: Person | null
 }
 
 function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: boolean; onClose: () => void; villas: { id: string; name: string }[] }) {
-  const [f, setF] = useState({ label: '', villaId: '', checkIn: '', checkOut: '', archived: false, notes: '' });
+  const [f, setF] = useState({ label: '', villaId: '', checkIn: '', checkOut: '', archived: false, notes: '', confirmDates: false });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -117,9 +117,11 @@ function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: b
       checkOut: toDateInput(stay?.checkOut),
       archived: stay?.archived ?? false,
       notes: stay?.notes ?? '',
+      confirmDates: false,
     });
   }, [open, stay]);
   const save = useExtrasMutation(api.saveStay, stay ? 'Séjour mis à jour' : 'Séjour créé');
+  const estimated = !!stay?.datesEstimated;
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.label.trim() || !f.villaId) return setError('Libellé et villa requis.');
@@ -127,7 +129,15 @@ function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: b
     save.mutate(
       {
         id: stay?.id,
-        body: { label: f.label.trim(), villaId: f.villaId, checkIn: f.checkIn || null, checkOut: f.checkOut || null, archived: f.archived, notes: f.notes.trim() || null },
+        body: {
+          label: f.label.trim(),
+          villaId: f.villaId,
+          checkIn: f.checkIn || null,
+          checkOut: f.checkOut || null,
+          archived: f.archived,
+          notes: f.notes.trim() || null,
+          ...(stay ? (estimated ? { datesEstimated: !f.confirmDates } : {}) : { datesEstimated: !f.checkIn || !f.checkOut }),
+        },
       },
       { onSuccess: onClose },
     );
@@ -169,6 +179,14 @@ function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: b
         <Field label="Départ">
           <TextInput type="date" value={f.checkOut} onChange={(e) => setF({ ...f, checkOut: e.target.value })} />
         </Field>
+        {estimated && (
+          <label className="sm:col-span-2 flex items-start gap-2.5 rounded-xl bg-warning/5 border border-warning/25 px-3.5 py-3 text-[13px] text-ink-soft cursor-pointer">
+            <input type="checkbox" checked={f.confirmDates} onChange={(e) => setF({ ...f, confirmDates: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[rgb(var(--c-primary))]" />
+            <span>
+              <b className="text-ink">Dates à confirmer</b> — elles ont été déduites des extras lors de l’import. Corrigez-les si besoin, puis cochez pour les confirmer.
+            </span>
+          </label>
+        )}
         <Field label="Notes" className="sm:col-span-2">
           <TextInput value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} maxLength={1000} />
         </Field>
@@ -296,9 +314,9 @@ export function SettingsTab() {
                     {s.notes && <p className="text-[12px] text-muted truncate max-w-[320px]" title={s.notes}>{s.notes}</p>}
                   </td>
                   <td className={cn(td, 'text-ink-soft')}>{s.villa}</td>
-                  <td className={cn(td, 'tabular text-ink-soft')}>{formatDate(s.checkIn)}</td>
+                  <td className={cn(td, 'tabular text-ink-soft')}>{formatDay(s.checkIn)}</td>
                   <td className={cn(td, 'tabular text-ink-soft')}>
-                    {formatDate(s.checkOut)} {s.issue && <IssueTag issue={s.issue} />}
+                    {formatDay(s.checkOut)} {s.issue && <IssueTag issue={s.issue} />}
                   </td>
                   <td className={td}>
                     <Badge variant={s.archived ? 'inactive' : 'active'}>{s.archived ? 'Archivé' : 'Actif'}</Badge>

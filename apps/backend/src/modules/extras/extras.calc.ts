@@ -28,7 +28,16 @@ export interface ExtraInput {
   unitCost: number | null;
   label: string;
   serviceId: string | null;
-  stay: { id: string; label: string; archived: boolean; clientId: string } | null;
+  stay: {
+    id: string;
+    label: string;
+    archived: boolean;
+    clientId: string;
+    checkIn?: Date | null;
+    checkOut?: Date | null;
+    /** Dates deduced at import, to be confirmed: no out-of-stay check. */
+    datesEstimated?: boolean;
+  } | null;
   villa: { id: string; name: string; country: string; currency: string } | null;
   provider: { id: string; name: string } | null;
   owner: { id: string; name: string; rate: number | null } | null;
@@ -50,17 +59,30 @@ export interface ExtraLine extends Omit<ExtraInput, 'owner' | 'seller'> {
   sellerBase: CommissionBase | null;
   sellerShare: number | null;
   net: number | null;
-  /** First blocking issue, as in the spreadsheet's "À compléter" column. */
+  /** First blocking issue, as in the spreadsheet's "À compléter" column (amounts are partial). */
   issue: string | null;
+  /** Non-blocking check: amounts are complete but something looks wrong (e.g. date outside the stay). */
+  warning: string | null;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const DAY = 86_400_000;
+/** Calendar day (UTC) of a date-only value, as a number of days. */
+const dayOf = (d: Date) => Math.floor(d.getTime() / DAY);
+
+/** An extra dated before arrival or after departure (whole days, inclusive). */
+export function dateWarning(date: Date | null, stay: ExtraInput['stay']): string | null {
+  if (!date || !stay?.checkIn || !stay.checkOut || stay.datesEstimated) return null;
+  const d = dayOf(date);
+  if (d < dayOf(stay.checkIn) || d > dayOf(stay.checkOut)) return 'Date hors séjour';
+  return null;
+}
 const isNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 export function computeExtra(input: ExtraInput): ExtraLine {
   const cancelled = input.status === 'CANCELLED';
   const currency = input.villa?.currency ?? 'EUR';
-  const base: Omit<ExtraLine, 'total' | 'cost' | 'margin' | 'ownerRate' | 'ownerShare' | 'malodgeShare' | 'sellerRate' | 'sellerBase' | 'sellerShare' | 'net' | 'issue'> = {
+  const base: Omit<ExtraLine, 'total' | 'cost' | 'margin' | 'ownerRate' | 'ownerShare' | 'malodgeShare' | 'sellerRate' | 'sellerBase' | 'sellerShare' | 'net' | 'issue' | 'warning'> = {
     ...input,
     currency,
     owner: input.owner ? { id: input.owner.id, name: input.owner.name } : null,
@@ -74,7 +96,7 @@ export function computeExtra(input: ExtraInput): ExtraLine {
       total: 0, cost: 0, margin: 0,
       ownerRate: input.owner ? input.owner.rate : 0, ownerShare: 0, malodgeShare: 0,
       sellerRate: input.seller ? input.seller.rate : 0, sellerBase: input.seller?.base ?? null, sellerShare: 0,
-      net: 0, issue: null,
+      net: 0, issue: null, warning: null,
     };
   }
 
@@ -117,7 +139,8 @@ export function computeExtra(input: ExtraInput): ExtraLine {
     sellerShare !== null && malodgeShare !== null && margin !== null && margin >= 0 && sellerShare > malodgeShare
   ) issue = 'Commission > part Malodge';
 
-  return { ...base, total, cost, margin, ownerRate, ownerShare, malodgeShare, sellerRate, sellerBase, sellerShare, net, issue };
+  const warning = dateWarning(input.date, input.stay);
+  return { ...base, total, cost, margin, ownerRate, ownerShare, malodgeShare, sellerRate, sellerBase, sellerShare, net, issue, warning };
 }
 
 /* ───────────────────────────── Settlements ───────────────────────────── */

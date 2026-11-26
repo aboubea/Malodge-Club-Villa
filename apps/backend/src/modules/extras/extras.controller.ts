@@ -176,6 +176,13 @@ export class ExtrasController {
     return this.extras.importStatus();
   }
 
+  @Post('import/undo')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Undo the spreadsheet import. dryRun=true previews what would be deleted.' })
+  undoImport(@Query('dryRun') dryRun?: string) {
+    return this.extras.undoWorkbookImport(dryRun !== 'false');
+  }
+
   @Post('import')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Import the extras spreadsheet (.xlsx). dryRun=true previews without writing.' })

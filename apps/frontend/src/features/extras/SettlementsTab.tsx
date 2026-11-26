@@ -5,7 +5,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuthStore } from '../../store/authStore';
-import { cn, formatDate } from '../../lib/utils';
+import { cn, formatDay } from '../../lib/utils';
 import { METHOD_LABELS, Options, ROLE_LABELS, SETTLEMENT_STATUS_LABELS, Settlement, api, useExtrasMutation, useSettlements } from './api';
 import { SettlementFormModal } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
@@ -115,7 +115,7 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
             <tbody className="divide-y divide-line">
               {rows.map((s) => (
                 <tr key={s.id} className={cn('hover:bg-surface-2/50', s.status === 'CANCELLED' && 'opacity-55')}>
-                  <td className={cn(td, 'whitespace-nowrap tabular text-ink-soft')}>{s.date ? formatDate(s.date) : <span className="text-warning font-semibold">Sans date</span>}</td>
+                  <td className={cn(td, 'whitespace-nowrap tabular text-ink-soft')}>{s.date ? formatDay(s.date) : <span className="text-warning font-semibold">Sans date</span>}</td>
                   <td className={td}>
                     <p className="font-semibold">{s.stay?.label ?? s.person.name}</p>
                     <p className="text-[12px] text-muted">

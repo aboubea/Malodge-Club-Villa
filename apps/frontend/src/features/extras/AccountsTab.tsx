@@ -4,7 +4,7 @@ import { Wallet } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { cn, formatDate, formatMoney } from '../../lib/utils';
+import { cn, formatDay, formatMoney } from '../../lib/utils';
 import { Account, AccountRole, AccountState, Options, ROLE_LABELS, STATE_BADGE, pct, useAccounts } from './api';
 import { SettlementFormModal, SettlementPreset } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, td, th } from './ui';
@@ -61,7 +61,9 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
 
   const detail = (a: Account) => {
     if (role === 'CLIENT') {
-      const dates = a.meta?.checkIn ? `${formatDate(a.meta.checkIn)} → ${formatDate(a.meta.checkOut)}` : null;
+      const dates = a.meta?.checkIn
+        ? `${formatDay(a.meta.checkIn)} → ${formatDay(a.meta.checkOut)}${a.meta.datesEstimated ? ' (dates à confirmer)' : ''}`
+        : null;
       return [a.meta?.villa, dates].filter(Boolean).join(' · ');
     }
     if (role === 'OWNER') return [a.meta?.villas?.join(' · ') || 'Aucune villa', a.meta?.rate != null ? `${pct(a.meta.rate)} de la marge` : 'Taux à renseigner'].join(' · ');
@@ -69,7 +71,7 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
       return a.meta?.rate != null
         ? `${pct(a.meta.rate)} ${a.meta.base === 'TOTAL_MARGIN' ? 'de la marge totale' : 'de la part Malodge'}`
         : 'Taux à renseigner';
-    return [a.meta?.contact, a.lastSettlement ? `dernier règlement le ${formatDate(a.lastSettlement)}` : null].filter(Boolean).join(' · ') || '—';
+    return [a.meta?.contact, a.lastSettlement ? `dernier règlement le ${formatDay(a.lastSettlement)}` : null].filter(Boolean).join(' · ') || '—';
   };
 
   const filterKey = role === 'CLIENT' ? 'stayId' : role === 'PROVIDER' ? 'providerId' : role === 'OWNER' ? 'ownerId' : 'sellerId';

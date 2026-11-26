@@ -15,7 +15,7 @@ import {
   proposedPrice,
   totalsByCurrency,
 } from './extras.calc';
-import { ImportAlreadyDoneError, importExtrasWorkbook } from './extras-import';
+import { ImportAlreadyDoneError, importExtrasWorkbook, undoImport } from './extras-import';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -75,7 +75,10 @@ export class ExtrasService {
         include: {
           items: { include: { service: { select: { id: true, name: true } } } },
           reservation: {
-            select: { id: true, label: true, archived: true, clientId: true, villaId: true, client: { select: { firstName: true, lastName: true } } },
+            select: {
+              id: true, label: true, archived: true, clientId: true, villaId: true, checkIn: true, checkOut: true, datesEstimated: true,
+              client: { select: { firstName: true, lastName: true } },
+            },
           },
           provider: { select: { id: true, user: { select: { id: true, firstName: true, lastName: true } } } },
           seller: { select: { id: true, firstName: true, lastName: true, commissionRate: true, commissionBase: true } },
@@ -110,6 +113,9 @@ export class ExtrasService {
                 label: order.reservation.label || fullName(order.reservation.client),
                 archived: order.reservation.archived,
                 clientId: order.reservation.clientId,
+                checkIn: order.reservation.checkIn,
+                checkOut: order.reservation.checkOut,
+                datesEstimated: order.reservation.datesEstimated,
               }
             : null,
           villa: villa ? { id: villa.id, name: villa.name, country: villa.country, currency: villa.currency } : null,
@@ -141,7 +147,7 @@ export class ExtrasService {
       if (f.status && l.status !== f.status) return false;
       if ((f.stays ?? 'active') === 'active' && l.stay?.archived) return false;
       if (f.stays === 'archived' && !l.stay?.archived) return false;
-      if (f.incomplete === 'true' && !l.issue) return false;
+      if (f.incomplete === 'true' && !l.issue && !l.warning) return false;
       if (from && (!l.date || l.date < from)) return false;
       if (to && (!l.date || l.date > to)) return false;
       if (q && ![l.label, l.stay?.label, l.villa?.name, l.provider?.name, l.notes].some((s) => s?.toLowerCase().includes(q))) return false;
@@ -157,7 +163,7 @@ export class ExtrasService {
         createdBy: { select: { firstName: true, lastName: true } },
         validatedBy: { select: { firstName: true, lastName: true } },
       },
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ date: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     });
     const countries = actor ? this.scopeCountries(actor) : null;
     return countries
@@ -181,7 +187,7 @@ export class ExtrasService {
       this.prisma.reservation.findMany({
         where: { OR: [{ label: { not: null } }, { orders: { some: {} } }] },
         select: {
-          id: true, label: true, archived: true, checkIn: true, checkOut: true,
+          id: true, label: true, archived: true, checkIn: true, checkOut: true, datesEstimated: true,
           client: { select: { firstName: true, lastName: true } },
           villa: { select: { id: true, name: true, currency: true, country: true } },
         },
@@ -200,7 +206,7 @@ export class ExtrasService {
       if (countries && !countries.includes(s.villa.country)) continue;
       seeds.push({
         role: 'CLIENT', id: s.id, name: s.label || fullName(s.client), currency: s.villa.currency, archived: s.archived,
-        meta: { villa: s.villa.name, checkIn: s.checkIn, checkOut: s.checkOut },
+        meta: { villa: s.villa.name, checkIn: s.checkIn, checkOut: s.checkOut, datesEstimated: s.datesEstimated },
       });
     }
     for (const p of people) {
@@ -268,7 +274,7 @@ export class ExtrasService {
             serviceId: dto.serviceId ?? null,
             label: dto.serviceId ? null : dto.label,
             quantity: dto.quantity,
-            unitPrice: dto.unitPrice ?? 0,
+            unitPrice: dto.unitPrice ?? null,
             unitCost: dto.unitCost ?? null,
             total,
           },
@@ -292,7 +298,7 @@ export class ExtrasService {
           serviceId: dto.serviceId ?? null,
           label: dto.serviceId ? null : dto.label,
           quantity: dto.quantity,
-          unitPrice: dto.unitPrice ?? 0,
+          unitPrice: dto.unitPrice ?? null,
           unitCost: dto.unitCost ?? null,
           total,
         },
@@ -386,6 +392,8 @@ export class ExtrasService {
       currencies: perCurrency,
       alerts: {
         incompleteExtras: lines.filter((l) => !l.cancelled && l.issue).length,
+        dateWarnings: lines.filter((l) => !l.cancelled && l.warning).length,
+        staysToDate: seeds.filter((s) => s.role === 'CLIENT' && !s.archived && (s.meta as { datesEstimated?: boolean })?.datesEstimated).length,
         pendingSettlements: settlements.filter((s) => s.status === 'PENDING').length,
         settingsToCheck: people.filter((p) => p.commissionRate == null).length,
       },
@@ -570,7 +578,7 @@ export class ExtrasService {
           ...(countries ? { villa: { country: { in: countries } } } : {}),
         },
         select: {
-          id: true, label: true, archived: true, checkIn: true, checkOut: true, notes: true, villaId: true, clientId: true,
+          id: true, label: true, archived: true, checkIn: true, checkOut: true, datesEstimated: true, notes: true, villaId: true, clientId: true,
           client: { select: { firstName: true, lastName: true, phone: true } },
           villa: { select: { name: true, currency: true } },
         },
@@ -605,8 +613,9 @@ export class ExtrasService {
         checkIn: s.checkIn,
         checkOut: s.checkOut,
         archived: s.archived,
+        datesEstimated: s.datesEstimated,
         notes: s.notes,
-        issue: s.checkOut < s.checkIn ? 'Dates à vérifier' : null,
+        issue: s.checkOut < s.checkIn ? 'Dates à vérifier' : s.datesEstimated ? 'Dates à confirmer' : null,
       })),
     };
   }
@@ -676,7 +685,9 @@ export class ExtrasService {
     const villa = await this.prisma.villa.findUnique({ where: { id: dto.villaId }, select: { id: true } });
     if (!villa) throw new BadRequestException('Villa introuvable');
     const clientId = dto.clientId ?? (await this.createRecordUser('CLIENT', dto.label)).id;
-    const checkIn = toDate(dto.checkIn) ?? new Date();
+    // Stay dates are calendar days: store them at 00:00 UTC.
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const checkIn = toDate(dto.checkIn) ?? today;
     const checkOut = toDate(dto.checkOut) ?? checkIn;
     const stay = await this.prisma.reservation.create({
       data: {
@@ -688,6 +699,7 @@ export class ExtrasService {
         totalAmount: 0,
         status: 'CONFIRMED',
         archived: dto.archived ?? false,
+        datesEstimated: !dto.checkIn || !dto.checkOut,
         notes: dto.notes ?? null,
         source: 'extras',
       },
@@ -705,6 +717,7 @@ export class ExtrasService {
         ...(dto.villaId !== undefined && { villaId: dto.villaId }),
         ...(dto.checkIn !== undefined && dto.checkIn && { checkIn: new Date(dto.checkIn) }),
         ...(dto.checkOut !== undefined && dto.checkOut && { checkOut: new Date(dto.checkOut) }),
+        ...(dto.datesEstimated !== undefined && { datesEstimated: dto.datesEstimated }),
         ...(dto.archived !== undefined && { archived: dto.archived }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
       },
@@ -833,6 +846,19 @@ export class ExtrasService {
         throw new BadRequestException(`Le fichier de suivi a déjà été importé (${prev.file ?? 'fichier'} — ${when}). Un second import créerait des doublons.`);
       }
       throw new BadRequestException(e instanceof Error ? e.message : 'Import impossible');
+    }
+  }
+
+  async undoWorkbookImport(dryRun: boolean) {
+    try {
+      const report = await undoImport(this.prisma as any, { dryRun });
+      if (!dryRun && report.blockers.length) {
+        throw new BadRequestException(`Annulation impossible : ${report.blockers.join(' ; ')}.`);
+      }
+      return report;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(e instanceof Error ? e.message : 'Annulation impossible');
     }
   }
 
