@@ -14,6 +14,7 @@ import * as bcrypt from 'bcrypt';
 import { uniqueVillaMatch, villaCandidates } from './villa-match';
 import { canonicalCategoryName } from './catalogue-cleanup';
 import { randomBytes } from 'crypto';
+import { NAME_ALIASES_KEY, applyNameAliases } from './people-merge';
 
 const CURRENCY = 'MAD';
 export const IMPORT_KEY = 'extras.spreadsheetImport';
@@ -535,6 +536,9 @@ export async function importExtrasWorkbook(
 ): Promise<ImportReport> {
   const started = Date.now();
   const data = await parseWorkbook(buffer);
+  // People merged in the app (typos in the file) keep receiving their lines.
+  const nameAliases = (await prisma.appSetting.findUnique({ where: { key: NAME_ALIASES_KEY } }))?.value as Record<string, string> | undefined;
+  if (nameAliases) applyNameAliases(data, nameAliases);
   const emptyPeople = () => ({ created: 0, reused: 0 });
   const report: ImportReport = {
     dryRun: !!opts.dryRun,

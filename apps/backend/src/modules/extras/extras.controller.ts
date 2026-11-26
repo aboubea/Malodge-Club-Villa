@@ -7,6 +7,7 @@ import { AllowRestrictedRoles, Roles } from '../../common/decorators/roles.decor
 import { Actor, ExtrasService } from './extras.service';
 import {
   ConvertCurrencyDto,
+  MergePeopleDto,
   CreatePersonDto,
   CreateSettlementDto,
   MergeVillaDto,
@@ -172,6 +173,28 @@ export class ExtrasController {
   @ApiOperation({ summary: "Move a villa to another currency, its extras converted at today's rate (original amounts kept)" })
   convertVillaCurrency(@Param('id') id: string, @Body() body: ConvertCurrencyDto) {
     return this.extras.convertVillaCurrency(id, body.to);
+  }
+
+  @Get('people/duplicates')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'People of the same role whose names look alike (typos)' })
+  peopleDuplicates() {
+    return this.extras.peopleDuplicates();
+  }
+
+  @Get('people/:id/merge-preview')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'What merging this person into another moves' })
+  peopleMergePreview(@Param('id') id: string, @Query('targetId') targetId: string) {
+    if (!targetId) throw new BadRequestException('targetId requis');
+    return this.extras.peopleMergePreview(id, targetId);
+  }
+
+  @Post('people/:id/merge')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Merge a duplicate person into another (stays, extras, payments… move; old name remembered)' })
+  mergePeople(@Param('id') id: string, @Body() dto: MergePeopleDto) {
+    return this.extras.mergePeople(id, dto.targetId, !!dto.mergeStays);
   }
 
   @Post('villas/:id/group')

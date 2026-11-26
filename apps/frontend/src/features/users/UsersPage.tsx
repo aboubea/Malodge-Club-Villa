@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Mail } from 'lucide-react';
+import { Plus, Search, Mail, Merge } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,7 @@ import { formatDate } from '../../lib/utils';
 import { UserDto, Role } from '@malodge/shared';
 import { ROLES_LABELS } from '../../lib/constants';
 import { UserForm } from './UserForm';
+import { MergePeopleModal, PeopleDuplicatesBanner, PickPersonModal, type PeoplePair, type PersonRef } from './PeopleMerge';
 
 const ROLE_FILTER_OPTIONS = [
   { label: 'Tous', value: '' },
@@ -43,6 +44,9 @@ export function UsersPage() {
   const [page, setPage] = useState(1);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDto | null>(null);
+  // Duplicate records of the same person (typos): merged into one.
+  const [mergePair, setMergePair] = useState<PeoplePair | null>(null);
+  const [mergeFrom, setMergeFrom] = useState<(PersonRef & { role: string }) | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', { page, search, role }],
@@ -86,12 +90,22 @@ export function UsersPage() {
             <p className="text-sm text-ink">{row.firstName} {row.lastName}</p>
             <p className="text-xs text-muted">{row.email.endsWith('@fiche.malodge.invalid') ? 'Fiche sans accès à l’application' : row.email}</p>
           </div>
+          {['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'].includes(row.role) && (
+            <button
+              type="button"
+              onClick={() => setMergeFrom({ id: row.id, name: `${row.firstName} ${row.lastName}`.trim(), role: row.role })}
+              className="ml-auto h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-line text-[11.5px] text-ink-soft hover:text-ink hover:border-line-strong"
+              title="Fusionner avec une autre fiche de la même personne (doublon)"
+            >
+              <Merge size={12} /> Fusionner
+            </button>
+          )}
           {!/\.(invalid|local)$/i.test(row.email) && (
             <button
               type="button"
               onClick={() => inviteMutation.mutate(row)}
               disabled={inviteMutation.isPending}
-              className="ml-auto h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-line text-[11.5px] text-ink-soft hover:text-ink hover:border-line-strong disabled:opacity-50"
+              className="h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-line text-[11.5px] text-ink-soft hover:text-ink hover:border-line-strong disabled:opacity-50"
               title="Envoyer un e-mail pour choisir son mot de passe"
             >
               <Mail size={12} /> Inviter
@@ -161,6 +175,8 @@ export function UsersPage() {
         </Button>
       </PageHeader>
 
+      <PeopleDuplicatesBanner onPick={setMergePair} />
+
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="max-w-xs w-full">
@@ -202,6 +218,16 @@ export function UsersPage() {
       >
         <UserForm user={editingUser} onSuccess={() => { setSlideOpen(false); setEditingUser(null); }} />
       </Modal>
+
+      <PickPersonModal
+        person={mergeFrom}
+        onClose={() => setMergeFrom(null)}
+        onPick={(pair) => {
+          setMergeFrom(null);
+          setMergePair(pair);
+        }}
+      />
+      <MergePeopleModal pair={mergePair} onClose={() => setMergePair(null)} />
     </div>
   );
 }

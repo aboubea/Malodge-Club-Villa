@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MadEquivalent } from '../../lib/fx';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { Building2, CalendarDays, ChevronLeft, ChevronRight, Moon, Pencil, ShoppingBag, Users } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
 import { cn, formatCurrency, formatDay } from '../../lib/utils';
@@ -9,6 +10,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { SlideOver } from '../../components/ui/SlideOver';
+import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 /* ───────────────────────────── Types & helpers ───────────────────────────── */
@@ -33,6 +35,8 @@ export interface TimelineStay {
   live?: boolean;
   /** Where the booking was made: Airbnb, Booking.com, Direct… */
   channel?: string | null;
+  /** A Lodgify enquiry / quote ("Open"): a request, not a stay. */
+  enquiry?: boolean;
 }
 
 interface VillaRow {
@@ -105,6 +109,8 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   const NAME_COL = wide ? NAME_WIDE : NAME_NARROW;
   const [start, setStart] = useState(() => todayUtc() - 3 * DAY);
   const [showCancelled, setShowCancelled] = useState(false);
+  // Lodgify enquiries (quotes) are requests, often next to the real booking: hidden unless asked for.
+  const [showEnquiries, setShowEnquiries] = useState(false);
   const [onlyBooked, setOnlyBooked] = useState(false);
   const [selected, setSelected] = useState<TimelineStay | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -139,11 +145,22 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   });
 
   // Lodgify bookings read live, so every booking shows even before a sync.
-  const { data: live } = useQuery({
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  type Live = {
+    configured: boolean;
+    bookings: TimelineStay[];
+    unknownProperties: { id: string; name: string; bookings: number }[];
+    stats?: { read: number; external: number; inPeriod: number; readAt: string; copied: number | null };
+  };
+  const { data: live, isFetching: liveLoading } = useQuery({
     queryKey: ['reservations', 'lodgify-live', from, to],
     queryFn: async () => {
       const res = await apiClient.get(`/lodgify/calendar?from=${from}&to=${to}`, { timeout: 45_000 });
-      return (res.data?.data ?? res.data) as { configured: boolean; bookings: TimelineStay[]; unknownProperties: string[] };
+      const d = (res.data?.data ?? res.data) as Live;
+      // A fresh read was copied into the app: the app's own lists are refreshed too.
+      if (d?.stats?.copied) qc.invalidateQueries({ queryKey: ['reservations', 'timeline'] });
+      return d;
     },
     placeholderData: (prev) => prev,
     staleTime: 60_000,
@@ -169,7 +186,10 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   // The app's stays (direct bookings, extras stays, Lodgify copies) plus Lodgify bookings not copied yet.
   const known = new Set(stays.map((s) => s.logifyId).filter(Boolean));
   const allStays = [...stays, ...(live?.bookings ?? []).filter((b) => !known.has(b.logifyId))];
-  const visible = allStays.filter((s) => s.checkIn && s.checkOut && (showCancelled || s.status !== 'CANCELLED'));
+  const visible = allStays.filter(
+    (s) => s.checkIn && s.checkOut && (showCancelled || s.status !== 'CANCELLED') && (showEnquiries || !s.enquiry),
+  );
+  const enquiries = allStays.filter((s) => s.enquiry && s.checkIn && s.checkOut).length;
   // Formulas of a house share its line: a stay booked on a formula is shown on the house.
   const villaInfo = new Map(villas.map((v) => [v.id, v]));
   const houseOf = (villaId: string) => villaInfo.get(villaId)?.parentVillaId ?? villaId;
@@ -265,6 +285,10 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
             <input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} />
             Annulées
           </label>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer" title="Demandes et devis Lodgify : pas encore des réservations">
+            <input type="checkbox" checked={showEnquiries} onChange={(e) => setShowEnquiries(e.target.checked)} />
+            Demandes{enquiries ? ` (${enquiries})` : ''}
+          </label>
         </div>
       </div>
 
@@ -287,11 +311,44 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
         </div>
       )}
 
-      {!!live?.unknownProperties?.length && (
-        <p className="text-[12.5px] text-warning">
-          Réservations Lodgify non affichées : annonce(s) pas encore dans l’appli ({live.unknownProperties.join(', ')}). Synchronisez les logements
-          (Paramètres › Lodgify).
+      {live?.configured && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
+          {live.stats ? (
+            <span>
+              Lodgify : <b className="text-ink-soft">{live.stats.read}</b> réservation(s) lue(s), dont {live.stats.external} via Airbnb, Booking.com… ·{' '}
+              {live.stats.inPeriod} sur cette période · lu à {new Date(live.stats.readAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : (
+            <span>Lodgify : lecture en cours…</span>
+          )}
+          <button
+            type="button"
+            disabled={refreshing || liveLoading}
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                const res = await apiClient.get(`/lodgify/calendar?from=${from}&to=${to}&refresh=true`, { timeout: 60_000 });
+                qc.setQueryData(['reservations', 'lodgify-live', from, to], res.data?.data ?? res.data);
+                qc.invalidateQueries({ queryKey: ['reservations'] });
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            className="font-semibold text-accent hover:underline disabled:opacity-50"
+          >
+            {refreshing ? 'Lecture de Lodgify…' : 'Actualiser'}
+          </button>
         </p>
+      )}
+
+      {!!live?.unknownProperties?.length && (
+        <MissingListings
+          listings={live.unknownProperties}
+          onAdded={() => {
+            qc.invalidateQueries({ queryKey: ['villas'] });
+            qc.invalidateQueries({ queryKey: ['reservations'] });
+          }}
+        />
       )}
 
       {/* Legend */}
@@ -428,6 +485,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                               cutLeft ? 'rounded-l-md' : 'rounded-l-full',
                               cutRight ? 'rounded-r-md' : 'rounded-r-full',
                               past && 'opacity-55',
+                              s.enquiry && '!bg-surface !text-ink-soft border border-dashed border-line-strong',
                             )}
                           >
                             {w > 60 && (
@@ -495,7 +553,9 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
   const n = s ? nights(s) : 0;
   const currency = s?.currency || s?.villa?.currency || 'EUR';
   const fromLodgify = !!s?.logifyId || s?.source === 'lodgify';
-  const origin = s?.live
+  const origin = s?.enquiry
+    ? 'Demande / devis Lodgify : pas encore une réservation'
+    : s?.live
     ? `Lodgify${s.channel ? ` · ${s.channel}` : ''}, lu en direct`
     : fromLodgify
       ? `Lodgify${s?.channel ? ` · ${s.channel}` : ''}`
@@ -581,5 +641,97 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
         </div>
       )}
     </SlideOver>
+  );
+}
+
+/* ───────────────────── Lodgify listings not in the app ───────────────────── */
+
+/** Bookings on listings the app does not have are not shown: name them, and add the ones wanted. */
+function MissingListings({ listings, onAdded }: { listings: { id: string; name: string; bookings: number }[]; onAdded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const total = listings.reduce((s, l) => s + l.bookings, 0);
+  const sorted = [...listings].sort((a, b) => b.bookings - a.bookings || a.name.localeCompare(b.name));
+  const add = async () => {
+    setBusy(true);
+    try {
+      const res = await apiClient.post('/lodgify/properties/import', { ids: [...chosen] }, { timeout: 60_000 });
+      const d = res.data?.data ?? res.data;
+      toast.success(`${d.created} logement(s) ajouté(s)${d.updated ? `, ${d.updated} mis à jour` : ''} depuis Lodgify`);
+      if (d.errors?.length) toast.error(d.errors.slice(0, 3).join(' · '), { duration: 8000 });
+      setOpen(false);
+      onAdded();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Ajout impossible');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-2xl border border-warning/30 bg-warning/5 px-4 py-3 text-[13px] text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span>
+        <b className="text-warning">{total} réservation(s) Lodgify non affichée(s)</b> : {listings.length} annonce(s) ne sont pas dans l’appli (
+        {sorted.slice(0, 3).map((l) => l.name).join(', ')}
+        {listings.length > 3 ? '…' : ''}).
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          setChosen(new Set(listings.map((l) => l.id)));
+          setOpen(true);
+        }}
+        className="font-semibold text-accent hover:underline"
+      >
+        Choisir les annonces à ajouter
+      </button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Annonces Lodgify absentes de l’appli"
+        description="Cochez les logements que vous gérez : ils sont ajoutés aux villas et leurs réservations s’affichent. Rien n’est modifié dans Lodgify."
+        size="lg"
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <button
+              type="button"
+              className="text-[12.5px] font-semibold text-muted hover:text-ink"
+              onClick={() => setChosen(chosen.size === listings.length ? new Set() : new Set(listings.map((l) => l.id)))}
+            >
+              {chosen.size === listings.length ? 'Tout décocher' : 'Tout cocher'}
+            </button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setOpen(false)}>
+                Annuler
+              </Button>
+              <Button loading={busy} disabled={!chosen.size} onClick={add}>
+                Ajouter {chosen.size} logement{chosen.size > 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="max-h-[50vh] overflow-y-auto divide-y divide-line rounded-xl border border-line">
+          {sorted.map((l) => (
+            <label key={l.id} className="flex items-center gap-3 px-3 py-2.5 text-[13px] cursor-pointer hover:bg-surface-2/50">
+              <input
+                type="checkbox"
+                checked={chosen.has(l.id)}
+                onChange={() =>
+                  setChosen((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(l.id)) next.delete(l.id);
+                    else next.add(l.id);
+                    return next;
+                  })
+                }
+              />
+              <span className="min-w-0 flex-1 truncate text-ink">{l.name}</span>
+              <span className="text-[12px] text-muted shrink-0">{l.bookings} réservation{l.bookings > 1 ? 's' : ''}</span>
+            </label>
+          ))}
+        </div>
+      </Modal>
+    </div>
   );
 }

@@ -23,6 +23,7 @@ import { FxService } from '../fx/fx.service';
 import { currencyForCountry } from '../../common/money';
 import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
+import { duplicatePeople, mergePeople, mergePeoplePreview } from './people-merge';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -1023,6 +1024,19 @@ export class ExtrasService {
     } catch (e: any) {
       throw new BadRequestException(e?.message ?? 'Conversion impossible');
     }
+  }
+
+  /* ── Duplicate people (typos) ── */
+  peopleDuplicates() {
+    return duplicatePeople(this.prisma as any);
+  }
+
+  peopleMergePreview(sourceId: string, targetId: string) {
+    return mergePeoplePreview(this.prisma as any, sourceId, targetId);
+  }
+
+  mergePeople(sourceId: string, targetId: string, mergeStays: boolean) {
+    return mergePeople(this.prisma as any, sourceId, targetId, { mergeStays });
   }
 
   /** Read-only report of what does not add up across villas, stays, extras, payments and Lodgify. */

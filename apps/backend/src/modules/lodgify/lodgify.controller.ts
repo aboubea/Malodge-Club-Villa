@@ -63,13 +63,27 @@ export class LodgifyController {
   @Get('calendar')
   @Roles(Role.MANAGER)
   @ApiOperation({ summary: 'Lodgify bookings of a period, read live, not yet copied into the app (calendar)' })
-  calendar(@Query('from') from: string, @Query('to') to: string, @CurrentUser() user: { countries?: string[]; role: string }) {
+  calendar(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: { countries?: string[]; role: string },
+    @Query('refresh') refresh?: string,
+  ) {
     const day = (s: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00.000Z`) : null);
     const a = day(from);
     const b = day(to);
     if (!a || !b) throw new BadRequestException('from et to attendus (AAAA-MM-JJ)');
     const restricted = ['ADMIN', 'MANAGER'].includes(user.role) ? user.countries ?? [] : [];
-    return this.lodgifyService.calendarBookings(a, b, restricted);
+    return this.lodgifyService.calendarBookings(a, b, restricted, refresh === 'true');
+  }
+
+  @Post('properties/import')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Add chosen Lodgify listings to the app (read-only on Lodgify)' })
+  importListings(@Body() body: { ids?: string[] }) {
+    const ids = Array.isArray(body?.ids) ? body.ids.filter((x) => typeof x === 'string' || typeof x === 'number').map(String) : [];
+    if (!ids.length) throw new BadRequestException('Aucune annonce choisie');
+    return this.lodgifyService.importListings(ids);
   }
 
   @Get('reservations')

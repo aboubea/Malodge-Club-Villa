@@ -149,3 +149,10 @@ export { CURRENCY };
 export class ConvertCurrencyDto {
   @IsString() @Matches(/^[A-Za-z]{3}$/) to!: string;
 }
+
+export class MergePeopleDto {
+  /** Person kept. */
+  @IsString() targetId!: string;
+  /** Also merge their stays at the same villa. */
+  @IsOptional() @IsBoolean() mergeStays?: boolean;
+}

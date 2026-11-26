@@ -214,8 +214,8 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
     stayFindings.push({
       severity: 'warning',
       title: 'Même client saisi deux fois ?',
-      detail: 'Deux séjours au nom presque identique sur la même villa (faute de frappe dans le fichier ?).',
-      href: '/extras/reglages',
+      detail: 'Deux séjours au nom presque identique sur la même villa (faute de frappe dans le fichier ?). Fusionnez les deux fiches depuis Utilisateurs (les séjours de la même villa peuvent être fusionnés aussi).',
+      href: '/utilisateurs',
       items: twins.map((label) => ({ label })),
     });
 

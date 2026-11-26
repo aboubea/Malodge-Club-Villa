@@ -540,8 +540,10 @@ export function ReservationsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
-      {/* Create / Edit Modal */}
+      {/* Create / Edit Modal — outside the list view, so it opens from the calendar too */}
       <Modal
         open={modalOpen}
         onClose={closeModal}
@@ -695,8 +697,6 @@ export function ReservationsPage() {
           </div>
         </form>
       </Modal>
-      </>
-      )}
     </div>
   );
 }

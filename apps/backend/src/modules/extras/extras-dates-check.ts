@@ -9,6 +9,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { IMPORT_KEY, parseWorkbook } from './extras-import';
+import { NAME_ALIASES_KEY, applyNameAliases } from './people-merge';
 
 export type DateDiffKind = 'stay' | 'extra' | 'settlement';
 
@@ -62,6 +63,9 @@ export async function checkImportDates(
   opts: { apply?: string[] } = {},
 ): Promise<DatesCheckReport> {
   const data = await parseWorkbook(buffer);
+  // People merged in the app (typos in the file) are compared under the name kept.
+  const nameAliases = (await prisma.appSetting.findUnique({ where: { key: NAME_ALIASES_KEY } }))?.value as Record<string, string> | undefined;
+  if (nameAliases) applyNameAliases(data, nameAliases);
   const stamp = (await prisma.appSetting.findUnique({ where: { key: IMPORT_KEY } }))?.value as
     | { created?: { reservations?: string[]; orders?: string[]; settlements?: string[] } }
     | undefined;

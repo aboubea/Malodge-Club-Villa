@@ -135,13 +135,39 @@ export class LodgifyService {
    * Bookings read from Lodgify (GET only), page after page: the same source for
    * the "Lodgify" tab and for the sync, so both always agree.
    */
-  private async fetchBookings(apiKey: string, maxPages = 8): Promise<any[]> {
+  private async fetchBookings(apiKey: string): Promise<any[]> {
     const SIZE = 50;
-    const all: any[] = [];
     const seen = new Set<string>();
-    try {
+    const all: any[] = [];
+    // Bookings from Airbnb, Booking.com… ("external") are included; current, upcoming and past
+    // stays are read separately so the upcoming ones are never cut off by older pages.
+    const pass = async (filter: string, maxPages: number) => {
+      const got: any[] = [];
       for (let page = 1; page <= maxPages; page++) {
-        const data = await this.lodgifyGetAny(`/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true`, apiKey);
+        const data = await this.lodgifyGetAny(
+          `/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true&includeExternal=true&stayFilter=${filter}`,
+          apiKey,
+        );
+        const items = this.itemsOf(data);
+        got.push(...items);
+        if (items.length < SIZE) break;
+      }
+      return got;
+    };
+    try {
+      const passes = await Promise.all([pass('Current', 4), pass('Upcoming', 16), pass('Historic', 6)]);
+      for (const b of passes.flat()) {
+        if (b?.id == null || seen.has(String(b.id))) continue;
+        seen.add(String(b.id));
+        all.push(b);
+      }
+      if (all.length) return all;
+    } catch (e: any) {
+      this.logger.warn(`Lodgify: lecture filtrée des réservations indisponible (${e?.message}), lecture simple`);
+    }
+    try {
+      for (let page = 1; page <= 20; page++) {
+        const data = await this.lodgifyGetAny(`/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true&includeExternal=true`, apiKey);
         const items = this.itemsOf(data);
         const fresh = items.filter((b) => b?.id != null && !seen.has(String(b.id)));
         fresh.forEach((b) => seen.add(String(b.id)));
@@ -219,16 +245,64 @@ export class LodgifyService {
       totalAmount: parseFloat(r.total_amount ?? r.amount ?? r.price ?? 0) || 0,
       currency: typeof currency === 'string' && /^[a-z]{3}$/i.test(currency) ? currency.toUpperCase() : null,
       lodgifyStatus: r.status ?? 'unknown',
+      // An enquiry or quote ("Open") is a request, not a stay: often a second record next to the real booking.
+      enquiry: ['open', 'enquiry', 'inquiry', 'quote', 'request'].includes(status),
       status: appStatus,
       notes: r.notes ?? null,
     };
   }
 
+  /** Listing names (id → name), kept 6 h in the database: to name listings not yet in the app. */
+  private async listingNames(): Promise<Record<string, string>> {
+    const KEY = 'lodgify.listingNames';
+    try {
+      const row = (await this.prisma.appSetting.findUnique({ where: { key: KEY } }))?.value as { at: number; names: Record<string, string> } | undefined;
+      if (row && Date.now() - row.at < 6 * 3600_000) return row.names;
+    } catch { /* read Lodgify */ }
+    const apiKey = await this.getApiKey();
+    if (!apiKey) return {};
+    try {
+      const items = await this.fetchPropertyList(apiKey);
+      const names = Object.fromEntries(items.filter((p) => p?.id != null).map((p) => [String(p.id), String(p.name ?? `Annonce ${p.id}`)]));
+      const value = { at: Date.now(), names } as any;
+      await this.prisma.appSetting.upsert({ where: { key: KEY }, update: { value }, create: { key: KEY, value } });
+      return names;
+    } catch {
+      return {};
+    }
+  }
+
+  /** Adds the chosen Lodgify listings to the app (read from Lodgify, written only to the app). */
+  async importListings(ids: string[]) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) throw new Error('Lodgify API key not configured');
+    const wanted = new Set(ids.map(String));
+    const items = (await this.fetchPropertyList(apiKey)).filter((p) => wanted.has(String(p?.id)));
+    const broken = new Map<string, number>();
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
+    const started = Date.now();
+    for (const p of items) {
+      try {
+        // Details (rooms, capacity) while time allows; the list entry otherwise.
+        const extra = Date.now() - started < 15_000 ? await this.fetchPropertyDetails(String(p.id), apiKey, broken, Array.isArray(p.rooms) ? p.rooms : []) : undefined;
+        const r = await this.saveProperty(this.mapProperty(p, extra));
+        if (r.created) created++;
+        else updated++;
+      } catch (e: any) {
+        errors.push(`${p.name ?? p.id} : ${e?.message}`);
+      }
+    }
+    this.bookingCache = null;
+    return { created, updated, missing: [...wanted].filter((id) => !items.some((p) => String(p.id) === id)), errors };
+  }
+
   /** Bookings kept a few minutes, so browsing the calendar does not hit Lodgify on every click. */
   private bookingCache: { at: number; items: NonNullable<ReturnType<LodgifyService['mapBooking']>>[] } | null = null;
 
-  private async cachedBookings() {
-    const TTL = 5 * 60_000;
+  private async cachedBookings(force = false) {
+    const TTL = force ? 0 : 5 * 60_000;
     if (this.bookingCache && Date.now() - this.bookingCache.at < TTL) return this.bookingCache.items;
     type Booking = NonNullable<ReturnType<LodgifyService['mapBooking']>>;
     // Shared by every server instance (kept in the database), so a cold start does not re-read Lodgify.
@@ -257,10 +331,19 @@ export class LodgifyService {
    * stays, for the calendar: those already copied into the app are left out
    * (the app shows its own copy), so every booking appears exactly once.
    */
-  async calendarBookings(from: Date, to: Date, countries: string[] = []) {
+  async calendarBookings(from: Date, to: Date, countries: string[] = [], force = false) {
     const configured = await this.getApiKey();
-    if (!configured) return { configured: false, bookings: [], unknownProperties: [] as string[] };
-    const bookings = await this.cachedBookings();
+    if (!configured) return { configured: false, bookings: [], unknownProperties: [] as { id: string; name: string; bookings: number }[] };
+    const before = this.bookingCache?.at ?? 0;
+    const bookings = await this.cachedBookings(force);
+    let copied: Awaited<ReturnType<LodgifyService['copyBookings']>> | null = null;
+    if ((this.bookingCache?.at ?? 0) !== before && Date.now() - (this.bookingCache?.at ?? 0) < 10_000) {
+      try {
+        copied = await this.copyBookings(bookings);
+      } catch (e: any) {
+        this.logger.warn(`Lodgify: copie des réservations dans l’appli impossible (${e?.message})`);
+      }
+    }
     const villas = await this.prisma.villa.findMany({
       where: { logifyId: { not: null }, ...(countries.length ? { country: { in: countries } } : {}) },
       select: { id: true, name: true, city: true, coverImage: true, currency: true, logifyId: true },
@@ -269,13 +352,13 @@ export class LodgifyService {
     const inApp = new Set(
       (await this.prisma.reservation.findMany({ where: { logifyId: { in: bookings.map((b) => b.id) } }, select: { logifyId: true } })).map((r) => r.logifyId!),
     );
-    const unknown = new Set<string>();
+    const unknown = new Map<string, number>();
     const out = [];
     for (const b of bookings) {
       if (!b.checkIn || !b.checkOut || b.checkIn > to || b.checkOut < from || inApp.has(b.id)) continue;
       const v = villaByListing.get(b.propertyId);
       if (!v) {
-        if (!countries.length) unknown.add(b.propertyName ? `${b.propertyName} (${b.propertyId})` : b.propertyId);
+        if (!countries.length) unknown.set(b.propertyId, (unknown.get(b.propertyId) ?? 0) + 1);
         continue;
       }
       const [firstName, ...rest] = b.guestName.split(/\s+/);
@@ -283,6 +366,7 @@ export class LodgifyService {
         id: `lodgify-${b.id}`,
         logifyId: b.id,
         live: true,
+        enquiry: b.enquiry,
         channel: b.channel,
         label: b.guestName,
         checkIn: b.checkIn.toISOString(),
@@ -299,7 +383,23 @@ export class LodgifyService {
         _count: { orders: 0 },
       });
     }
-    return { configured: true, bookings: out, unknownProperties: [...unknown] };
+    const inWindow = bookings.filter((b) => b.checkIn && b.checkOut && b.checkIn <= to && b.checkOut >= from);
+    return {
+      configured: true,
+      bookings: out,
+      // Listings not in the app, named, with how many bookings they hold.
+      unknownProperties: unknown.size
+        ? await this.listingNames().then((names) => [...unknown].map(([id, bookings]) => ({ id, name: names[id] ?? `Annonce ${id}`, bookings })))
+        : [],
+      // What was read, to check nothing is missing.
+      stats: {
+        read: bookings.length,
+        external: bookings.filter((b) => b.channel && b.channel !== 'Direct').length,
+        inPeriod: inWindow.length,
+        readAt: new Date(this.bookingCache?.at ?? Date.now()).toISOString(),
+        copied: copied?.synced ?? null,
+      },
+    };
   }
 
   async listReservations(): Promise<any[]> {
@@ -619,14 +719,18 @@ export class LodgifyService {
   async syncReservations(): Promise<{ synced: number; skipped: number; errors: string[]; unknownProperties: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
-
-    let bookings: any[];
+    let bookings: NonNullable<ReturnType<LodgifyService['mapBooking']>>[];
     try {
-      bookings = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean);
+      bookings = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean) as any;
     } catch (e: any) {
       throw new Error(`Lodgify reservations sync failed: ${e?.message}`);
     }
+    this.bookingCache = null;
+    return this.copyBookings(bookings);
+  }
 
+  /** Copies bookings into the app (local copy only, Lodgify is never written to). */
+  private async copyBookings(bookings: NonNullable<ReturnType<LodgifyService['mapBooking']>>[]) {
     // Local copy only: villas and clients looked up once, bookings upserted by their Lodgify id.
     const villas = await this.prisma.villa.findMany({ where: { logifyId: { not: null } }, select: { id: true, logifyId: true } });
     const villaByListing = new Map(villas.map((v) => [v.logifyId!, v.id]));
@@ -635,7 +739,16 @@ export class LodgifyService {
     const errors: string[] = [];
     const unknown = new Set<string>();
 
-    for (const b of bookings as NonNullable<ReturnType<LodgifyService['mapBooking']>>[]) {
+    // Enquiries are not stays: never copied, and copies made earlier are removed when nothing hangs on them.
+    const enquiryIds = bookings.filter((b) => b.enquiry).map((b) => b.id);
+    if (enquiryIds.length) {
+      await this.prisma.reservation.deleteMany({
+        where: { logifyId: { in: enquiryIds }, orders: { none: {} }, settlements: { none: {} }, conversations: { none: {} }, calendarEvents: { none: {} } },
+      });
+    }
+    bookings = bookings.filter((b) => !b.enquiry);
+
+    for (const b of bookings) {
       try {
         const villaId = villaByListing.get(b.propertyId);
         if (!villaId) {
