@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, XCircle, Loader2, Crown } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
+import { Logo } from '../../components/brand/Logo';
 
 export function ProviderConfirmPage() {
   const [params] = useSearchParams();
@@ -33,49 +34,42 @@ export function ProviderConfirmPage() {
   const isAccept = action === 'accept';
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] flex flex-col items-center justify-center p-6">
+    <div className="min-h-[100dvh] bg-canvas flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6 text-center">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-[#C9A96E] flex items-center justify-center">
-            <Crown size={18} className="text-[#0A0A0B]" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-medium text-[#F5F0EB]">Malodge</p>
-            <p className="text-xs text-[#6B6B6F]">Club Villa</p>
-          </div>
+        <div className="flex justify-center mb-10">
+          <Logo size="md" />
         </div>
 
-        <div className="bg-[#111113] border border-[#242428] rounded-2xl p-8 space-y-5">
+        <div className="bg-surface border border-line rounded-3xl shadow-card p-8 sm:p-10 space-y-5">
           {status === 'loading' && (
             <>
-              <Loader2 size={40} className="text-[#C9A96E] animate-spin mx-auto" />
-              <p className="text-sm text-[#6B6B6F]">Traitement en cours…</p>
+              <Loader2 size={40} className="text-accent animate-spin mx-auto" />
+              <p className="text-sm text-muted">Traitement en cours…</p>
             </>
           )}
 
           {status === 'success' && (
             <>
-              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${isAccept ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
+              <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center ${isAccept ? 'bg-success/10' : 'bg-danger/10'}`}>
                 {isAccept ? (
-                  <CheckCircle2 size={36} className="text-green-400" />
+                  <CheckCircle2 size={36} className="text-success" />
                 ) : (
-                  <XCircle size={36} className="text-red-400" />
+                  <XCircle size={36} className="text-danger" />
                 )}
               </div>
               <div>
-                <h1 className="text-xl font-medium text-[#F5F0EB]">
+                <h1 className="font-display text-[32px] leading-tight text-ink">
                   {isAccept ? 'Disponibilité confirmée' : 'Demande refusée'}
                 </h1>
-                <p className="text-sm text-[#6B6B6F] mt-2">
+                <p className="text-sm text-muted mt-2">
                   {isAccept
                     ? 'Merci ! Votre disponibilité a été enregistrée. Le gestionnaire sera notifié.'
                     : 'Votre réponse a été enregistrée. Le gestionnaire sera informé.'}
                 </p>
               </div>
-              <div className="pt-2 border-t border-[#242428]">
-                <p className="text-xs text-[#3A3A3E]">
-                  Référence commande : <span className="font-mono text-[#6B6B6F]">{result?.id?.slice(0, 8)}…</span>
+              <div className="pt-2 border-t border-line">
+                <p className="text-xs text-muted">
+                  Référence commande : <span className="font-mono text-muted">{result?.id?.slice(0, 8)}…</span>
                 </p>
               </div>
             </>
@@ -83,18 +77,18 @@ export function ProviderConfirmPage() {
 
           {status === 'error' && (
             <>
-              <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-red-900/20">
-                <XCircle size={36} className="text-red-400" />
+              <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-danger/10">
+                <XCircle size={36} className="text-danger" />
               </div>
               <div>
-                <h1 className="text-xl font-medium text-[#F5F0EB]">Lien invalide</h1>
-                <p className="text-sm text-[#6B6B6F] mt-2">{errorMsg}</p>
+                <h1 className="font-display text-[32px] leading-tight text-ink">Lien invalide</h1>
+                <p className="text-sm text-muted mt-2">{errorMsg}</p>
               </div>
             </>
           )}
         </div>
 
-        <p className="text-xs text-[#3A3A3E]">Malodge Club Villa — Conciergerie de luxe</p>
+        <p className="text-xs text-muted">Malodge Club Villa — Conciergerie de luxe</p>
       </div>
     </div>
   );

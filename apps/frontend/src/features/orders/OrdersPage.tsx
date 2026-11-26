@@ -87,7 +87,7 @@ export function OrdersPage() {
   const meta = data?.meta;
 
   // Columns differ by role
-  const staffCols = ['#', 'Client', 'Villa', 'Services', 'Montant', 'Statut', 'Prestataire', 'Date', ''];
+  const staffCols = ['#', 'Client', 'Services', 'Villa', 'Montant', 'Statut', 'Prestataire', 'Date', ''];
   const clientCols = ['#', 'Services', 'Villa', 'Date', 'Montant', 'Statut', ''];
 
   return (
@@ -104,16 +104,16 @@ export function OrdersPage() {
       </PageHeader>
 
       {/* Status filter tabs */}
-      <div className="flex items-center gap-1 border-b border-[#242428]">
+      <div className="flex items-center gap-1 border-b border-line overflow-x-auto scrollbar-none">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => { setStatusFilter(tab.value); setPage(1); }}
             className={[
-              'px-4 py-2.5 text-sm transition-colors duration-150 border-b-2 -mb-px',
+              'px-4 py-3 text-[13.5px] whitespace-nowrap transition-colors duration-150 border-b-2 -mb-px',
               statusFilter === tab.value
-                ? 'text-[#C9A96E] border-[#C9A96E] font-medium'
-                : 'text-[#6B6B6F] border-transparent hover:text-[#F5F0EB]',
+                ? 'text-ink border-accent font-medium'
+                : 'text-muted border-transparent hover:text-ink',
             ].join(' ')}
           >
             {tab.label}
@@ -125,19 +125,18 @@ export function OrdersPage() {
       {!isClient && (
         <div className="space-y-2">
           <div className="relative max-w-sm">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none" />
             <Input
               placeholder="Rechercher client, villa, service…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9"
+              leftIcon={<Search size={15} />}
             />
           </div>
           {countries.length > 0 && (
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => { setCountryFilter(''); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
               >
                 Tous les pays
               </button>
@@ -145,7 +144,7 @@ export function OrdersPage() {
                 <button
                   key={c.code}
                   onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                  className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
                 >
                   {c.flag} {c.name}
                 </button>
@@ -160,18 +159,18 @@ export function OrdersPage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#242428]">
+              <tr className="border-b border-line">
                 {(isClient ? clientCols : staffCols).map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider"
                   >
                     {col}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#242428]">
+            <tbody className="divide-y divide-line">
               {isLoading
                 ? Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i}>
@@ -186,14 +185,14 @@ export function OrdersPage() {
                 ? (
                   <tr>
                     <td colSpan={isClient ? clientCols.length : staffCols.length} className="px-4 py-16 text-center">
-                      <ShoppingBag size={32} className="mx-auto text-[#242428] mb-3" />
-                      <p className="text-sm text-[#6B6B6F] mb-3">
+                      <ShoppingBag size={32} className="mx-auto text-line-strong mb-3" />
+                      <p className="text-sm text-muted mb-3">
                         {isClient ? 'Aucune commande pour le moment' : 'Aucune commande trouvée'}
                       </p>
                       {isClient && (
                         <button
                           onClick={() => navigate('/catalogue')}
-                          className="px-4 py-2 rounded-lg text-xs bg-[#C9A96E]/10 border border-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/20 transition-colors"
+                          className="px-4 py-2 rounded-lg text-xs bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-colors"
                         >
                           Découvrir les services →
                         </button>
@@ -207,10 +206,10 @@ export function OrdersPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03, duration: 0.2 }}
-                      className="hover:bg-[#1A1A1D] cursor-pointer transition-colors"
+                      className="hover:bg-surface-2 cursor-pointer transition-colors"
                       onClick={() => navigate(`/commandes/${order.id}`)}
                     >
-                      <td className="px-4 py-3 text-xs text-[#6B6B6F] font-mono">
+                      <td className="px-4 py-3 text-xs text-muted font-mono">
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
 
@@ -224,7 +223,7 @@ export function OrdersPage() {
                               src={order.client?.avatar}
                               size="sm"
                             />
-                            <span className="text-sm text-[#F5F0EB]">
+                            <span className="text-sm text-ink">
                               {order.client?.firstName} {order.client?.lastName}
                             </span>
                           </div>
@@ -232,7 +231,7 @@ export function OrdersPage() {
                       )}
 
                       {/* Services */}
-                      <td className="px-4 py-3 text-sm text-[#F5F0EB]">
+                      <td className="px-4 py-3 text-sm text-ink">
                         {order.items?.length
                           ? order.items.slice(0, 2).map((it: any) => it.service?.name).join(', ') +
                             (order.items.length > 2 ? ` +${order.items.length - 2}` : '')
@@ -240,36 +239,36 @@ export function OrdersPage() {
                       </td>
 
                       {/* Villa */}
-                      <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+                      <td className="px-4 py-3 text-sm text-muted">
                         {order.reservation?.villa?.name ?? '—'}
                       </td>
 
                       {/* Staff-only: provider + date order */}
                       {!isClient && (
                         <>
-                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                          <td className="px-4 py-3 text-sm font-normal text-accent">
                             {formatCurrency(order.totalAmount)}
                           </td>
                           <td className="px-4 py-3">
                             <OrderStatusBadge status={order.status} />
                           </td>
-                          <td className="px-4 py-3 text-sm text-[#6B6B6F]">
+                          <td className="px-4 py-3 text-sm text-muted">
                             {order.provider
                               ? `${order.provider.user?.firstName} ${order.provider.user?.lastName}`
-                              : <span className="text-[#3A3A3E] italic text-xs">Non assigné</span>}
+                              : <span className="text-muted italic text-xs">Non assigné</span>}
                           </td>
                         </>
                       )}
 
                       {/* Date */}
-                      <td className="px-4 py-3 text-xs text-[#6B6B6F]">
+                      <td className="px-4 py-3 text-xs text-muted">
                         {formatDate(order.createdAt)}
                       </td>
 
                       {/* Client-only: montant + statut after date */}
                       {isClient && (
                         <>
-                          <td className="px-4 py-3 text-sm font-light text-[#C9A96E]">
+                          <td className="px-4 py-3 text-sm font-normal text-accent">
                             {formatCurrency(order.totalAmount)}
                           </td>
                           <td className="px-4 py-3">
@@ -285,7 +284,7 @@ export function OrdersPage() {
                               <button
                                 onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CONFIRMED })}
                                 disabled={statusMutation.isPending}
-                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-green-400 border border-green-800/40 bg-green-900/10 hover:bg-green-900/20 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-success border border-success/25 bg-success/10 hover:bg-success/10 transition-colors"
                                 title="Accepter"
                               >
                                 <CheckCircle2 size={11} /> Accepter
@@ -293,7 +292,7 @@ export function OrdersPage() {
                               <button
                                 onClick={() => statusMutation.mutate({ id: order.id, status: OrderStatus.CANCELLED })}
                                 disabled={statusMutation.isPending}
-                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-400 border border-red-800/40 bg-red-900/10 hover:bg-red-900/20 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-danger border border-danger/25 bg-danger/10 hover:bg-danger/10 transition-colors"
                                 title="Refuser"
                               >
                                 <XCircle size={11} /> Refuser
@@ -317,8 +316,8 @@ export function OrdersPage() {
 
         {/* Pagination */}
         {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#242428]">
-            <p className="text-xs text-[#6B6B6F]">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-line">
+            <p className="text-xs text-muted">
               {meta.total} commande{meta.total !== 1 ? 's' : ''} — Page {meta.page}/{meta.totalPages}
             </p>
             <div className="flex items-center gap-2">

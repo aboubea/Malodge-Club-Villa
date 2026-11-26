@@ -31,14 +31,14 @@ export function SlideOver({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 !m-0 z-50 flex justify-end">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-[rgb(20_16_10/0.4)] backdrop-blur-[3px]"
             onClick={onClose}
           />
           {/* Panel */}
@@ -46,27 +46,28 @@ export function SlideOver({
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 40 }}
             className={cn(
               'relative flex flex-col w-full h-full',
-              'bg-[#111113] border-l border-[#242428]',
-              'shadow-2xl shadow-black/50',
+              'bg-surface border-l border-line',
+              'shadow-pop',
               sizeClasses[size],
             )}
           >
             {/* Header */}
-            <div className="flex items-start justify-between px-6 py-5 border-b border-[#242428] shrink-0">
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-line shrink-0">
               <div>
                 {title && (
-                  <h2 className="text-base font-light text-[#F5F0EB]">{title}</h2>
+                  <h2 className="font-display text-[26px] leading-tight text-ink">{title}</h2>
                 )}
                 {description && (
-                  <p className="text-xs text-[#6B6B6F] mt-1">{description}</p>
+                  <p className="text-[13px] text-muted mt-1">{description}</p>
                 )}
               </div>
               <button
                 onClick={onClose}
-                className="text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors ml-4 mt-0.5 shrink-0"
+                className="w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors shrink-0"
+                aria-label="Fermer"
               >
                 <X size={16} />
               </button>
@@ -75,7 +76,7 @@ export function SlideOver({
             <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
             {/* Footer */}
             {footer && (
-              <div className="px-6 py-4 border-t border-[#242428] shrink-0 bg-[#0A0A0B]">
+              <div className="px-6 py-4 border-t border-line shrink-0 bg-surface-2/50">
                 {footer}
               </div>
             )}

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, ArrowLeft, Mail, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AuthLayout } from './AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 
 function useForgotPassword() {
@@ -28,22 +29,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0B] p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-[#C9A96E] flex items-center justify-center">
-            <Crown size={16} className="text-[#0A0A0B]" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-[#F5F0EB]">Malodge Club Villa</p>
-          </div>
-        </div>
+    <AuthLayout>
 
         {mutation.isSuccess ? (
           /* ── Success state ── */
@@ -53,21 +39,21 @@ export function ForgotPasswordPage() {
             transition={{ duration: 0.25 }}
             className="text-center"
           >
-            <div className="w-14 h-14 rounded-full bg-[#2D7A4F]/15 flex items-center justify-center mx-auto mb-5">
-              <CheckCircle size={28} className="text-[#2D7A4F]" />
+            <div className="w-16 h-16 rounded-full bg-success/15 flex items-center justify-center mx-auto mb-5">
+              <CheckCircle size={28} className="text-success" />
             </div>
-            <h2 className="text-xl font-light text-[#F5F0EB] mb-3">Email envoyé</h2>
-            <p className="text-sm text-[#6B6B6F] leading-relaxed mb-6">
+            <h2 className="font-display text-[34px] leading-tight text-ink mb-3">Email envoyé</h2>
+            <p className="text-sm text-muted leading-relaxed mb-6">
               Si un compte existe pour{' '}
-              <span className="text-[#C9A96E]">{email}</span>, vous recevrez
+              <span className="text-accent">{email}</span>, vous recevrez
               un lien de réinitialisation dans les prochaines minutes.
             </p>
-            <p className="text-xs text-[#6B6B6F] mb-8">
+            <p className="text-xs text-muted mb-8">
               Vérifiez également votre dossier spam.
             </p>
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-sm text-[#C9A96E] hover:text-[#E8C98A] transition-colors"
+              className="inline-flex items-center gap-2 text-sm text-accent hover:text-accent-hover transition-colors"
             >
               <ArrowLeft size={14} />
               Retour à la connexion
@@ -76,11 +62,11 @@ export function ForgotPasswordPage() {
         ) : (
           /* ── Form ── */
           <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-light text-[#F5F0EB] tracking-tight">
+            <div className="mb-9">
+              <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">
                 Mot de passe oublié ?
-              </h2>
-              <p className="text-sm text-[#6B6B6F] mt-1.5 leading-relaxed">
+              </h1>
+              <p className="text-[14.5px] text-muted mt-3 leading-relaxed">
                 Entrez votre adresse email et nous vous enverrons un lien pour
                 réinitialiser votre mot de passe.
               </p>
@@ -115,7 +101,7 @@ export function ForgotPasswordPage() {
             <div className="mt-6 text-center">
               <Link
                 to="/login"
-                className="inline-flex items-center gap-1.5 text-sm text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors"
               >
                 <ArrowLeft size={13} />
                 Retour à la connexion
@@ -123,7 +109,6 @@ export function ForgotPasswordPage() {
             </div>
           </>
         )}
-      </motion.div>
-    </div>
+    </AuthLayout>
   );
 }

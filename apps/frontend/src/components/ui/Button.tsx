@@ -1,5 +1,4 @@
 import { forwardRef, ButtonHTMLAttributes } from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { Loader2 } from 'lucide-react';
 
@@ -15,19 +14,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-[#C9A96E] text-[#0A0A0B] hover:bg-[#E8C98A] border-transparent font-medium',
+    'bg-primary text-on-primary hover:bg-primary-hover border-transparent shadow-[0_1px_2px_rgb(0_0_0/0.12)]',
   secondary:
-    'bg-transparent text-[#F5F0EB] border-[#242428] hover:bg-[#1A1A1D] hover:border-[#C9A96E]/40',
+    'bg-surface text-ink border-line hover:bg-surface-2 hover:border-line-strong shadow-card',
   destructive:
-    'bg-[#7A2D2D]/20 text-red-400 border-[#7A2D2D]/50 hover:bg-[#7A2D2D]/30',
+    'bg-danger/10 text-danger border-danger/25 hover:bg-danger/15 hover:border-danger/40',
   ghost:
-    'bg-transparent text-[#6B6B6F] border-transparent hover:text-[#F5F0EB] hover:bg-[#1A1A1D]',
+    'bg-transparent text-ink-soft border-transparent hover:text-ink hover:bg-surface-2',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5',
-  md: 'h-9 px-4 text-sm gap-2',
-  lg: 'h-11 px-6 text-base gap-2',
+  sm: 'h-8 px-3 text-[12.5px] gap-1.5 rounded-lg',
+  md: 'h-10 px-4 text-[13.5px] gap-2 rounded-[10px]',
+  lg: 'h-12 px-6 text-[14.5px] gap-2 rounded-xl',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -51,9 +50,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg border transition-all duration-150 ease-out',
-          'focus:outline-none focus:ring-2 focus:ring-[#C9A96E]/30 focus:ring-offset-1 focus:ring-offset-[#0A0A0B]',
-          'disabled:opacity-40 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center whitespace-nowrap border font-medium select-none',
+          'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.98]',
+          'focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/20',
+          'disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100',
           variantClasses[variant],
           sizeClasses[size],
           className,

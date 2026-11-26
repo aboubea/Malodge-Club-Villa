@@ -67,9 +67,9 @@ export function ClientStaysPage() {
       ) : reservations.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
-            <Building2 size={36} className="mx-auto text-[#242428] mb-3" />
-            <p className="text-sm text-[#6B6B6F]">Aucun séjour enregistré</p>
-            <p className="text-xs text-[#3A3A3E] mt-1">Votre concierge vous assignera prochainement un séjour</p>
+            <Building2 size={36} className="mx-auto text-line-strong mb-3" />
+            <p className="text-sm text-muted">Aucun séjour enregistré</p>
+            <p className="text-xs text-muted mt-1">Votre concierge vous assignera prochainement un séjour</p>
           </CardContent>
         </Card>
       ) : (
@@ -77,8 +77,8 @@ export function ClientStaysPage() {
           {/* Active stay */}
           {active && (
             <div>
-              <h2 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Séjour en cours
               </h2>
               <StayCard reservation={active} isCurrent onOrderServices={() => navigate('/catalogue')} />
@@ -88,7 +88,7 @@ export function ClientStaysPage() {
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <div>
-              <h2 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Clock size={11} />
                 À venir
               </h2>
@@ -105,7 +105,7 @@ export function ClientStaysPage() {
           {/* Past stays */}
           {past.length > 0 && (
             <div>
-              <h2 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-3">Séjours passés</h2>
+              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Séjours passés</h2>
               <div className="space-y-3">
                 {past.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
@@ -130,31 +130,31 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
   const ordersCount = r.orders?.length ?? 0;
 
   return (
-    <Card className={isCurrent ? 'border-[#C9A96E]/30 bg-[#C9A96E]/5' : undefined}>
+    <Card className={isCurrent ? 'border-accent/30 bg-accent/5' : undefined}>
       <CardContent className="py-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           {/* Villa info */}
           <div className="flex gap-3 flex-1 min-w-0">
-            <div className="w-16 h-16 rounded-lg overflow-hidden bg-[#1A1A1D] border border-[#242428] shrink-0">
+            <div className="w-16 h-16 rounded-lg overflow-hidden bg-surface-2 border border-line shrink-0">
               {r.villa?.coverImage ? (
                 <img src={r.villa.coverImage} alt={r.villa.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <Building2 size={20} className="text-[#242428]" />
+                  <Building2 size={20} className="text-line-strong" />
                 </div>
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-medium text-[#F5F0EB]">{r.villa?.name ?? 'Villa'}</h3>
+                <h3 className="text-sm font-medium text-ink">{r.villa?.name ?? 'Villa'}</h3>
                 <Badge variant={STATUS_VARIANT[r.status] || 'default'} size="sm">
                   {STATUS_LABELS[r.status] ?? r.status}
                 </Badge>
               </div>
-              <p className="text-xs text-[#6B6B6F] mt-0.5 flex items-center gap-1">
+              <p className="text-xs text-muted mt-0.5 flex items-center gap-1">
                 <MapPin size={10} /> {r.villa?.city}
               </p>
-              <div className="flex items-center gap-4 mt-2 text-xs text-[#6B6B6F]">
+              <div className="flex items-center gap-4 mt-2 text-xs text-muted">
                 <span className="flex items-center gap-1">
                   <CalendarDays size={10} />
                   {formatDate(r.checkIn)} → {formatDate(r.checkOut)}
@@ -165,7 +165,7 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
                 </span>
               </div>
               {ordersCount > 0 && (
-                <p className="text-[11px] text-[#6B6B6F] mt-1 flex items-center gap-1">
+                <p className="text-[11px] text-muted mt-1 flex items-center gap-1">
                   <ShoppingBag size={10} /> {ordersCount} service{ordersCount > 1 ? 's' : ''} commandé{ordersCount > 1 ? 's' : ''}
                 </p>
               )}
@@ -175,7 +175,7 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             {r.totalAmount && (
-              <p className="text-sm font-light text-[#C9A96E]">{formatCurrency(r.totalAmount)}</p>
+              <p className="text-sm font-normal text-accent">{formatCurrency(r.totalAmount)}</p>
             )}
             {onOrderServices && isCurrent && (
               <Button variant="primary" size="sm" onClick={onOrderServices}>

@@ -10,11 +10,11 @@ export const ROLES_LABELS: Record<string, string> = {
 };
 
 export const ROLES_COLORS: Record<string, string> = {
-  SUPER_ADMIN: 'bg-red-900/30 text-red-400 border-red-800/50',
-  ADMIN: 'bg-blue-900/30 text-blue-400 border-blue-800/50',
-  MANAGER: 'bg-purple-900/30 text-purple-400 border-purple-800/50',
-  PROVIDER: 'bg-orange-900/30 text-orange-400 border-orange-800/50',
-  CLIENT: 'bg-green-900/30 text-green-400 border-green-800/50',
+  SUPER_ADMIN: 'bg-danger/10 text-danger border-danger/25',
+  ADMIN: 'bg-info/10 text-info border-info/25',
+  MANAGER: 'bg-plum/10 text-plum border-plum/25',
+  PROVIDER: 'bg-copper/10 text-copper border-copper/25',
+  CLIENT: 'bg-success/10 text-success border-success/25',
 };
 
 export const RESERVATION_STATUS_LABELS: Record<string, string> = {
@@ -26,11 +26,11 @@ export const RESERVATION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const RESERVATION_STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-900/30 text-yellow-400 border-yellow-800/50',
-  CONFIRMED: 'bg-blue-900/30 text-blue-400 border-blue-800/50',
-  ACTIVE: 'bg-green-900/30 text-green-400 border-green-800/50',
-  COMPLETED: 'bg-[#242428] text-[#6B6B6F] border-[#242428]',
-  CANCELLED: 'bg-red-900/30 text-red-400 border-red-800/50',
+  PENDING: 'bg-warning/10 text-warning border-warning/25',
+  CONFIRMED: 'bg-info/10 text-info border-info/25',
+  ACTIVE: 'bg-success/10 text-success border-success/25',
+  COMPLETED: 'bg-line text-muted border-line',
+  CANCELLED: 'bg-danger/10 text-danger border-danger/25',
 };
 
 export const NAV_ITEMS = [

@@ -119,9 +119,9 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
       />
 
       <div>
-        <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Description</label>
+        <label className="text-[12.5px] font-medium text-ink-soft">Description</label>
         <textarea
-          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm placeholder:text-[#6B6B6F] focus:outline-none focus:border-[#C9A96E]/60 resize-none"
+          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 resize-none"
           rows={3}
           value={form.description}
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
@@ -130,9 +130,9 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
       </div>
 
       <div>
-        <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Catégorie</label>
+        <label className="text-[12.5px] font-medium text-ink-soft">Catégorie</label>
         <select
-          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
           value={form.categoryId}
           onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
         >
@@ -140,7 +140,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
             <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
-        {errors.categoryId && <p className="text-xs text-red-400 mt-1">{errors.categoryId}</p>}
+        {errors.categoryId && <p className="text-xs text-danger mt-1">{errors.categoryId}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -174,24 +174,24 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
               type="checkbox"
               checked={(form as any)[key]}
               onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.checked }))}
-              className="w-4 h-4 rounded border border-[#242428] bg-[#111113] accent-[#C9A96E]"
+              className="w-4 h-4 rounded border border-line bg-surface accent-accent"
             />
-            <span className="text-sm text-[#F5F0EB]">{label}</span>
+            <span className="text-sm text-ink">{label}</span>
           </label>
         ))}
       </div>
 
       {/* Providers section — editing only */}
       {service && (
-        <div className="border-t border-[#242428] pt-4 space-y-3">
+        <div className="border-t border-line pt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-1.5">
+            <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-1.5">
               <UserCheck size={11} /> Prestataires assignés
             </p>
             <button
               type="button"
               onClick={() => setShowProviderSearch((v) => !v)}
-              className="text-xs text-[#C9A96E] hover:underline"
+              className="text-xs text-accent hover:underline"
             >
               {showProviderSearch ? 'Fermer' : '+ Ajouter'}
             </button>
@@ -199,33 +199,33 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
 
           {/* Assigned providers list */}
           {assignedProviders.length === 0 ? (
-            <p className="text-xs text-[#3A3A3E] italic">Aucun prestataire assigné</p>
+            <p className="text-xs text-muted italic">Aucun prestataire assigné</p>
           ) : (
             <div className="space-y-2">
               {assignedProviders.map((sp: any) => (
-                <div key={sp.providerId} className="flex items-center gap-2.5 py-2 px-3 rounded-lg bg-[#111113] border border-[#242428]">
+                <div key={sp.providerId} className="flex items-center gap-2.5 py-2 px-3 rounded-lg bg-surface border border-line">
                   <Avatar
                     firstName={sp.provider?.user?.firstName}
                     lastName={sp.provider?.user?.lastName}
                     size="xs"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[#F5F0EB] font-medium">
+                    <p className="text-xs text-ink font-medium">
                       {sp.provider?.user?.firstName} {sp.provider?.user?.lastName}
                     </p>
                     {sp.provider?.companyName && (
-                      <p className="text-[10px] text-[#6B6B6F]">{sp.provider.companyName}</p>
+                      <p className="text-[10px] text-muted">{sp.provider.companyName}</p>
                     )}
                   </div>
                   {sp.isPreferred && (
                     <span title="Prestataire préféré">
-                      <Star size={11} className="text-[#C9A96E] fill-[#C9A96E]" />
+                      <Star size={11} className="text-accent fill-accent" />
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => assignMutation.mutate({ providerId: sp.providerId, isPreferred: !sp.isPreferred })}
-                    className="p-1 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                    className="p-1 text-muted hover:text-accent transition-colors"
                     title={sp.isPreferred ? 'Retirer préféré' : 'Marquer préféré'}
                   >
                     <Star size={11} className={sp.isPreferred ? '' : 'opacity-40'} />
@@ -233,7 +233,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
                   <button
                     type="button"
                     onClick={() => removeMutation.mutate(sp.providerId)}
-                    className="p-1 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                    className="p-1 text-muted hover:text-danger transition-colors"
                   >
                     <X size={11} />
                   </button>
@@ -257,17 +257,17 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
                   .map((p: any) => (
                     <div
                       key={p.id}
-                      className="flex items-center gap-2.5 py-2 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] hover:border-[#C9A96E]/20 transition-colors"
+                      className="flex items-center gap-2.5 py-2 px-3 rounded-lg bg-canvas border border-line hover:border-accent/20 transition-colors"
                     >
                       <Avatar firstName={p.user?.firstName} lastName={p.user?.lastName} size="xs" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-[#F5F0EB]">
+                        <p className="text-xs text-ink">
                           {p.user?.firstName} {p.user?.lastName}
                         </p>
-                        {p.companyName && <p className="text-[10px] text-[#6B6B6F]">{p.companyName}</p>}
+                        {p.companyName && <p className="text-[10px] text-muted">{p.companyName}</p>}
                         <div className="flex flex-wrap gap-1 mt-0.5">
                           {p.categories?.slice(0, 2).map((c: any) => (
-                            <span key={c.category?.id} className="text-[9px] text-[#6B6B6F] px-1 py-0.5 bg-[#1A1A1D] rounded">
+                            <span key={c.category?.id} className="text-[9px] text-muted px-1 py-0.5 bg-surface-2 rounded">
                               {c.category?.name}
                             </span>
                           ))}
@@ -285,7 +285,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
                     </div>
                   ))}
                 {allProviders.filter((p: any) => !assignedIds.has(p.id)).length === 0 && (
-                  <p className="text-xs text-[#6B6B6F] text-center py-3">Aucun prestataire disponible</p>
+                  <p className="text-xs text-muted text-center py-3">Aucun prestataire disponible</p>
                 )}
               </div>
             </div>

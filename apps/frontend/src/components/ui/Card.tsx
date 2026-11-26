@@ -12,10 +12,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-xl border border-[#242428] bg-[#111113]',
-          'transition-all duration-200',
-          hover && 'hover:border-[#C9A96E]/30 hover:bg-[#1A1A1D] cursor-pointer',
-          gold && 'border-[#C9A96E]/20',
+          'rounded-2xl border border-line bg-surface shadow-card',
+          'transition-[border-color,box-shadow,transform] duration-200',
+          hover && 'hover:border-line-strong hover:shadow-pop hover:-translate-y-0.5 cursor-pointer',
+          gold && 'border-gold/40',
           className,
         )}
         {...props}
@@ -34,7 +34,7 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-5 py-4 border-b border-[#242428]', className)}
+      className={cn('px-5 sm:px-6 py-4 border-b border-line', className)}
       {...props}
     >
       {children}
@@ -48,7 +48,7 @@ interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
 
 export const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
   ({ children, className, ...props }, ref) => (
-    <div ref={ref} className={cn('px-5 py-4', className)} {...props}>
+    <div ref={ref} className={cn('px-5 sm:px-6 py-5', className)} {...props}>
       {children}
     </div>
   ),
@@ -62,7 +62,7 @@ export const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-5 py-3 border-t border-[#242428]', className)}
+      className={cn('px-5 sm:px-6 py-3.5 border-t border-line', className)}
       {...props}
     >
       {children}
@@ -78,7 +78,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
   ({ children, className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-base font-light text-[#F5F0EB]', className)}
+      className={cn('text-[15px] font-semibold tracking-[-0.01em] text-ink', className)}
       {...props}
     >
       {children}

@@ -30,8 +30,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const SELECT_CLS =
-  'w-full h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm ' +
-  'focus:outline-none focus:border-[#C9A96E]/60 focus:ring-1 focus:ring-[#C9A96E]/20 transition-all appearance-none';
+  'w-full h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm ' +
+  'focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all appearance-none';
 
 interface Reservation {
   id: string;
@@ -77,7 +77,7 @@ function fromReservation(r: Reservation): FormState {
 
 function RowSkeleton() {
   return (
-    <tr className="border-b border-[#242428]">
+    <tr className="border-b border-line">
       {[150, 120, 160, 60, 80, 90, 70].map((w, i) => (
         <td key={i} className="px-4 py-3.5">
           <Skeleton className={`h-3.5 w-${i === 0 ? 36 : i === 2 ? 40 : i === 5 ? 20 : 24} rounded`} style={{ width: w }} />
@@ -274,38 +274,40 @@ export function ReservationsPage() {
         )}
       </PageHeader>
 
-      {/* Source tabs */}
+      {/* Source tabs — only useful when Lodgify is connected */}
+      {(lodgifyConfigured || source === 'lodgify') && (
       <div className="flex items-center gap-2">
         <button
           onClick={() => setSource('local')}
-          className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'local' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+          className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'local' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
         >
           Réservations internes
         </button>
         {lodgifyConfigured && (
           <button
             onClick={() => setSource('lodgify')}
-            className={`px-4 py-2 rounded-lg text-sm border transition-all flex items-center gap-1.5 ${source === 'lodgify' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all flex items-center gap-1.5 ${source === 'lodgify' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
           >
             🔗 Lodgify
           </button>
         )}
         {source === 'lodgify' && (
-          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
+          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface transition-colors" title="Rafraîchir">
             <RefreshCw size={14} />
           </button>
         )}
       </div>
+      )}
 
       {/* Lodgify reservations table */}
       {source === 'lodgify' && (
-        <div className="rounded-xl border border-[#242428] overflow-hidden">
+        <div className="rounded-xl border border-line overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#242428] bg-[#111113]">
+                <tr className="border-b border-line bg-surface">
                   {['Client', 'Propriété', 'Séjour', 'Voyageurs', 'Statut', 'Montant'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-[#6B6B6F] uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -316,8 +318,8 @@ export function ReservationsPage() {
                   ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-16 text-center">
-                        <p className="text-sm text-red-400 mb-1">Erreur Lodgify</p>
-                        <p className="text-xs text-[#6B6B6F] max-w-md mx-auto break-words">
+                        <p className="text-sm text-danger mb-1">Erreur Lodgify</p>
+                        <p className="text-xs text-muted max-w-md mx-auto break-words">
                           {(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}
                         </p>
                       </td>
@@ -327,29 +329,29 @@ export function ReservationsPage() {
                   ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-16 text-center">
-                        <CalendarDays size={32} className="text-[#242428] mx-auto mb-3" />
-                        <p className="text-sm text-[#6B6B6F]">Aucune réservation Lodgify</p>
+                        <CalendarDays size={32} className="text-line-strong mx-auto mb-3" />
+                        <p className="text-sm text-muted">Aucune réservation Lodgify</p>
                       </td>
                     </tr>
                   )
                   : lodgifyReservations.map((r: any, idx: number) => (
                     <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
-                      className="border-b border-[#242428] hover:bg-[#111113] transition-colors">
+                      className="border-b border-line hover:bg-surface transition-colors">
                       <td className="px-4 py-3.5">
-                        <p className="text-[#F5F0EB] font-light">{r.guestName}</p>
-                        {r.guestEmail && <p className="text-[11px] text-[#6B6B6F]">{r.guestEmail}</p>}
+                        <p className="text-ink font-normal">{r.guestName}</p>
+                        {r.guestEmail && <p className="text-[11px] text-muted">{r.guestEmail}</p>}
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-[#F5F0EB] font-light truncate max-w-[140px]">{r.propertyName ?? `#${r.propertyId}`}</p>
+                        <p className="text-ink font-normal truncate max-w-[140px]">{r.propertyName ?? `#${r.propertyId}`}</p>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap text-[#6B6B6F] text-xs">
+                      <td className="px-4 py-3.5 whitespace-nowrap text-muted text-xs">
                         {r.checkIn ? formatDate(r.checkIn) : '—'} → {r.checkOut ? formatDate(r.checkOut) : '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-center text-[#6B6B6F]">{r.guests ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-center text-muted">{r.guests ?? '—'}</td>
                       <td className="px-4 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#242428] text-[#6B6B6F] capitalize">{r.status}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] border border-line text-muted capitalize">{r.status}</span>
                       </td>
-                      <td className="px-4 py-3.5 text-[#C9A96E] font-light">{formatCurrency(r.totalAmount)}</td>
+                      <td className="px-4 py-3.5 text-accent font-normal">{formatCurrency(r.totalAmount)}</td>
                     </motion.tr>
                   ))
                 }
@@ -368,10 +370,10 @@ export function ReservationsPage() {
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
                 statusFilter === s
-                  ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
-                  : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+                  ? 'border-primary bg-primary text-on-primary'
+                  : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
               }`}
             >
               {STATUS_LABELS[s]}
@@ -382,7 +384,7 @@ export function ReservationsPage() {
           <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => { setCountryFilter(''); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
             >
               Tous les pays
             </button>
@@ -390,7 +392,7 @@ export function ReservationsPage() {
               <button
                 key={c.code}
                 onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
               >
                 {c.flag} {c.name}
               </button>
@@ -400,13 +402,13 @@ export function ReservationsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-[#242428] overflow-hidden">
+      <div className="rounded-xl border border-line overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#242428] bg-[#111113]">
+              <tr className="border-b border-line bg-surface">
                 {['Client', 'Villa', 'Séjour', 'Voyageurs', 'Statut', 'Montant', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-[#6B6B6F] uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-muted uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -419,8 +421,8 @@ export function ReservationsPage() {
                 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-16 text-center">
-                      <CalendarDays size={32} className="text-[#242428] mx-auto mb-3" />
-                      <p className="text-sm text-[#6B6B6F]">Aucune réservation trouvée</p>
+                      <CalendarDays size={32} className="text-line-strong mx-auto mb-3" />
+                      <p className="text-sm text-muted">Aucune réservation trouvée</p>
                     </td>
                   </tr>
                 )
@@ -432,40 +434,40 @@ export function ReservationsPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: idx * 0.02 }}
-                      className="border-b border-[#242428] hover:bg-[#111113] transition-colors"
+                      className="border-b border-line hover:bg-surface transition-colors"
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5">
                           <Avatar firstName={r.client.firstName} lastName={r.client.lastName} size="sm" />
                           <div className="min-w-0">
-                            <p className="text-[#F5F0EB] font-light truncate max-w-[140px]">
+                            <p className="text-ink font-normal truncate max-w-[140px]">
                               {r.client.firstName} {r.client.lastName}
                             </p>
-                            <p className="text-[11px] text-[#6B6B6F] truncate max-w-[140px]">{r.client.email}</p>
+                            <p className="text-[11px] text-muted truncate max-w-[140px]">{r.client.email}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-[#F5F0EB] font-light truncate max-w-[140px]">{r.villa.name}</p>
-                        <p className="text-[11px] text-[#6B6B6F]">{r.villa.city}</p>
+                        <p className="text-ink font-normal truncate max-w-[140px]">{r.villa.name}</p>
+                        <p className="text-[11px] text-muted">{r.villa.city}</p>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap text-[#6B6B6F] text-xs">
+                      <td className="px-4 py-3.5 whitespace-nowrap text-muted text-xs">
                         {formatDate(r.checkIn)} → {formatDate(r.checkOut)}
                       </td>
-                      <td className="px-4 py-3.5 text-center text-[#6B6B6F] text-sm">
+                      <td className="px-4 py-3.5 text-center text-muted text-sm">
                         {r.guests ?? '—'}
                       </td>
                       <td className="px-4 py-3.5">
                         <Badge variant={sc.variant}>{sc.label}</Badge>
                       </td>
-                      <td className="px-4 py-3.5 text-[#C9A96E] font-light whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-accent font-normal whitespace-nowrap">
                         {formatCurrency(r.totalAmount)}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {canEdit && (
                           <button
                             onClick={() => openEdit(r)}
-                            className="text-xs text-[#6B6B6F] hover:text-[#C9A96E] transition-colors px-2 py-1 rounded hover:bg-[#C9A96E]/10"
+                            className="text-xs text-muted hover:text-accent transition-colors px-2 py-1 rounded hover:bg-accent/10"
                           >
                             Modifier
                           </button>
@@ -481,22 +483,22 @@ export function ReservationsPage() {
 
         {/* Pagination */}
         {meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#242428] bg-[#111113]">
-            <p className="text-xs text-[#6B6B6F]">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-line bg-surface">
+            <p className="text-xs text-muted">
               Page {meta.page} sur {meta.totalPages} ({meta.total} au total)
             </p>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 rounded text-[#6B6B6F] hover:text-[#F5F0EB] disabled:opacity-30 hover:bg-[#242428] transition-all"
+                className="p-1.5 rounded text-muted hover:text-ink disabled:opacity-30 hover:bg-line transition-all"
               >
                 <ChevronLeft size={14} />
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
                 disabled={page >= meta.totalPages}
-                className="p-1.5 rounded text-[#6B6B6F] hover:text-[#F5F0EB] disabled:opacity-30 hover:bg-[#242428] transition-all"
+                className="p-1.5 rounded text-muted hover:text-ink disabled:opacity-30 hover:bg-line transition-all"
               >
                 <ChevronRight size={14} />
               </button>
@@ -529,28 +531,28 @@ export function ReservationsPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Villa *</label>
+                  <label className="text-[12.5px] font-medium text-ink-soft">Villa *</label>
                   <select value={form.villaId} onChange={set('villaId')} className={SELECT_CLS}>
                     <option value="">Sélectionner une villa</option>
                     {villas.map((v: any) => (
                       <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
                     ))}
                   </select>
-                  {errors.villaId && <p className="text-xs text-red-400">{errors.villaId}</p>}
+                  {errors.villaId && <p className="text-xs text-danger">{errors.villaId}</p>}
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Client *</label>
+                    <label className="text-[12.5px] font-medium text-ink-soft">Client *</label>
                     <div className="flex gap-1">
                       <button type="button"
                         onClick={() => setClientMode('existing')}
-                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'existing' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F]'}`}>
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'existing' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft'}`}>
                         Existant
                       </button>
                       <button type="button"
                         onClick={() => setClientMode('new')}
-                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'new' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F]'}`}>
+                        className={`px-2 py-0.5 text-[10px] rounded border transition-all ${clientMode === 'new' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft'}`}>
                         + Nouveau
                       </button>
                     </div>
@@ -563,24 +565,24 @@ export function ReservationsPage() {
                           <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>
                         ))}
                       </select>
-                      {errors.clientId && <p className="text-xs text-red-400">{errors.clientId}</p>}
+                      {errors.clientId && <p className="text-xs text-danger">{errors.clientId}</p>}
                     </>
                   ) : (
-                    <div className="space-y-2 p-3 rounded-lg border border-[#242428] bg-[#111113]">
+                    <div className="space-y-2 p-3 rounded-lg border border-line bg-surface">
                       <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Prénom *" value={newClientForm.firstName}
                           onChange={(e) => setNewClientForm((p) => ({ ...p, firstName: e.target.value }))}
-                          className="h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
                         <input placeholder="Nom *" value={newClientForm.lastName}
                           onChange={(e) => setNewClientForm((p) => ({ ...p, lastName: e.target.value }))}
-                          className="h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
                       </div>
                       <input placeholder="Email *" type="email" value={newClientForm.email}
                         onChange={(e) => setNewClientForm((p) => ({ ...p, email: e.target.value }))}
-                        className="w-full h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
                       <input placeholder="Téléphone" type="tel" value={newClientForm.phone}
                         onChange={(e) => setNewClientForm((p) => ({ ...p, phone: e.target.value }))}
-                        className="w-full h-9 px-3 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60" />
+                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
                       <Button size="sm" variant="secondary" type="button"
                         loading={createClientMutation.isPending}
                         disabled={!newClientForm.firstName || !newClientForm.lastName || !newClientForm.email}
@@ -596,13 +598,13 @@ export function ReservationsPage() {
                   )}
                 </div>
               </div>
-              <div className="border-t border-[#242428]" />
+              <div className="border-t border-line" />
             </>
           )}
 
           {mode === 'edit' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Statut</label>
+              <label className="text-[12.5px] font-medium text-ink-soft">Statut</label>
               <select value={form.status} onChange={set('status')} className={SELECT_CLS}>
                 {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
                   <option key={val} value={val}>{cfg.label}</option>
@@ -648,9 +650,9 @@ export function ReservationsPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Notes</label>
+            <label className="text-[12.5px] font-medium text-ink-soft">Notes</label>
             <textarea
-              className="w-full px-3 py-2.5 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm placeholder:text-[#6B6B6F] focus:outline-none focus:border-[#C9A96E]/60 focus:ring-1 focus:ring-[#C9A96E]/20 transition-all resize-none"
+              className="w-full px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all resize-none"
               rows={3}
               placeholder="Informations complémentaires..."
               value={form.notes}

@@ -16,11 +16,11 @@ const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juill
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const TYPE_COLORS: Record<string, string> = {
-  reservation: 'bg-[#C9A96E]/20 text-[#C9A96E] border-[#C9A96E]/30',
-  order: 'bg-purple-900/20 text-purple-400 border-purple-800/30',
-  activity: 'bg-blue-900/20 text-blue-400 border-blue-800/30',
-  maintenance: 'bg-orange-900/20 text-orange-400 border-orange-800/30',
-  event: 'bg-green-900/20 text-green-400 border-green-800/30',
+  reservation: 'bg-accent/20 text-accent border-accent/30',
+  order: 'bg-plum/10 text-plum border-plum/25',
+  activity: 'bg-info/10 text-info border-info/25',
+  maintenance: 'bg-copper/10 text-copper border-copper/25',
+  event: 'bg-success/10 text-success border-success/25',
 };
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -198,7 +198,7 @@ export function CalendarPage() {
           <button
             key={opt.value}
             onClick={() => setTypeFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${typeFilter === opt.value ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${typeFilter === opt.value ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
           >
             {opt.label}
           </button>
@@ -208,22 +208,22 @@ export function CalendarPage() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6">
         {/* Calendar grid */}
         <Card>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#242428]">
-            <button onClick={prevMonth} className="p-1.5 text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+            <button onClick={prevMonth} className="p-1.5 text-muted hover:text-ink transition-colors">
               <ChevronLeft size={16} />
             </button>
-            <h2 className="text-sm font-medium text-[#F5F0EB]">
+            <h2 className="text-sm font-medium text-ink">
               {MONTHS_FR[month]} {year}
             </h2>
-            <button onClick={nextMonth} className="p-1.5 text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors">
+            <button onClick={nextMonth} className="p-1.5 text-muted hover:text-ink transition-colors">
               <ChevronRight size={16} />
             </button>
           </div>
 
           {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-[#242428]">
+          <div className="grid grid-cols-7 border-b border-line">
             {DAYS_FR.map((d) => (
-              <div key={d} className="px-2 py-2 text-center text-[10px] font-medium text-[#6B6B6F] uppercase tracking-wider">
+              <div key={d} className="px-2 py-2 text-center text-[10px] font-medium text-muted uppercase tracking-wider">
                 {d}
               </div>
             ))}
@@ -232,12 +232,12 @@ export function CalendarPage() {
           {/* Days grid */}
           {isLoading ? (
             <div className="py-16 text-center">
-              <div className="w-6 h-6 border-2 border-[#C9A96E]/30 border-t-[#C9A96E] rounded-full animate-spin mx-auto" />
+              <div className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin mx-auto" />
             </div>
           ) : (
             <div className="grid grid-cols-7">
               {days.map((day, idx) => {
-                if (!day) return <div key={idx} className="h-24 border-b border-r border-[#1A1A1D] last:border-r-0" />;
+                if (!day) return <div key={idx} className="h-24 border-b border-r border-surface-2 last:border-r-0" />;
                 const key = localKey(day);
                 const dayEvents = eventsByDay[key] || [];
                 const isToday = key === todayKey;
@@ -249,16 +249,16 @@ export function CalendarPage() {
                     key={key}
                     onClick={() => setSelectedDay(day)}
                     className={cn(
-                      'h-24 border-b border-r border-[#1A1A1D] p-1.5 cursor-pointer transition-colors overflow-hidden',
-                      'hover:bg-[#111113]',
-                      isSelected && 'bg-[#C9A96E]/5 border-[#C9A96E]/20',
+                      'h-24 border-b border-r border-surface-2 p-1.5 cursor-pointer transition-colors overflow-hidden',
+                      'hover:bg-surface',
+                      isSelected && 'bg-accent/5 border-accent/20',
                       !isCurrentMonth && 'opacity-30',
                     )}
                   >
                     <div className={cn(
                       'w-6 h-6 rounded-full flex items-center justify-center text-xs mb-1 font-medium transition-colors',
-                      isToday ? 'bg-[#C9A96E] text-[#0A0A0B]' : 'text-[#6B6B6F]',
-                      isSelected && !isToday && 'text-[#F5F0EB]',
+                      isToday ? 'bg-primary text-on-primary' : 'text-muted',
+                      isSelected && !isToday && 'text-ink',
                     )}>
                       {day.getDate()}
                     </div>
@@ -268,14 +268,14 @@ export function CalendarPage() {
                           key={e.id}
                           className={cn(
                             'text-[9px] px-1 py-0.5 rounded truncate border',
-                            TYPE_COLORS[e.type] || 'bg-[#1A1A1D] text-[#6B6B6F] border-[#242428]',
+                            TYPE_COLORS[e.type] || 'bg-surface-2 text-muted border-line',
                           )}
                         >
                           {e.title}
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
-                        <div className="text-[9px] text-[#6B6B6F] px-1">+{dayEvents.length - 3}</div>
+                        <div className="text-[9px] text-muted px-1">+{dayEvents.length - 3}</div>
                       )}
                     </div>
                   </div>
@@ -299,10 +299,10 @@ export function CalendarPage() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-[#F5F0EB]">
+                    <p className="text-sm font-medium text-ink">
                       {selectedDay.getDate()} {MONTHS_FR[selectedDay.getMonth()]}
                     </p>
-                    <p className="text-xs text-[#6B6B6F]">{selectedDayEvents.length} événement(s)</p>
+                    <p className="text-xs text-muted">{selectedDayEvents.length} événement(s)</p>
                   </div>
                   {isStaff && (
                     <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => openNewEvent(selectedDay)}>
@@ -314,7 +314,7 @@ export function CalendarPage() {
                 {selectedDayEvents.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center">
-                      <p className="text-xs text-[#6B6B6F]">Aucun événement ce jour</p>
+                      <p className="text-xs text-muted">Aucun événement ce jour</p>
                     </CardContent>
                   </Card>
                 ) : (
@@ -325,13 +325,13 @@ export function CalendarPage() {
                       <Card key={e.id} className={cn('border', TYPE_COLORS[e.type]?.split(' ').find(c => c.startsWith('border-')) || '')}>
                         <CardContent className="py-3">
                           <div className="flex items-start gap-2.5">
-                            <Icon size={14} className={TYPE_COLORS[e.type]?.split(' ').find(c => c.startsWith('text-')) || 'text-[#6B6B6F]'} />
+                            <Icon size={14} className={TYPE_COLORS[e.type]?.split(' ').find(c => c.startsWith('text-')) || 'text-muted'} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-[#F5F0EB] font-medium leading-snug">{e.title}</p>
-                              {e.description && <p className="text-xs text-[#6B6B6F] mt-0.5">{e.description}</p>}
-                              {e.villa && <p className="text-[11px] text-[#6B6B6F] mt-1">📍 {e.villa.name}</p>}
+                              <p className="text-sm text-ink font-medium leading-snug">{e.title}</p>
+                              {e.description && <p className="text-xs text-muted mt-0.5">{e.description}</p>}
+                              {e.villa && <p className="text-[11px] text-muted mt-1">📍 {e.villa.name}</p>}
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-[#6B6B6F]">
+                                <span className="text-[10px] text-muted">
                                   {e.allDay ? 'Toute la journée' : (
                                     <>
                                       {new Date(e.startAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -345,7 +345,7 @@ export function CalendarPage() {
                             {isStaff && isCustom && (
                               <button
                                 onClick={() => deleteMutation.mutate(e.id)}
-                                className="text-[#6B6B6F] hover:text-red-400 transition-colors shrink-0"
+                                className="text-muted hover:text-danger transition-colors shrink-0"
                               >
                                 <X size={12} />
                               </button>
@@ -361,8 +361,8 @@ export function CalendarPage() {
           ) : (
             <Card>
               <CardContent className="py-10 text-center">
-                <Calendar size={24} className="mx-auto text-[#242428] mb-2" />
-                <p className="text-xs text-[#6B6B6F]">Cliquez sur un jour pour voir les événements</p>
+                <Calendar size={24} className="mx-auto text-line-strong mb-2" />
+                <p className="text-xs text-muted">Cliquez sur un jour pour voir les événements</p>
               </CardContent>
             </Card>
           )}
@@ -385,19 +385,19 @@ export function CalendarPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Début</label>
+                <label className="text-[12.5px] font-medium text-ink-soft">Début</label>
                 <input
                   type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                   value={form.startAt}
                   onChange={(e) => setForm((p) => ({ ...p, startAt: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Fin</label>
+                <label className="text-[12.5px] font-medium text-ink-soft">Fin</label>
                 <input
                   type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                   value={form.endAt}
                   onChange={(e) => setForm((p) => ({ ...p, endAt: e.target.value }))}
                 />
@@ -405,9 +405,9 @@ export function CalendarPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Type</label>
+              <label className="text-[12.5px] font-medium text-ink-soft">Type</label>
               <select
-                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                 value={form.type}
                 onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
               >
@@ -429,9 +429,9 @@ export function CalendarPage() {
                 type="checkbox"
                 checked={form.allDay}
                 onChange={(e) => setForm((p) => ({ ...p, allDay: e.target.checked }))}
-                className="w-4 h-4 rounded border border-[#242428] bg-[#111113] accent-[#C9A96E]"
+                className="w-4 h-4 rounded border border-line bg-surface accent-accent"
               />
-              <span className="text-sm text-[#F5F0EB]">Toute la journée</span>
+              <span className="text-sm text-ink">Toute la journée</span>
             </label>
 
             <Button

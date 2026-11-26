@@ -67,8 +67,8 @@ export function UsersPage() {
         <div className="flex items-center gap-3">
           <Avatar firstName={row.firstName} lastName={row.lastName} src={row.avatar} size="sm" />
           <div>
-            <p className="text-sm text-[#F5F0EB]">{row.firstName} {row.lastName}</p>
-            <p className="text-xs text-[#6B6B6F]">{row.email}</p>
+            <p className="text-sm text-ink">{row.firstName} {row.lastName}</p>
+            <p className="text-xs text-muted">{row.email}</p>
           </div>
         </div>
       ),
@@ -96,11 +96,11 @@ export function UsersPage() {
       header: 'Pays',
       render: (row) => {
         const countries: string[] = (row as any).countries || [];
-        if (countries.length === 0) return <span className="text-[11px] text-[#3A3A3E] italic">Global</span>;
+        if (countries.length === 0) return <span className="text-[11px] text-muted italic">Global</span>;
         return (
           <div className="flex flex-wrap gap-1">
             {countries.map((c) => (
-              <span key={c} className="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1D] border border-[#242428] text-[#6B6B6F]">{c}</span>
+              <span key={c} className="px-1.5 py-0.5 rounded text-[10px] bg-surface-2 border border-line text-muted">{c}</span>
             ))}
           </div>
         );
@@ -110,7 +110,7 @@ export function UsersPage() {
       key: 'lastLoginAt',
       header: 'Dernière connexion',
       render: (row) => (
-        <span className="text-xs text-[#6B6B6F]">
+        <span className="text-xs text-muted">
           {row.lastLoginAt ? formatDate(row.lastLoginAt) : 'Jamais'}
         </span>
       ),
@@ -119,7 +119,7 @@ export function UsersPage() {
       key: 'createdAt',
       header: 'Créé le',
       sortable: true,
-      render: (row) => <span className="text-xs text-[#6B6B6F]">{formatDate(row.createdAt)}</span>,
+      render: (row) => <span className="text-xs text-muted">{formatDate(row.createdAt)}</span>,
     },
   ];
 
@@ -149,7 +149,7 @@ export function UsersPage() {
             <button
               key={opt.value}
               onClick={() => { setRole(opt.value); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${role === opt.value ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${role === opt.value ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
             >
               {opt.label}
             </button>

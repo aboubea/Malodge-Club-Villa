@@ -68,9 +68,9 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
       <Input label="Nom de la villa" placeholder="Villa Émeraude" value={form.name} onChange={set('name')} error={errors.name} />
 
       <div>
-        <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Description</label>
+        <label className="text-[12.5px] font-medium text-ink-soft">Description</label>
         <textarea
-          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm placeholder:text-[#6B6B6F] focus:outline-none focus:border-[#C9A96E]/60 focus:ring-1 focus:ring-[#C9A96E]/20 transition-all resize-none"
+          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all resize-none"
           rows={3}
           placeholder="Description de la villa..."
           value={form.description || ''}

@@ -21,23 +21,23 @@ export function ChatPage() {
           Nouvelle conversation
         </Button>
       </PageHeader>
-      <div className="flex flex-1 overflow-hidden gap-0 border border-[#242428] rounded-xl mx-5 mb-5">
+      <div className="flex flex-1 overflow-hidden gap-0 border border-line rounded-xl mx-5 mb-5">
         <ConversationList
           selectedId={selectedConvId}
           onSelect={setSelectedConvId}
           onNew={() => setShowNewConv(true)}
         />
-        <div className="flex-1 border-l border-[#242428]">
+        <div className="flex-1 border-l border-line">
           {selectedConvId ? (
             <MessageThread conversationId={selectedConvId} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#1A1A1D] flex items-center justify-center">
-                <MessageSquare size={24} className="text-[#6B6B6F]" />
+              <div className="w-14 h-14 rounded-2xl bg-surface-2 flex items-center justify-center">
+                <MessageSquare size={24} className="text-muted" />
               </div>
               <div>
-                <p className="text-sm text-[#F5F0EB]">Sélectionnez une conversation</p>
-                <p className="text-xs text-[#6B6B6F] mt-1">ou créez-en une nouvelle</p>
+                <p className="text-sm text-ink">Sélectionnez une conversation</p>
+                <p className="text-xs text-muted mt-1">ou créez-en une nouvelle</p>
               </div>
             </div>
           )}

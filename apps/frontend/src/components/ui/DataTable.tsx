@@ -53,18 +53,18 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-xl border border-[#242428]">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#242428] bg-[#0A0A0B]">
+            <tr className="border-b border-line bg-surface-2/50">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   className={cn(
-                    'px-4 py-3 text-left text-[11px] font-medium text-[#6B6B6F] uppercase tracking-wider whitespace-nowrap',
+                    'px-5 py-3 text-left text-[11px] font-semibold text-muted uppercase tracking-[0.1em] whitespace-nowrap',
                     col.align === 'center' && 'text-center',
                     col.align === 'right' && 'text-right',
-                    col.sortable && 'cursor-pointer hover:text-[#F5F0EB] transition-colors select-none',
+                    col.sortable && 'cursor-pointer hover:text-ink transition-colors select-none',
                     col.width && `w-[${col.width}]`,
                   )}
                   onClick={() => col.sortable && handleSort(col.key)}
@@ -80,24 +80,24 @@ export function DataTable<T extends { id: string }>({
                 </th>
               ))}
               {showActions && (
-                <th className="px-4 py-3 text-right text-[11px] font-medium text-[#6B6B6F] uppercase tracking-wider w-24">
+                <th className="px-5 py-3 text-right text-[11px] font-semibold text-muted uppercase tracking-[0.1em] w-24">
                   Actions
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#242428]">
+          <tbody className="divide-y divide-line">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="animate-pulse">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3">
-                      <div className="h-4 bg-[#1A1A1D] rounded" />
+                    <td key={col.key} className="px-5 py-4">
+                      <div className="h-4 bg-surface-2 rounded" />
                     </td>
                   ))}
                   {showActions && (
-                    <td className="px-4 py-3">
-                      <div className="h-4 bg-[#1A1A1D] rounded ml-auto w-16" />
+                    <td className="px-5 py-4">
+                      <div className="h-4 bg-surface-2 rounded ml-auto w-16" />
                     </td>
                   )}
                 </tr>
@@ -106,7 +106,7 @@ export function DataTable<T extends { id: string }>({
               <tr>
                 <td
                   colSpan={columns.length + (showActions ? 1 : 0)}
-                  className="px-4 py-12 text-center text-[#6B6B6F]"
+                  className="px-5 py-16 text-center text-muted"
                 >
                   {emptyMessage}
                 </td>
@@ -116,8 +116,8 @@ export function DataTable<T extends { id: string }>({
                 <tr
                   key={row.id}
                   className={cn(
-                    'bg-[#111113] transition-colors duration-100',
-                    onRowClick && 'cursor-pointer hover:bg-[#1A1A1D]',
+                    'transition-colors duration-100 hover:bg-surface-2/50',
+                    onRowClick && 'cursor-pointer',
                   )}
                   onClick={() => onRowClick?.(row)}
                 >
@@ -125,7 +125,7 @@ export function DataTable<T extends { id: string }>({
                     <td
                       key={col.key}
                       className={cn(
-                        'px-4 py-3 text-[#F5F0EB]',
+                        'px-5 py-3.5 text-ink',
                         col.align === 'center' && 'text-center',
                         col.align === 'right' && 'text-right',
                       )}
@@ -136,7 +136,7 @@ export function DataTable<T extends { id: string }>({
                     </td>
                   ))}
                   {showActions && (
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <div
                         className="flex items-center justify-end gap-1"
                         onClick={(e) => e.stopPropagation()}
@@ -144,17 +144,19 @@ export function DataTable<T extends { id: string }>({
                         {onEdit && (
                           <button
                             onClick={() => onEdit(row)}
-                            className="p-1.5 rounded-md text-[#6B6B6F] hover:text-[#C9A96E] hover:bg-[#1A1A1D] transition-colors"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors"
+                            aria-label="Modifier"
                           >
-                            <Pencil size={13} />
+                            <Pencil size={14} />
                           </button>
                         )}
                         {onDelete && (
                           <button
                             onClick={() => onDelete(row)}
-                            className="p-1.5 rounded-md text-[#6B6B6F] hover:text-red-400 hover:bg-[#1A1A1D] transition-colors"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                            aria-label="Supprimer"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>
@@ -177,7 +179,7 @@ export function DataTable<T extends { id: string }>({
           >
             Précédent
           </Button>
-          <span className="text-xs text-[#6B6B6F] px-2">
+          <span className="text-xs text-muted px-2 tabular">
             {pagination.page} / {pagination.totalPages}
           </span>
           <Button

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency } from '../../lib/utils';
 
 interface DataPoint {
   date: string;
@@ -15,7 +15,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-[#6B6B6F] text-sm">
+      <div className="flex items-center justify-center h-48 text-muted text-sm">
         Aucune donnée disponible
       </div>
     );
@@ -60,15 +60,16 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 y1={y}
                 x2={PADDING.left + CHART_W}
                 y2={y}
-                stroke="#242428"
+                className="stroke-line"
                 strokeWidth="1"
+                strokeDasharray={i === 0 ? undefined : '3 4'}
               />
               <text
                 x={PADDING.left - 8}
                 y={y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="#6B6B6F"
+                className="fill-muted tabular"
               >
                 {value >= 1000 ? `${Math.round(value / 1000)}k` : Math.round(value)}€
               </text>
@@ -115,9 +116,11 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 y={y}
                 width={barWidth}
                 height={barH}
-                rx="3"
-                fill={tooltip?.point.date === point.date ? '#E8C98A' : '#C9A96E'}
-                className="transition-colors duration-100"
+                rx="4"
+                className={cn(
+                  'transition-colors duration-100',
+                  tooltip?.point.date === point.date ? 'fill-accent' : 'fill-gold',
+                )}
               />
               {/* X label — show every nth item to avoid crowding */}
               {(data.length <= 10 || i % Math.ceil(data.length / 10) === 0) && (
@@ -126,7 +129,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                   y={PADDING.top + CHART_H + 16}
                   textAnchor="middle"
                   fontSize="9"
-                  fill="#6B6B6F"
+                  className="fill-muted"
                 >
                   {formatLabel(point.date)}
                 </text>
@@ -139,20 +142,20 @@ export function RevenueChart({ data }: RevenueChartProps) {
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="absolute pointer-events-none z-10 bg-[#1A1A1D] border border-[#242428] rounded-lg px-3 py-2 shadow-xl"
+          className="absolute pointer-events-none z-10 bg-surface-2 border border-line rounded-lg px-3 py-2 shadow-pop"
           style={{
             left: `${(tooltip.x / 800) * 100}%`,
             top: `${(tooltip.y / 220) * 100}%`,
             transform: 'translate(-50%, -110%)',
           }}
         >
-          <p className="text-xs text-[#6B6B6F]">
+          <p className="text-xs text-muted">
             {new Date(tooltip.point.date).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'long',
             })}
           </p>
-          <p className="text-sm font-medium text-[#C9A96E]">
+          <p className="text-sm font-medium text-accent">
             {formatCurrency(tooltip.point.amount)}
           </p>
         </div>

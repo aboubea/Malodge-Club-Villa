@@ -21,39 +21,45 @@ type BadgeVariant =
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   size?: 'sm' | 'md';
+  /** Show a leading status dot (defaults to true for status variants). */
+  dot?: boolean;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-[#1A1A1D] text-[#6B6B6F] border-[#242428]',
-  gold: 'bg-[#C9A96E]/10 text-[#C9A96E] border-[#C9A96E]/30',
-  admin: 'bg-blue-900/30 text-blue-400 border-blue-800/50',
-  super_admin: 'bg-red-900/30 text-red-400 border-red-800/50',
-  manager: 'bg-purple-900/30 text-purple-400 border-purple-800/50',
-  provider: 'bg-orange-900/30 text-orange-400 border-orange-800/50',
-  client: 'bg-green-900/30 text-green-400 border-green-800/50',
-  active: 'bg-green-900/30 text-green-400 border-green-800/50',
-  inactive: 'bg-[#242428] text-[#6B6B6F] border-[#242428]',
-  pending: 'bg-yellow-900/30 text-yellow-400 border-yellow-800/50',
-  confirmed: 'bg-blue-900/30 text-blue-400 border-blue-800/50',
-  cancelled: 'bg-red-900/30 text-red-400 border-red-800/50',
-  completed: 'bg-[#242428] text-[#6B6B6F] border-[#242428]',
-  success: 'bg-green-900/30 text-green-400 border-green-800/50',
-  error: 'bg-red-900/30 text-red-400 border-red-800/50',
+  default: 'bg-surface-2 text-ink-soft border-line',
+  gold: 'bg-gold/15 text-accent border-gold/30',
+  admin: 'bg-info/10 text-info border-info/20',
+  super_admin: 'bg-danger/10 text-danger border-danger/20',
+  manager: 'bg-plum/10 text-plum border-plum/20',
+  provider: 'bg-copper/10 text-copper border-copper/20',
+  client: 'bg-success/10 text-success border-success/20',
+  active: 'bg-success/10 text-success border-success/20',
+  inactive: 'bg-surface-2 text-muted border-line',
+  pending: 'bg-warning/10 text-warning border-warning/20',
+  confirmed: 'bg-info/10 text-info border-info/20',
+  cancelled: 'bg-danger/10 text-danger border-danger/20',
+  completed: 'bg-surface-2 text-muted border-line',
+  success: 'bg-success/10 text-success border-success/20',
+  error: 'bg-danger/10 text-danger border-danger/20',
 };
 
+const DOT_VARIANTS = new Set<BadgeVariant>(['active', 'inactive', 'pending', 'confirmed', 'cancelled', 'completed', 'success', 'error']);
+
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ variant = 'default', size = 'sm', children, className, ...props }, ref) => {
+  ({ variant = 'default', size = 'sm', dot, children, className, ...props }, ref) => {
+    const showDot = dot ?? DOT_VARIANTS.has(variant);
     return (
       <span
         ref={ref}
         className={cn(
-          'inline-flex items-center border rounded-full font-medium',
-          size === 'sm' ? 'text-[11px] px-2 py-0.5' : 'text-xs px-2.5 py-1',
+          'inline-flex items-center gap-1.5 border rounded-full font-medium whitespace-nowrap leading-none',
+          size === 'sm' ? 'text-[11.5px] h-6 px-2.5' : 'text-xs h-7 px-3',
           variantClasses[variant],
           className,
         )}
         {...props}
       >
+        {showDot && <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />}
         {children}
       </span>
     );

@@ -186,8 +186,8 @@ export function ProvidersPage() {
         <div className="flex items-center gap-3">
           <Avatar firstName={row.user.firstName} lastName={row.user.lastName} src={row.user.avatar} size="sm" />
           <div>
-            <p className="text-sm text-[#F5F0EB]">{row.user.firstName} {row.user.lastName}</p>
-            <p className="text-xs text-[#6B6B6F]">{row.user.email}</p>
+            <p className="text-sm text-ink">{row.user.firstName} {row.user.lastName}</p>
+            <p className="text-xs text-muted">{row.user.email}</p>
           </div>
         </div>
       ),
@@ -199,11 +199,11 @@ export function ProvidersPage() {
         <div className="flex items-center gap-2">
           {row.companyName ? (
             <>
-              <Building2 size={12} className="text-[#6B6B6F] shrink-0" />
-              <span className="text-sm text-[#F5F0EB]">{row.companyName}</span>
+              <Building2 size={12} className="text-muted shrink-0" />
+              <span className="text-sm text-ink">{row.companyName}</span>
             </>
           ) : (
-            <span className="text-xs text-[#3A3A3E] italic">Individuel</span>
+            <span className="text-xs text-muted italic">Individuel</span>
           )}
         </div>
       ),
@@ -214,7 +214,7 @@ export function ProvidersPage() {
       render: (row) => (
         <div className="flex flex-wrap gap-1">
           {row.categories.length === 0 ? (
-            <span className="text-xs text-[#3A3A3E] italic">Aucune</span>
+            <span className="text-xs text-muted italic">Aucune</span>
           ) : (
             row.categories.slice(0, 3).map((c) => (
               <Badge key={c.category.id} variant="default" className="text-[10px] py-0">
@@ -238,7 +238,7 @@ export function ProvidersPage() {
           </Badge>
           <button
             onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate({ id: row.id, isActive: !row.isActive }); }}
-            className="text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors"
+            className="text-muted hover:text-ink transition-colors"
             title={row.isActive ? 'Désactiver' : 'Activer'}
           >
             {row.isActive ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
@@ -249,7 +249,7 @@ export function ProvidersPage() {
     {
       key: 'createdAt',
       header: 'Ajouté le',
-      render: (row) => <span className="text-xs text-[#6B6B6F]">{formatDate(row.createdAt)}</span>,
+      render: (row) => <span className="text-xs text-muted">{formatDate(row.createdAt)}</span>,
     },
   ];
 
@@ -304,11 +304,11 @@ export function ProvidersPage() {
                 size="lg"
               />
               <div>
-                <h3 className="text-base font-medium text-[#F5F0EB]">
+                <h3 className="text-base font-medium text-ink">
                   {detailProvider.user.firstName} {detailProvider.user.lastName}
                 </h3>
                 {detailProvider.companyName && (
-                  <p className="text-sm text-[#6B6B6F] flex items-center gap-1.5 mt-0.5">
+                  <p className="text-sm text-muted flex items-center gap-1.5 mt-0.5">
                     <Building2 size={12} /> {detailProvider.companyName}
                   </p>
                 )}
@@ -322,26 +322,26 @@ export function ProvidersPage() {
 
             {/* Contact info */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
-                <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
-                <p className="text-sm text-[#F5F0EB]">{detailProvider.user.email}</p>
+              <div className="p-3 rounded-lg bg-surface border border-line">
+                <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                <p className="text-sm text-ink">{detailProvider.user.email}</p>
               </div>
               {detailProvider.user.phone && (
-                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
-                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Phone size={10} /> Téléphone</p>
-                  <p className="text-sm text-[#F5F0EB]">{detailProvider.user.phone}</p>
+                <div className="p-3 rounded-lg bg-surface border border-line">
+                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Phone size={10} /> Téléphone</p>
+                  <p className="text-sm text-ink">{detailProvider.user.phone}</p>
                 </div>
               )}
               {detailProvider.siret && (
-                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
-                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><Hash size={10} /> SIRET</p>
-                  <p className="text-sm font-mono text-[#F5F0EB]">{detailProvider.siret}</p>
+                <div className="p-3 rounded-lg bg-surface border border-line">
+                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Hash size={10} /> SIRET</p>
+                  <p className="text-sm font-mono text-ink">{detailProvider.siret}</p>
                 </div>
               )}
               {detailProvider.iban && (
-                <div className="p-3 rounded-lg bg-[#111113] border border-[#242428]">
-                  <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider mb-1 flex items-center gap-1"><CreditCard size={10} /> IBAN</p>
-                  <p className="text-sm font-mono text-[#F5F0EB]">{detailProvider.iban}</p>
+                <div className="p-3 rounded-lg bg-surface border border-line">
+                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><CreditCard size={10} /> IBAN</p>
+                  <p className="text-sm font-mono text-ink">{detailProvider.iban}</p>
                 </div>
               )}
             </div>
@@ -349,7 +349,7 @@ export function ProvidersPage() {
             {/* Specialties */}
             {detailProvider.categories.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2 flex items-center gap-1.5"><Tag size={11} /> Spécialités</p>
+                <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5"><Tag size={11} /> Spécialités</p>
                 <div className="flex flex-wrap gap-2">
                   {detailProvider.categories.map((c) => (
                     <Badge key={c.category.id} variant="default">{c.category.name}</Badge>
@@ -358,8 +358,8 @@ export function ProvidersPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-[#242428]">
-              <p className="text-xs text-[#6B6B6F]">Membre depuis {formatDate(detailProvider.createdAt)}</p>
+            <div className="flex items-center justify-between pt-2 border-t border-line">
+              <p className="text-xs text-muted">Membre depuis {formatDate(detailProvider.createdAt)}</p>
               <Button
                 variant="secondary"
                 size="sm"
@@ -383,8 +383,8 @@ export function ProvidersPage() {
           {/* User section — only when creating */}
           {!editingProvider && (
             <div className="space-y-4">
-              <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-[#C9A96E]/20 text-[#C9A96E] text-[10px] flex items-center justify-center font-bold">1</span>
+              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[10px] flex items-center justify-center font-bold">1</span>
                 Informations personnelles
               </p>
               <div className="grid grid-cols-2 gap-3">
@@ -414,15 +414,15 @@ export function ProvidersPage() {
                 value={inviteForm.phone}
                 onChange={(e) => setInviteForm((p) => ({ ...p, phone: e.target.value }))}
               />
-              <div className="border-t border-[#242428]" />
+              <div className="border-t border-line" />
             </div>
           )}
 
           {/* Provider info */}
           <div className="space-y-4">
             {!editingProvider && (
-              <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-[#C9A96E]/20 text-[#C9A96E] text-[10px] flex items-center justify-center font-bold">2</span>
+              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[10px] flex items-center justify-center font-bold">2</span>
                 Informations professionnelles
               </p>
             )}
@@ -464,9 +464,9 @@ export function ProvidersPage() {
                   type="checkbox"
                   checked={editForm.isActive}
                   onChange={(e) => setEditForm((p) => ({ ...p, isActive: e.target.checked }))}
-                  className="w-4 h-4 rounded border border-[#242428] bg-[#1A1A1D] accent-[#C9A96E]"
+                  className="w-4 h-4 rounded border border-line bg-surface-2 accent-accent"
                 />
-                <span className="text-sm text-[#F5F0EB]">Prestataire actif</span>
+                <span className="text-sm text-ink">Prestataire actif</span>
               </label>
             )}
           </div>
@@ -474,8 +474,8 @@ export function ProvidersPage() {
           {/* Categories */}
           {categories.length > 0 && (
             <div className="space-y-3">
-              <div className="border-t border-[#242428]" />
-              <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
+              <div className="border-t border-line" />
+              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
                 <Tag size={11} />
                 Spécialités
               </p>
@@ -487,10 +487,10 @@ export function ProvidersPage() {
                       key={cat.id}
                       type="button"
                       onClick={() => toggleCategory(cat.id, !!editingProvider)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
                         selected
-                          ? 'border-[#C9A96E]/50 bg-[#C9A96E]/10 text-[#C9A96E]'
-                          : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:border-[#3A3A3E]'
+                          ? 'border-accent/50 bg-accent/10 text-accent'
+                          : 'border-line text-muted hover:text-ink hover:border-line-strong'
                       }`}
                     >
                       {cat.name}
@@ -504,8 +504,8 @@ export function ProvidersPage() {
           {/* Countries — invite only */}
           {!editingProvider && allCountries.length > 0 && (
             <div className="space-y-3">
-              <div className="border-t border-[#242428]" />
-              <p className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider flex items-center gap-2">
+              <div className="border-t border-line" />
+              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
                 <Globe size={11} />
                 Pays d'intervention
               </p>
@@ -517,10 +517,10 @@ export function ProvidersPage() {
                       key={country.code}
                       type="button"
                       onClick={() => toggleInviteCountry(country.code)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition-all flex items-center gap-1.5 ${
+                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all flex items-center gap-1.5 ${
                         selected
-                          ? 'border-[#C9A96E]/50 bg-[#C9A96E]/10 text-[#C9A96E]'
-                          : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:border-[#3A3A3E]'
+                          ? 'border-accent/50 bg-accent/10 text-accent'
+                          : 'border-line text-muted hover:text-ink hover:border-line-strong'
                       }`}
                     >
                       <span>{country.flag}</span>
@@ -530,7 +530,7 @@ export function ProvidersPage() {
                 })}
               </div>
               {inviteForm.countries.length === 0 && (
-                <p className="text-[10px] text-[#3A3A3E]">Aucun pays sélectionné — disponible partout</p>
+                <p className="text-[10px] text-muted">Aucun pays sélectionné — disponible partout</p>
               )}
             </div>
           )}

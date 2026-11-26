@@ -78,12 +78,12 @@ export function AiConciergePage() {
             transition={{ duration: 0.3 }}
             className="flex flex-col items-center justify-center min-h-[400px] text-center gap-6"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[#1A1A1D] border border-[#242428] flex items-center justify-center">
-              <Brain size={28} className="text-[#C9A96E]" />
+            <div className="w-16 h-16 rounded-2xl gold-gradient flex items-center justify-center shadow-card">
+              <Brain size={28} className="text-[#1D1B18]" />
             </div>
             <div>
-              <p className="text-lg font-light text-[#F5F0EB]">Bonjour, comment puis-je vous aider ?</p>
-              <p className="text-sm text-[#6B6B6F] mt-1.5">
+              <p className="font-display text-[30px] leading-tight text-ink">Bonjour, comment puis-je vous aider ?</p>
+              <p className="text-sm text-muted mt-1.5">
                 Je suis votre concierge IA. Posez-moi une question sur les documents de Malodge Club
                 Villa.
               </p>
@@ -93,9 +93,9 @@ export function AiConciergePage() {
                 <button
                   key={q}
                   onClick={() => handleExample(q)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#242428] bg-[#111113] text-xs text-[#6B6B6F] hover:text-[#F5F0EB] hover:border-[#C9A96E]/30 transition-all duration-150"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-line bg-surface text-xs text-muted hover:text-ink hover:border-accent/30 transition-all duration-150"
                 >
-                  <Sparkles size={11} className="text-[#C9A96E]" />
+                  <Sparkles size={11} className="text-accent" />
                   {q}
                 </button>
               ))}
@@ -109,15 +109,15 @@ export function AiConciergePage() {
 
             {mutation.isPending && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-[#1A1A1D] border border-[#242428] flex items-center justify-center shrink-0">
-                  <Brain size={14} className="text-[#C9A96E]" />
+                <div className="w-8 h-8 rounded-xl bg-surface-2 border border-line flex items-center justify-center shrink-0">
+                  <Brain size={14} className="text-accent" />
                 </div>
-                <div className="bg-[#1A1A1D] border border-[#242428] rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="bg-surface-2 border border-line rounded-2xl rounded-tl-sm px-4 py-3">
                   <div className="flex gap-1 items-center">
                     {[0, 1, 2].map((i) => (
                       <motion.span
                         key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-[#6B6B6F]"
+                        className="w-1.5 h-1.5 rounded-full bg-muted"
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
                       />
@@ -132,16 +132,16 @@ export function AiConciergePage() {
       </div>
 
       {/* Input area */}
-      <div className="border-t border-[#242428] px-5 py-4 shrink-0">
+      <div className="border-t border-line px-5 py-4 shrink-0">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3 bg-[#111113] border border-[#242428] rounded-2xl px-4 py-3 focus-within:border-[#C9A96E]/40 transition-all duration-150">
+          <div className="flex items-end gap-3 bg-surface border border-line rounded-2xl px-4 py-3 focus-within:border-accent/40 transition-all duration-150">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Posez votre question... (Entrée pour envoyer)"
               rows={1}
-              className="flex-1 resize-none bg-transparent text-sm text-[#F5F0EB] placeholder:text-[#6B6B6F] focus:outline-none max-h-32"
+              className="flex-1 resize-none bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none max-h-32"
               style={{ minHeight: '24px' }}
             />
             <button
@@ -150,8 +150,8 @@ export function AiConciergePage() {
               className={cn(
                 'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
                 input.trim() && !mutation.isPending
-                  ? 'bg-[#C9A96E] text-[#0A0A0B] hover:bg-[#E8C98A]'
-                  : 'bg-[#1A1A1D] text-[#6B6B6F] cursor-not-allowed',
+                  ? 'bg-primary text-on-primary hover:bg-primary-hover'
+                  : 'bg-surface-2 text-muted cursor-not-allowed',
               )}
             >
               {mutation.isPending ? (
@@ -161,7 +161,7 @@ export function AiConciergePage() {
               )}
             </button>
           </div>
-          <p className="text-[10px] text-[#6B6B6F] mt-2 text-center">
+          <p className="text-[10px] text-muted mt-2 text-center">
             Répond uniquement à partir des documents indexés. Ne jamais inventer d'information.
           </p>
         </div>

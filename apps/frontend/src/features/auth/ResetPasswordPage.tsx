@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AuthLayout } from './AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 
 function useResetPassword() {
@@ -29,20 +30,20 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0B] p-6">
-        <div className="text-center max-w-sm">
-          <div className="w-14 h-14 rounded-full bg-red-900/20 flex items-center justify-center mx-auto mb-5">
-            <AlertCircle size={28} className="text-red-400" />
+      <AuthLayout>
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-danger/10 flex items-center justify-center mx-auto mb-5">
+            <AlertCircle size={28} className="text-danger" />
           </div>
-          <h2 className="text-xl font-light text-[#F5F0EB] mb-3">Lien invalide</h2>
-          <p className="text-sm text-[#6B6B6F] mb-6">
+          <h2 className="font-display text-[34px] leading-tight text-ink mb-3">Lien invalide</h2>
+          <p className="text-sm text-muted mb-6">
             Ce lien de réinitialisation est invalide ou a expiré.
           </p>
-          <Link to="/mot-de-passe-oublie" className="text-sm text-[#C9A96E] hover:text-[#E8C98A] transition-colors">
+          <Link to="/mot-de-passe-oublie" className="text-sm text-accent hover:text-accent-hover transition-colors">
             Demander un nouveau lien
           </Link>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -84,47 +85,34 @@ export function ResetPasswordPage() {
 
   if (mutation.isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0B] p-6">
+      <AuthLayout>
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center max-w-sm"
+          className="text-center"
         >
-          <div className="w-14 h-14 rounded-full bg-[#2D7A4F]/15 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle size={28} className="text-[#2D7A4F]" />
+          <div className="w-16 h-16 rounded-full bg-success/15 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle size={28} className="text-success" />
           </div>
-          <h2 className="text-xl font-light text-[#F5F0EB] mb-3">
+          <h2 className="font-display text-[34px] leading-tight text-ink mb-3">
             Mot de passe réinitialisé
           </h2>
-          <p className="text-sm text-[#6B6B6F] mb-6">
+          <p className="text-sm text-muted mb-6">
             Redirection vers la page de connexion…
           </p>
         </motion.div>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0B] p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-[#C9A96E] flex items-center justify-center">
-            <Crown size={16} className="text-[#0A0A0B]" />
-          </div>
-          <p className="text-sm font-medium text-[#F5F0EB]">Malodge Club Villa</p>
-        </div>
+    <AuthLayout>
 
-        <div className="mb-8">
-          <h2 className="text-2xl font-light text-[#F5F0EB] tracking-tight">
+        <div className="mb-9">
+          <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">
             Nouveau mot de passe
-          </h2>
-          <p className="text-sm text-[#6B6B6F] mt-1.5">
+          </h1>
+          <p className="text-[14.5px] text-muted mt-3">
             Choisissez un mot de passe sécurisé d'au moins 8 caractères.
           </p>
         </div>
@@ -145,7 +133,7 @@ export function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="hover:text-[#F5F0EB] transition-colors"
+                className="hover:text-ink transition-colors"
               >
                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -174,10 +162,10 @@ export function ResetPasswordPage() {
               <div key={label} className="flex items-center gap-1">
                 <div
                   className={`w-1.5 h-1.5 rounded-full transition-colors duration-150 ${
-                    ok ? 'bg-[#2D7A4F]' : 'bg-[#242428]'
+                    ok ? 'bg-success' : 'bg-line'
                   }`}
                 />
-                <span className={`text-xs transition-colors duration-150 ${ok ? 'text-[#F5F0EB]' : 'text-[#6B6B6F]'}`}>
+                <span className={`text-xs transition-colors duration-150 ${ok ? 'text-ink' : 'text-muted'}`}>
                   {label}
                 </span>
               </div>
@@ -198,12 +186,11 @@ export function ResetPasswordPage() {
         <div className="mt-6 text-center">
           <Link
             to="/login"
-            className="text-sm text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors"
+            className="text-sm text-muted hover:text-ink transition-colors"
           >
             Annuler et retourner à la connexion
           </Link>
         </div>
-      </motion.div>
-    </div>
+    </AuthLayout>
   );
 }

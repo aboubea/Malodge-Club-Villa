@@ -24,17 +24,17 @@ function ServiceCard({ service, onEdit, onDelete }: {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group rounded-xl border border-[#242428] bg-[#111113] p-5 hover:border-[#C9A96E]/30 transition-all duration-200 flex flex-col h-full"
+      className="group rounded-xl border border-line bg-surface p-5 hover:border-accent/30 transition-all duration-200 flex flex-col h-full"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg bg-[#C9A96E]/10 flex items-center justify-center shrink-0">
-            <Sparkles size={15} className="text-[#C9A96E]" />
+          <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+            <Sparkles size={15} className="text-accent" />
           </div>
           <div>
-            <p className="text-sm font-medium text-[#F5F0EB]">{service.name}</p>
+            <p className="text-sm font-medium text-ink">{service.name}</p>
             {service.category && (
-              <p className="text-xs text-[#6B6B6F]">{service.category.name}</p>
+              <p className="text-xs text-muted">{service.category.name}</p>
             )}
           </div>
         </div>
@@ -43,11 +43,11 @@ function ServiceCard({ service, onEdit, onDelete }: {
         </Badge>
       </div>
 
-      <p className="text-xs text-[#6B6B6F] leading-relaxed mb-3 line-clamp-2 flex-1">
+      <p className="text-xs text-muted leading-relaxed mb-3 line-clamp-2 flex-1">
         {service.description || '—'}
       </p>
 
-      <div className="flex items-center gap-4 text-xs text-[#6B6B6F] mb-4">
+      <div className="flex items-center gap-4 text-xs text-muted mb-4">
         <span className="flex items-center gap-1">
           <Euro size={11} />
           {formatCurrency(service.basePrice)}
@@ -121,7 +121,7 @@ export function ServicesPage() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setCategoryId('')}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!categoryId ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!categoryId ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
           >
             Tous
           </button>
@@ -129,7 +129,7 @@ export function ServicesPage() {
             <button
               key={cat.id}
               onClick={() => setCategoryId(cat.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${categoryId === cat.id ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${categoryId === cat.id ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
             >
               {cat.name}
             </button>
@@ -144,8 +144,8 @@ export function ServicesPage() {
         </div>
       ) : services.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Sparkles size={40} className="text-[#242428] mb-4" />
-          <p className="text-[#6B6B6F]">Aucun service trouvé</p>
+          <Sparkles size={40} className="text-line-strong mb-4" />
+          <p className="text-muted">Aucun service trouvé</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

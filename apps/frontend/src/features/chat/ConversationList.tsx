@@ -53,16 +53,16 @@ export function ConversationList({ selectedId, onSelect, onNew }: Props) {
   });
 
   return (
-    <div className="w-72 shrink-0 flex flex-col bg-[#0A0A0B]">
+    <div className="w-72 shrink-0 flex flex-col bg-canvas">
       {/* Search */}
-      <div className="p-3 border-b border-[#242428]">
+      <div className="p-3 border-b border-line">
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B6B6F]" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher..."
-            className="w-full h-8 pl-8 pr-3 rounded-lg text-xs bg-[#111113] border border-[#242428] text-[#F5F0EB] placeholder:text-[#6B6B6F] focus:outline-none focus:border-[#C9A96E]/40"
+            className="w-full h-8 pl-8 pr-3 rounded-lg text-xs bg-surface border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
           />
         </div>
       </div>
@@ -81,7 +81,7 @@ export function ConversationList({ selectedId, onSelect, onNew }: Props) {
           ))
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center px-4">
-            <p className="text-xs text-[#6B6B6F]">Aucune conversation</p>
+            <p className="text-xs text-muted">Aucune conversation</p>
           </div>
         ) : (
           filtered.map((conv) => {
@@ -99,8 +99,8 @@ export function ConversationList({ selectedId, onSelect, onNew }: Props) {
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-3 text-left transition-colors relative',
                   isSelected
-                    ? 'bg-[#C9A96E]/10 border-l-2 border-[#C9A96E]'
-                    : 'hover:bg-[#111113] border-l-2 border-transparent',
+                    ? 'bg-accent/10 border-l-2 border-accent'
+                    : 'hover:bg-surface border-l-2 border-transparent',
                 )}
               >
                 <Avatar
@@ -111,19 +111,19 @@ export function ConversationList({ selectedId, onSelect, onNew }: Props) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-[#F5F0EB] truncate">{displayName}</p>
+                    <p className="text-xs font-medium text-ink truncate">{displayName}</p>
                     {lastMsg && (
-                      <span className="text-[10px] text-[#6B6B6F] shrink-0">
+                      <span className="text-[10px] text-muted shrink-0">
                         {timeAgo(lastMsg.createdAt)}
                       </span>
                     )}
                   </div>
                   {lastMsg && (
-                    <p className="text-[11px] text-[#6B6B6F] truncate mt-0.5">{lastMsg.content}</p>
+                    <p className="text-[11px] text-muted truncate mt-0.5">{lastMsg.content}</p>
                   )}
                 </div>
                 {conv.unreadCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-[#C9A96E] text-[#0A0A0B] text-[9px] font-bold flex items-center justify-center shrink-0">
+                  <span className="w-4 h-4 rounded-full bg-primary text-on-primary text-[9px] font-bold flex items-center justify-center shrink-0">
                     {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                   </span>
                 )}

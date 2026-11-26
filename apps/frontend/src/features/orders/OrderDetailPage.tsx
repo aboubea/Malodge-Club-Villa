@@ -132,7 +132,7 @@ export function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="text-center py-16 text-[#6B6B6F]">
+      <div className="text-center py-16 text-muted">
         Commande introuvable
       </div>
     );
@@ -147,12 +147,12 @@ export function OrderDetailPage() {
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-[#6B6B6F]">
-        <Link to="/commandes" className="hover:text-[#F5F0EB] transition-colors">
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <Link to="/commandes" className="hover:text-ink transition-colors">
           Commandes
         </Link>
         <ChevronRight size={14} />
-        <span className="text-[#F5F0EB]">#{shortId}</span>
+        <span className="text-ink">#{shortId}</span>
       </div>
 
       <PageHeader
@@ -181,7 +181,7 @@ export function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User size={14} className="text-[#6B6B6F]" />
+                <User size={14} className="text-muted" />
                 Client
               </CardTitle>
             </CardHeader>
@@ -194,25 +194,25 @@ export function OrderDetailPage() {
                   size="lg"
                 />
                 <div>
-                  <p className="text-base font-light text-[#F5F0EB]">
+                  <p className="text-base font-normal text-ink">
                     {order.client?.firstName} {order.client?.lastName}
                   </p>
-                  <p className="text-sm text-[#6B6B6F]">{order.client?.email}</p>
+                  <p className="text-sm text-muted">{order.client?.email}</p>
                   {order.client?.phone && (
-                    <p className="text-sm text-[#6B6B6F]">{order.client?.phone}</p>
+                    <p className="text-sm text-muted">{order.client?.phone}</p>
                   )}
                 </div>
                 {order.reservation?.villa && (
                   <div className="ml-auto text-right">
-                    <p className="text-xs text-[#6B6B6F]">Villa</p>
-                    <p className="text-sm text-[#F5F0EB]">{order.reservation.villa.name}</p>
+                    <p className="text-xs text-muted">Villa</p>
+                    <p className="text-sm text-ink">{order.reservation.villa.name}</p>
                   </div>
                 )}
               </div>
               {order.scheduledAt && (
-                <div className="mt-4 pt-4 border-t border-[#242428]">
-                  <p className="text-xs text-[#6B6B6F]">Planifiée le</p>
-                  <p className="text-sm text-[#F5F0EB]">{formatDateLong(order.scheduledAt)}</p>
+                <div className="mt-4 pt-4 border-t border-line">
+                  <p className="text-xs text-muted">Planifiée le</p>
+                  <p className="text-sm text-ink">{formatDateLong(order.scheduledAt)}</p>
                 </div>
               )}
             </CardContent>
@@ -226,34 +226,34 @@ export function OrderDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#242428]">
+                  <tr className="border-b border-line">
                     {['Service', 'Qté', 'Prix unitaire', 'Total'].map((col) => (
                       <th
                         key={col}
-                        className="px-5 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
+                        className="px-5 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider"
                       >
                         {col}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#242428]">
+                <tbody className="divide-y divide-line">
                   {order.items?.map((item: any) => (
-                    <tr key={item.id} className="hover:bg-[#1A1A1D] transition-colors">
+                    <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       <td className="px-5 py-3">
-                        <p className="text-sm text-[#F5F0EB]">{item.service?.name}</p>
+                        <p className="text-sm text-ink">{item.service?.name}</p>
                         {item.service?.category && (
-                          <p className="text-xs text-[#6B6B6F]">{item.service.category.name}</p>
+                          <p className="text-xs text-muted">{item.service.category.name}</p>
                         )}
                         {item.notes && (
-                          <p className="text-xs text-[#6B6B6F] italic mt-0.5">{item.notes}</p>
+                          <p className="text-xs text-muted italic mt-0.5">{item.notes}</p>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-sm text-[#6B6B6F]">{item.quantity}</td>
-                      <td className="px-5 py-3 text-sm text-[#6B6B6F]">
+                      <td className="px-5 py-3 text-sm text-muted">{item.quantity}</td>
+                      <td className="px-5 py-3 text-sm text-muted">
                         {formatCurrency(item.unitPrice)}
                       </td>
-                      <td className="px-5 py-3 text-sm font-light text-[#C9A96E]">
+                      <td className="px-5 py-3 text-sm font-normal text-accent">
                         {formatCurrency(item.total)}
                       </td>
                     </tr>
@@ -262,20 +262,20 @@ export function OrderDetailPage() {
               </table>
             </div>
             {/* Totals */}
-            <div className="border-t border-[#242428] px-5 py-4 space-y-2">
+            <div className="border-t border-line px-5 py-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[#6B6B6F]">Sous-total</span>
-                <span className="text-[#F5F0EB]">{formatCurrency(subtotal)}</span>
+                <span className="text-muted">Sous-total</span>
+                <span className="text-ink">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[#6B6B6F]">
+                <span className="text-muted">
                   Commission ({subtotal > 0 ? Math.round((order.commission / subtotal) * 100) : 0}%)
                 </span>
-                <span className="text-[#6B6B6F]">- {formatCurrency(order.commission)}</span>
+                <span className="text-muted">- {formatCurrency(order.commission)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm border-t border-[#242428] pt-2 mt-2">
-                <span className="text-[#F5F0EB] font-medium">Net prestataire</span>
-                <span className="text-[#C9A96E] font-medium">{formatCurrency(netToProvider)}</span>
+              <div className="flex items-center justify-between text-sm border-t border-line pt-2 mt-2">
+                <span className="text-ink font-medium">Net prestataire</span>
+                <span className="text-accent font-medium">{formatCurrency(netToProvider)}</span>
               </div>
             </div>
           </Card>
@@ -302,14 +302,14 @@ export function OrderDetailPage() {
                           className={[
                             'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-300',
                             isDone
-                              ? 'bg-[#C9A96E]/20 border-[#C9A96E] text-[#C9A96E]'
-                              : 'bg-[#1A1A1D] border-[#242428] text-[#6B6B6F]',
-                            isCurrent && 'ring-2 ring-[#C9A96E]/30',
+                              ? 'bg-accent/20 border-accent text-accent'
+                              : 'bg-surface-2 border-line text-muted',
+                            isCurrent && 'ring-2 ring-accent/30',
                           ].join(' ')}
                         >
                           <StepIcon size={14} />
                         </motion.div>
-                        <p className={['text-xs mt-1.5 text-center', isDone ? 'text-[#C9A96E]' : 'text-[#6B6B6F]'].join(' ')}>
+                        <p className={['text-xs mt-1.5 text-center', isDone ? 'text-accent' : 'text-muted'].join(' ')}>
                           {step.label}
                         </p>
                       </div>
@@ -318,8 +318,8 @@ export function OrderDetailPage() {
                           className={[
                             'flex-1 h-0.5 mx-2 transition-colors duration-300',
                             currentStepIndex > stepIndex && order.status !== OrderStatus.CANCELLED
-                              ? 'bg-[#C9A96E]'
-                              : 'bg-[#242428]',
+                              ? 'bg-accent'
+                              : 'bg-line',
                           ].join(' ')}
                         />
                       )}
@@ -328,8 +328,8 @@ export function OrderDetailPage() {
                 })}
                 {order.status === OrderStatus.CANCELLED && (
                   <div className="flex items-center ml-4">
-                    <XCircle size={20} className="text-red-400" />
-                    <span className="text-xs text-red-400 ml-1">Annulée</span>
+                    <XCircle size={20} className="text-danger" />
+                    <span className="text-xs text-danger ml-1">Annulée</span>
                   </div>
                 )}
               </div>
@@ -343,7 +343,7 @@ export function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CreditCard size={14} className="text-[#6B6B6F]" />
+                <CreditCard size={14} className="text-muted" />
                 Paiement
               </CardTitle>
             </CardHeader>
@@ -351,13 +351,13 @@ export function OrderDetailPage() {
               {order.payment ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#6B6B6F]">Méthode</span>
+                    <span className="text-xs text-muted">Méthode</span>
                     <Badge variant="default">
                       {PAYMENT_METHOD_LABEL[order.payment.method] ?? order.payment.method}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#6B6B6F]">Statut</span>
+                    <span className="text-xs text-muted">Statut</span>
                     <Badge variant={PAYMENT_STATUS_VARIANT[order.payment.status] ?? 'default'}>
                       {order.payment.status === PaymentStatus.PAID
                         ? 'Payé'
@@ -369,15 +369,15 @@ export function OrderDetailPage() {
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#6B6B6F]">Montant</span>
-                    <span className="text-sm font-light text-[#C9A96E]">
+                    <span className="text-xs text-muted">Montant</span>
+                    <span className="text-sm font-normal text-accent">
                       {formatCurrency(order.payment.amount)}
                     </span>
                   </div>
                   {order.payment.paidAt && (
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-[#6B6B6F]">Payé le</span>
-                      <span className="text-xs text-[#F5F0EB]">{formatDate(order.payment.paidAt)}</span>
+                      <span className="text-xs text-muted">Payé le</span>
+                      <span className="text-xs text-ink">{formatDate(order.payment.paidAt)}</span>
                     </div>
                   )}
                   {/* Actions */}
@@ -407,7 +407,7 @@ export function OrderDetailPage() {
                   )}
                 </>
               ) : (
-                <p className="text-sm text-[#6B6B6F] text-center py-4">
+                <p className="text-sm text-muted text-center py-4">
                   Aucun paiement enregistré
                 </p>
               )}
@@ -428,28 +428,28 @@ export function OrderDetailPage() {
                     size="sm"
                   />
                   <div>
-                    <p className="text-sm text-[#F5F0EB]">
+                    <p className="text-sm text-ink">
                       {order.provider.user?.firstName} {order.provider.user?.lastName}
                     </p>
                     {order.provider.companyName && (
-                      <p className="text-xs text-[#6B6B6F]">{order.provider.companyName}</p>
+                      <p className="text-xs text-muted">{order.provider.companyName}</p>
                     )}
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-[#6B6B6F] italic">Non assigné</p>
+                <p className="text-sm text-muted italic">Non assigné</p>
               )}
 
               {/* Assign provider */}
               {order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && (
-                <div className="pt-3 border-t border-[#242428] space-y-2">
-                  <p className="text-xs text-[#6B6B6F]">
+                <div className="pt-3 border-t border-line space-y-2">
+                  <p className="text-xs text-muted">
                     {order.provider ? 'Changer le prestataire' : 'Assigner un prestataire'}
                   </p>
                   <select
                     value={selectedProvider}
                     onChange={(e) => setSelectedProvider(e.target.value)}
-                    className="w-full text-sm bg-[#1A1A1D] border border-[#242428] rounded-lg px-3 py-2 text-[#F5F0EB] focus:outline-none focus:border-[#C9A96E]/50"
+                    className="w-full text-sm bg-surface-2 border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-accent/50"
                   >
                     <option value="">Sélectionner…</option>
                     {providers.map((p: any) => (

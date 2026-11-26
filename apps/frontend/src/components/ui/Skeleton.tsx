@@ -46,7 +46,7 @@ export function Skeleton({
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-[#242428] bg-[#111113] p-5 space-y-3">
+    <div className="rounded-2xl border border-line bg-surface shadow-card p-5 space-y-3">
       <Skeleton height={20} width="60%" />
       <Skeleton height={14} width="80%" />
       <Skeleton height={14} width="40%" />
@@ -62,7 +62,7 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-3 rounded-lg border border-[#242428]">
+        <div key={i} className="flex items-center gap-4 p-3 rounded-xl border border-line bg-surface">
           <Skeleton circle width={36} height={36} />
           <div className="flex-1 space-y-2">
             <Skeleton height={14} width="30%" />

@@ -29,21 +29,24 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="group relative rounded-xl border border-[#242428] bg-[#111113] overflow-hidden hover:border-[#C9A96E]/30 transition-all duration-200 cursor-pointer flex flex-col h-full"
+      className="group relative rounded-2xl border border-line bg-surface shadow-card overflow-hidden hover:shadow-pop hover:-translate-y-0.5 hover:border-line-strong transition-all duration-300 cursor-pointer flex flex-col h-full"
       onClick={onClick}
     >
       {/* Image */}
-      <div className="aspect-video bg-[#1A1A1D] relative overflow-hidden">
+      <div className="aspect-[4/3] bg-surface-2 relative overflow-hidden">
         {villa.coverImage ? (
-          <img src={villa.coverImage} alt={villa.name} className="w-full h-full object-cover" />
+          <img src={villa.coverImage} alt={villa.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Building2 size={32} className="text-[#242428]" />
+            <Building2 size={32} className="text-line-strong" />
           </div>
         )}
         {/* Status badge */}
         <div className="absolute top-3 left-3">
-          <Badge variant={villa.isActive ? 'active' : 'inactive'}>
+          <Badge
+            variant={villa.isActive ? 'active' : 'inactive'}
+            className="bg-surface/90 backdrop-blur-sm border-transparent shadow-card"
+          >
             {villa.isActive ? 'Active' : 'Inactive'}
           </Badge>
         </div>
@@ -55,24 +58,25 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-7 h-7 rounded-lg bg-[#0A0A0B]/80 flex items-center justify-center text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors"
+              className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-sm shadow-card flex items-center justify-center text-ink-soft hover:text-ink transition-colors"
+              aria-label="Actions"
             >
               <MoreHorizontal size={14} />
             </button>
             {menuOpen && (
               <div
-                className="absolute right-0 top-8 w-36 bg-[#111113] border border-[#242428] rounded-lg shadow-xl z-10 py-1"
+                className="absolute right-0 top-9 w-40 bg-surface border border-line rounded-xl shadow-pop z-10 py-1.5"
                 onMouseLeave={() => setMenuOpen(false)}
               >
                 <button
                   onClick={() => { setMenuOpen(false); onEdit(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#1A1A1D] transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
                 >
                   <Pencil size={12} /> Modifier
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-danger hover:bg-danger/10 transition-colors"
                 >
                   <Trash2 size={12} /> Supprimer
                 </button>
@@ -83,26 +87,26 @@ function VillaCard({ villa, onEdit, onDelete, onClick }: {
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className="text-sm font-medium text-[#F5F0EB] truncate">{villa.name}</h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F] flex-1">
-          <MapPin size={11} />
-          <span>{villa.city}, {villa.country}</span>
+      <div className="px-5 pt-4 pb-5 flex flex-col flex-1">
+        <h3 className="font-display text-[23px] leading-tight text-ink truncate">{villa.name}</h3>
+        <div className="flex items-center gap-1.5 mt-1 text-[12.5px] text-muted flex-1">
+          <MapPin size={12} />
+          <span className="truncate">{villa.city}, {villa.country}</span>
         </div>
         {/* Stats */}
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#242428]">
-          <div className="flex items-center gap-1 text-xs text-[#6B6B6F]">
-            <Users size={11} />
-            <span>{villa.maxGuests}</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-[#6B6B6F]">
-            <BedDouble size={11} />
-            <span>{villa.bedrooms}</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-[#6B6B6F]">
-            <Bath size={11} />
-            <span>{villa.bathrooms}</span>
-          </div>
+        <div className="flex items-center gap-4 mt-4 pt-3.5 border-t border-line text-[12.5px] text-ink-soft">
+          <span className="flex items-center gap-1.5" title="Voyageurs">
+            <Users size={13} className="text-muted" />
+            {villa.maxGuests}
+          </span>
+          <span className="flex items-center gap-1.5" title="Chambres">
+            <BedDouble size={13} className="text-muted" />
+            {villa.bedrooms}
+          </span>
+          <span className="flex items-center gap-1.5" title="Salles de bain">
+            <Bath size={13} className="text-muted" />
+            {villa.bathrooms}
+          </span>
         </div>
       </div>
     </motion.div>
@@ -116,14 +120,14 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
   const next = () => setImgIdx((i) => (i + 1) % imgs.length);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 !m-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl max-h-[90vh] bg-[#0A0A0B] rounded-2xl border border-[#242428] overflow-hidden flex flex-col"
+        className="w-full max-w-5xl max-h-[90vh] bg-canvas rounded-2xl border border-line overflow-hidden flex flex-col"
       >
         {/* Gallery */}
         <div className="relative flex-shrink-0" style={{ height: '55%', minHeight: 300 }}>
@@ -138,7 +142,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
               {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent pointer-events-none" style={{ height: 360 }} />
+              <div className="absolute inset-0 bg-gradient-to-t from-canvas via-transparent to-transparent pointer-events-none" style={{ height: 360 }} />
 
               {/* Navigation arrows */}
               {imgs.length > 1 && (<>
@@ -166,8 +170,8 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
               )}
             </>
           ) : (
-            <div className="w-full flex items-center justify-center bg-[#1A1A1D]" style={{ height: 360 }}>
-              <Building2 size={56} className="text-[#242428]" />
+            <div className="w-full flex items-center justify-center bg-surface-2" style={{ height: 360 }}>
+              <Building2 size={56} className="text-line-strong" />
             </div>
           )}
 
@@ -179,7 +183,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
 
           {/* Lodgify badge */}
           <div className="absolute top-4 left-4">
-            <span className="px-2.5 py-1 rounded-full text-[11px] border border-[#C9A96E]/40 bg-[#C9A96E]/15 text-[#C9A96E] backdrop-blur-sm">
+            <span className="px-2.5 py-1 rounded-full text-[11px] border border-accent/40 bg-accent/15 text-accent backdrop-blur-sm">
               🔗 Lodgify
             </span>
           </div>
@@ -191,9 +195,9 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
             {/* Left: main info */}
             <div className="md:col-span-2 space-y-5">
               <div>
-                <h2 className="text-xl font-semibold text-[#F5F0EB]">{p.name}</h2>
+                <h2 className="font-display text-[34px] leading-tight text-ink">{p.name}</h2>
                 {(p.city || p.country) && (
-                  <div className="flex items-center gap-1.5 mt-1.5 text-sm text-[#6B6B6F]">
+                  <div className="flex items-center gap-1.5 mt-1.5 text-sm text-muted">
                     <MapPin size={13} />
                     <span>{[p.address, p.city, p.country].filter(Boolean).join(', ')}</span>
                   </div>
@@ -202,9 +206,9 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
 
               {p.description && (
                 <div>
-                  <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Description</h3>
+                  <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Description</h3>
                   <div
-                    className="lodgify-description text-sm text-[#A0A0A4] leading-relaxed"
+                    className="lodgify-description text-sm text-ink-soft leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: p.description }}
                   />
                 </div>
@@ -213,11 +217,11 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
               {/* Thumbnail strip */}
               {imgs.length > 1 && (
                 <div>
-                  <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Photos</h3>
+                  <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Photos</h3>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {imgs.map((src: string, i: number) => (
                       <button key={i} onClick={() => setImgIdx(i)}
-                        className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === imgIdx ? 'border-[#C9A96E]' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                        className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === imgIdx ? 'border-accent' : 'border-transparent opacity-60 hover:opacity-100'}`}>
                         <img src={src} alt="" className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
                       </button>
@@ -229,31 +233,31 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
 
             {/* Right: stats card */}
             <div className="space-y-3">
-              <div className="rounded-xl border border-[#242428] bg-[#111113] p-4 space-y-3">
-                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Caractéristiques</h3>
+              <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
+                <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Caractéristiques</h3>
                 {p.maxGuests && (
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-[#6B6B6F]"><Users size={14} /><span>Voyageurs</span></div>
-                    <span className="text-[#F5F0EB] font-medium">{p.maxGuests}</span>
+                    <div className="flex items-center gap-2 text-muted"><Users size={14} /><span>Voyageurs</span></div>
+                    <span className="text-ink font-medium">{p.maxGuests}</span>
                   </div>
                 )}
                 {p.bedrooms && (
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-[#6B6B6F]"><BedDouble size={14} /><span>Chambres</span></div>
-                    <span className="text-[#F5F0EB] font-medium">{p.bedrooms}</span>
+                    <div className="flex items-center gap-2 text-muted"><BedDouble size={14} /><span>Chambres</span></div>
+                    <span className="text-ink font-medium">{p.bedrooms}</span>
                   </div>
                 )}
                 {p.bathrooms && (
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-[#6B6B6F]"><Bath size={14} /><span>Salles de bain</span></div>
-                    <span className="text-[#F5F0EB] font-medium">{p.bathrooms}</span>
+                    <div className="flex items-center gap-2 text-muted"><Bath size={14} /><span>Salles de bain</span></div>
+                    <span className="text-ink font-medium">{p.bathrooms}</span>
                   </div>
                 )}
               </div>
 
               {p.lodgifyUrl && (
                 <a href={p.lodgifyUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-[#C9A96E]/30 text-[#C9A96E] text-sm hover:bg-[#C9A96E]/10 transition-colors">
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-accent/30 text-accent text-sm hover:bg-accent/10 transition-colors">
                   <ExternalLink size={14} />
                   Voir sur Lodgify
                 </a>
@@ -275,9 +279,9 @@ function LodgifyVillaCard({ p, isSaved, onSave, onSync, isSyncing, onClick }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       onClick={onClick}
-      className="rounded-xl border border-[#242428] bg-[#111113] overflow-hidden flex flex-col h-full cursor-pointer hover:border-[#C9A96E]/30 transition-all duration-200"
+      className="rounded-xl border border-line bg-surface overflow-hidden flex flex-col h-full cursor-pointer hover:border-accent/30 transition-all duration-200"
     >
-      <div className="aspect-video bg-[#1A1A1D] relative overflow-hidden">
+      <div className="aspect-video bg-surface-2 relative overflow-hidden">
         {p.coverImage ? (
           <img
             src={p.coverImage}
@@ -287,11 +291,11 @@ function LodgifyVillaCard({ p, isSaved, onSave, onSync, isSyncing, onClick }: {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Building2 size={32} className="text-[#242428]" />
+            <Building2 size={32} className="text-line-strong" />
           </div>
         )}
         <div className="absolute top-3 left-3">
-          <span className="px-2 py-0.5 rounded-full text-[10px] border border-[#C9A96E]/30 bg-[#C9A96E]/10 text-[#C9A96E]">Lodgify</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] border border-accent/30 bg-accent/10 text-accent">Lodgify</span>
         </div>
         {/* Action buttons */}
         <div className="absolute top-3 right-3 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -300,20 +304,20 @@ function LodgifyVillaCard({ p, isSaved, onSave, onSync, isSyncing, onClick }: {
             onClick={onSync}
             disabled={isSyncing}
             title="Synchroniser avec Lodgify"
-            className="flex items-center p-1.5 rounded-lg bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm disabled:opacity-40"
+            className="flex items-center p-1.5 rounded-lg bg-canvas/80 border border-line text-muted hover:text-accent hover:border-accent/40 transition-all backdrop-blur-sm disabled:opacity-40"
           >
             <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
           </button>
           {/* Save / saved indicator */}
           {isSaved ? (
-            <span className="flex items-center p-1.5 rounded-lg bg-[#2D7A4F]/20 border border-[#2D7A4F]/40 text-green-400">
+            <span className="flex items-center p-1.5 rounded-lg bg-success/20 border border-success/40 text-success">
               <Check size={12} />
             </span>
           ) : (
             <button
               onClick={onSave}
               title="Sauvegarder en base"
-              className="flex items-center p-1.5 rounded-lg bg-[#0A0A0B]/80 border border-[#242428] text-[#6B6B6F] hover:text-[#C9A96E] hover:border-[#C9A96E]/40 transition-all backdrop-blur-sm"
+              className="flex items-center p-1.5 rounded-lg bg-canvas/80 border border-line text-muted hover:text-accent hover:border-accent/40 transition-all backdrop-blur-sm"
             >
               <Download size={12} />
             </button>
@@ -321,15 +325,15 @@ function LodgifyVillaCard({ p, isSaved, onSave, onSync, isSyncing, onClick }: {
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="text-sm font-medium text-[#F5F0EB] truncate">{p.name}</h3>
-        <div className="flex items-center gap-1 mt-1 text-xs text-[#6B6B6F] flex-1">
+        <h3 className="text-sm font-medium text-ink truncate">{p.name}</h3>
+        <div className="flex items-center gap-1 mt-1 text-xs text-muted flex-1">
           <MapPin size={11} />
           <span>{[p.city, p.country].filter(Boolean).join(', ')}</span>
         </div>
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#242428]">
-          {p.maxGuests && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><Users size={11} /><span>{p.maxGuests}</span></div>}
-          {p.bedrooms && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><BedDouble size={11} /><span>{p.bedrooms}</span></div>}
-          {p.bathrooms && <div className="flex items-center gap-1 text-xs text-[#6B6B6F]"><Bath size={11} /><span>{p.bathrooms}</span></div>}
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-line">
+          {p.maxGuests && <div className="flex items-center gap-1 text-xs text-muted"><Users size={11} /><span>{p.maxGuests}</span></div>}
+          {p.bedrooms && <div className="flex items-center gap-1 text-xs text-muted"><BedDouble size={11} /><span>{p.bedrooms}</span></div>}
+          {p.bathrooms && <div className="flex items-center gap-1 text-xs text-muted"><Bath size={11} /><span>{p.bathrooms}</span></div>}
         </div>
       </div>
     </motion.div>
@@ -490,10 +494,10 @@ export function VillasPage() {
   const filterBtn = (label: string, value: ActiveFilter) => (
     <button
       onClick={() => { setActiveFilter(value); setPage(1); }}
-      className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
         activeFilter === value
-          ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
-          : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+          ? 'border-primary bg-primary text-on-primary'
+          : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
       }`}
     >
       {label}
@@ -533,40 +537,42 @@ export function VillasPage() {
         )}
       </PageHeader>
 
-      {/* Source tabs */}
+      {/* Source tabs — only useful when Lodgify is connected */}
+      {(lodgifyConfigured || source === 'lodgify') && (
       <div className="flex items-center gap-2">
         <button
           onClick={() => setSource('local')}
-          className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'local' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+          className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'local' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
         >
           Logements internes
         </button>
         {lodgifyConfigured && (
           <button
             onClick={() => setSource('lodgify')}
-            className={`px-4 py-2 rounded-lg text-sm border transition-all ${source === 'lodgify' ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            className={`inline-flex items-center h-9 px-4 rounded-full text-[13px] font-medium border transition-all ${source === 'lodgify' ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
           >
             🔗 Lodgify
           </button>
         )}
         {source === 'lodgify' && (
-          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113] transition-colors" title="Rafraîchir">
+          <button onClick={() => { refetchLodgify().catch(() => {}); }} className="p-2 rounded-lg border border-line text-muted hover:text-ink hover:bg-surface transition-colors" title="Rafraîchir">
             <RefreshCw size={14} />
           </button>
         )}
       </div>
+      )}
 
       {/* Lodgify grid */}
       {source === 'lodgify' && (
         lodgifyLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
             {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : lodgifyIsError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Building2 size={40} className="text-[#242428] mb-4" />
-            <p className="text-sm text-red-400 mb-1">Erreur Lodgify</p>
-            <p className="text-xs text-[#6B6B6F] max-w-md">{(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}</p>
+            <Building2 size={40} className="text-line-strong mb-4" />
+            <p className="text-sm text-danger mb-1">Erreur Lodgify</p>
+            <p className="text-xs text-muted max-w-md">{(lodgifyError as any)?.response?.data?.message ?? (lodgifyError as any)?.message ?? 'Impossible de contacter Lodgify'}</p>
           </div>
         ) : (
           <>
@@ -575,20 +581,20 @@ export function VillasPage() {
                 {/* Sync filter */}
                 {(['all', 'new', 'saved'] as const).map((f) => (
                   <button key={f} onClick={() => setLodgifySyncFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifySyncFilter === f ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                    className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${lodgifySyncFilter === f ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
                     {f === 'all' ? 'Tous' : f === 'new' ? 'Non pushés' : 'En base'}
                   </button>
                 ))}
                 {/* Country filter */}
                 {lodgifyCountries.length > 1 && (<>
-                  <span className="w-px h-4 bg-[#242428]" />
+                  <span className="w-px h-4 bg-line" />
                   <button onClick={() => setLodgifyCountryFilter('')}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!lodgifyCountryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                    className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!lodgifyCountryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
                     Tous les pays
                   </button>
                   {lodgifyCountries.map((c) => (
                     <button key={c} onClick={() => setLodgifyCountryFilter(c)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${lodgifyCountryFilter === c ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}>
+                      className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${lodgifyCountryFilter === c ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}>
                       {c}
                     </button>
                   ))}
@@ -625,11 +631,11 @@ export function VillasPage() {
 
             {filteredLodgifyProperties.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Building2 size={40} className="text-[#242428] mb-4" />
-                <p className="text-[#6B6B6F]">Aucun logement Lodgify</p>
+                <Building2 size={40} className="text-line-strong mb-4" />
+                <p className="text-muted">Aucun logement Lodgify</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                 {filteredLodgifyProperties.map((p) => (
                   <LodgifyVillaCard
                     key={p.id}
@@ -668,7 +674,7 @@ export function VillasPage() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => { setCountryFilter(''); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!countryFilter ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!countryFilter ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
             >
               Tous les pays
             </button>
@@ -676,7 +682,7 @@ export function VillasPage() {
               <button
                 key={c.code}
                 onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${countryFilter === c.name ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+                className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${countryFilter === c.name ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
               >
                 {c.flag} {c.name}
               </button>
@@ -687,17 +693,17 @@ export function VillasPage() {
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : villas.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Building2 size={40} className="text-[#242428] mb-4" />
-          <p className="text-[#6B6B6F]">Aucune villa trouvée</p>
-          <p className="text-xs text-[#6B6B6F] mt-1">Ajoutez votre première villa pour commencer</p>
+          <Building2 size={40} className="text-line-strong mb-4" />
+          <p className="text-muted">Aucune villa trouvée</p>
+          <p className="text-xs text-muted mt-1">Ajoutez votre première villa pour commencer</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
           {villas.map((villa) => (
             <VillaCard
               key={villa.id}
@@ -716,7 +722,7 @@ export function VillasPage() {
           <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
             Précédent
           </Button>
-          <span className="flex items-center text-xs text-[#6B6B6F] px-4">
+          <span className="flex items-center text-xs text-muted px-4">
             {page} / {meta.totalPages}
           </span>
           <Button variant="secondary" size="sm" disabled={page === meta.totalPages} onClick={() => setPage(page + 1)}>
@@ -731,35 +737,35 @@ export function VillasPage() {
 
       {/* Raw debug modal */}
       {rawDebug && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setRawDebug(null)}>
-          <div className="w-full max-w-3xl max-h-[85vh] bg-[#0A0A0B] rounded-2xl border border-[#242428] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#242428]">
+        <div className="fixed inset-0 !m-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setRawDebug(null)}>
+          <div className="w-full max-w-3xl max-h-[85vh] bg-canvas rounded-2xl border border-line overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
               <div>
-                <h2 className="text-sm font-semibold text-[#F5F0EB]">Debug — Champs bruts Lodgify</h2>
-                <p className="text-xs text-[#6B6B6F] mt-0.5">{rawDebug.totalCount} propriété(s) · 1ère propriété ci-dessous</p>
+                <h2 className="text-sm font-semibold text-ink">Debug — Champs bruts Lodgify</h2>
+                <p className="text-xs text-muted mt-0.5">{rawDebug.totalCount} propriété(s) · 1ère propriété ci-dessous</p>
               </div>
-              <button onClick={() => setRawDebug(null)} className="p-1.5 rounded-lg text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#1A1A1D] transition-colors">
+              <button onClick={() => setRawDebug(null)} className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors">
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div>
-                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Champs disponibles</h3>
+                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Champs disponibles</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {(rawDebug.keys ?? []).map((k: string) => (
-                    <span key={k} className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#1A1A1D] border border-[#242428] text-[#C9A96E]">{k}</span>
+                    <span key={k} className="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-2 border border-line text-accent">{k}</span>
                   ))}
                 </div>
               </div>
               <div>
-                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Champs capacité / chambres</h3>
-                <pre className="text-xs font-mono text-[#A0A0A4] bg-[#111113] rounded-lg border border-[#242428] p-3 overflow-x-auto whitespace-pre-wrap">
+                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Champs capacité / chambres</h3>
+                <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.occupancyFields, null, 2)}
                 </pre>
               </div>
               <div>
-                <h3 className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider mb-2">Objet complet (1ère propriété)</h3>
-                <pre className="text-xs font-mono text-[#A0A0A4] bg-[#111113] rounded-lg border border-[#242428] p-3 overflow-x-auto whitespace-pre-wrap">
+                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Objet complet (1ère propriété)</h3>
+                <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.raw, null, 2)}
                 </pre>
               </div>

@@ -83,7 +83,7 @@ export function MessageThread({ conversationId }: Props) {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="h-14 border-b border-[#242428] flex items-center px-4 gap-3">
+        <div className="h-14 border-b border-line flex items-center px-4 gap-3">
           <Skeleton circle width={32} height={32} />
           <Skeleton className="h-3 w-32" />
         </div>
@@ -103,7 +103,7 @@ export function MessageThread({ conversationId }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="h-14 border-b border-[#242428] flex items-center px-4 gap-3 shrink-0">
+      <div className="h-14 border-b border-line flex items-center px-4 gap-3 shrink-0">
         {otherParticipant && (
           <>
             <Avatar
@@ -113,17 +113,17 @@ export function MessageThread({ conversationId }: Props) {
               size="sm"
             />
             <div>
-              <p className="text-sm font-medium text-[#F5F0EB]">
+              <p className="text-sm font-medium text-ink">
                 {otherParticipant.firstName} {otherParticipant.lastName}
               </p>
               {conversation?.reservation?.villa?.name && (
-                <p className="text-[10px] text-[#6B6B6F]">{conversation.reservation.villa.name}</p>
+                <p className="text-[10px] text-muted">{conversation.reservation.villa.name}</p>
               )}
             </div>
           </>
         )}
         {conversation?.topic && !otherParticipant && (
-          <p className="text-sm font-medium text-[#F5F0EB]">{conversation.topic}</p>
+          <p className="text-sm font-medium text-ink">{conversation.topic}</p>
         )}
       </div>
 
@@ -131,15 +131,15 @@ export function MessageThread({ conversationId }: Props) {
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <p className="text-sm text-[#6B6B6F]">Aucun message — démarrez la conversation</p>
+            <p className="text-sm text-muted">Aucun message — démarrez la conversation</p>
           </div>
         ) : (
           groupedMessages.map((group) => (
             <div key={group.date}>
               <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-[#242428]" />
-                <span className="text-[10px] text-[#6B6B6F] whitespace-nowrap">{group.date}</span>
-                <div className="flex-1 h-px bg-[#242428]" />
+                <div className="flex-1 h-px bg-line" />
+                <span className="text-[10px] text-muted whitespace-nowrap">{group.date}</span>
+                <div className="flex-1 h-px bg-line" />
               </div>
               {group.msgs.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} isMe={msg.sender.id === user?.id} />
@@ -151,7 +151,7 @@ export function MessageThread({ conversationId }: Props) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-[#242428] p-3 flex items-end gap-2 shrink-0">
+      <div className="border-t border-line p-3 flex items-end gap-2 shrink-0">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -160,8 +160,8 @@ export function MessageThread({ conversationId }: Props) {
           rows={1}
           className={cn(
             'flex-1 resize-none rounded-xl px-3 py-2.5 text-sm',
-            'bg-[#111113] border border-[#242428] text-[#F5F0EB] placeholder:text-[#6B6B6F]',
-            'focus:outline-none focus:border-[#C9A96E]/40 focus:ring-1 focus:ring-[#C9A96E]/20',
+            'bg-surface border border-line text-ink placeholder:text-muted',
+            'focus:outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/10',
             'max-h-32 transition-all duration-150',
           )}
           style={{ minHeight: '40px' }}
@@ -172,8 +172,8 @@ export function MessageThread({ conversationId }: Props) {
           className={cn(
             'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
             input.trim() && !sendMutation.isPending
-              ? 'bg-[#C9A96E] text-[#0A0A0B] hover:bg-[#E8C98A]'
-              : 'bg-[#1A1A1D] text-[#6B6B6F] cursor-not-allowed',
+              ? 'bg-primary text-on-primary hover:bg-primary-hover'
+              : 'bg-surface-2 text-muted cursor-not-allowed',
           )}
         >
           {sendMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

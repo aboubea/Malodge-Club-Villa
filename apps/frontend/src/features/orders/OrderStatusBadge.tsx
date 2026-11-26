@@ -20,7 +20,7 @@ interface OrderStatusBadgeProps {
 export function OrderStatusBadge({ status, size = 'sm' }: OrderStatusBadgeProps) {
   const config = STATUS_CONFIG[status as OrderStatus] ?? { label: status, variant: 'default' as 'default' };
   return (
-    <Badge variant={config.variant} size={size}>
+    <Badge variant={config.variant} size={size} dot>
       {config.label}
     </Badge>
   );

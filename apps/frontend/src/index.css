@@ -2,18 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Malodge "Riviera" design tokens.
+ * Values are RGB channels so Tailwind opacity modifiers work (bg-accent/10).
+ * Light is the default theme; `.dark` on <html> switches to the dark theme.
+ */
 @layer base {
   :root {
-    --background: #0A0A0B;
-    --surface: #111113;
-    --surface2: #1A1A1D;
-    --border: #242428;
-    --gold: #C9A96E;
-    --gold-light: #E8C98A;
-    --white: #F5F0EB;
-    --muted: #6B6B6F;
-    --success: #2D7A4F;
-    --danger: #7A2D2D;
+    color-scheme: light;
+
+    --c-canvas: 246 243 238;      /* warm ivory page background */
+    --c-surface: 255 254 251;     /* cards, panels */
+    --c-surface-2: 240 236 229;   /* subtle fills, hovers */
+    --c-line: 230 224 214;        /* hairline borders */
+    --c-line-strong: 210 202 189;
+    --c-ink: 29 27 24;            /* primary text */
+    --c-ink-soft: 74 70 64;       /* secondary text */
+    --c-muted: 111 105 95;        /* tertiary text, AA on canvas */
+    --c-accent: 142 107 56;       /* bronze — readable as text */
+    --c-accent-hover: 115 86 44;
+    --c-on-accent: 255 255 255;
+    --c-gold: 201 169 110;        /* decorative champagne */
+    --c-primary: 29 27 24;        /* ink buttons */
+    --c-primary-hover: 58 54 48;
+    --c-on-primary: 246 243 238;
+    --c-success: 31 122 77;
+    --c-danger: 180 52 52;
+    --c-warning: 156 96 8;
+    --c-info: 37 99 175;
+    --c-plum: 109 64 184;
+    --c-copper: 176 84 24;
+
+    --shadow-card: 0 1px 2px rgb(60 45 20 / 0.04), 0 2px 8px -2px rgb(60 45 20 / 0.06);
+    --shadow-pop: 0 12px 32px -8px rgb(40 30 15 / 0.18), 0 2px 6px rgb(40 30 15 / 0.06);
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --c-canvas: 14 13 12;
+    --c-surface: 22 21 19;
+    --c-surface-2: 31 29 27;
+    --c-line: 44 41 38;
+    --c-line-strong: 66 62 57;
+    --c-ink: 243 238 230;
+    --c-ink-soft: 190 184 174;
+    --c-muted: 145 139 129;
+    --c-accent: 201 169 110;
+    --c-accent-hover: 232 201 138;
+    --c-on-accent: 20 18 15;
+    --c-gold: 201 169 110;
+    --c-primary: 201 169 110;
+    --c-primary-hover: 232 201 138;
+    --c-on-primary: 20 18 15;
+    --c-success: 95 203 140;
+    --c-danger: 244 120 120;
+    --c-warning: 232 185 73;
+    --c-info: 110 170 245;
+    --c-plum: 192 140 250;
+    --c-copper: 245 150 80;
+
+    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.02) inset, 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.02);
   }
 
   * {
@@ -26,21 +76,23 @@
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    background-color: #0A0A0B;
-    color: #F5F0EB;
+    background-color: rgb(var(--c-canvas));
+    color: rgb(var(--c-ink));
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.005em;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 300;
-    letter-spacing: -0.02em;
-    color: #F5F0EB;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: rgb(var(--c-ink));
   }
 
   a {
@@ -48,27 +100,51 @@
     text-decoration: none;
   }
 
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent) / 0.6);
+    outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #0A0A0B;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #242428;
-    border-radius: 2px;
+    background: rgb(var(--c-line-strong));
+    border-radius: 999px;
+    border: 2px solid rgb(var(--c-canvas));
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #C9A96E;
+    background: rgb(var(--c-muted));
   }
 
   ::selection {
-    background: rgba(201, 169, 110, 0.2);
-    color: #F5F0EB;
+    background: rgb(var(--c-gold) / 0.3);
+    color: rgb(var(--c-ink));
+  }
+
+  /* Native date/time pickers follow the theme */
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'] {
+    color-scheme: inherit;
+  }
+
+  select option {
+    background: rgb(var(--c-surface));
+    color: rgb(var(--c-ink));
   }
 }
 
@@ -77,9 +153,9 @@
 .lodgify-description h2,
 .lodgify-description h3,
 .lodgify-description h4 {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #F5F0EB;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgb(var(--c-ink));
   margin-top: 1rem;
   margin-bottom: 0.35rem;
   letter-spacing: -0.01em;
@@ -91,62 +167,75 @@
 }
 .lodgify-description p {
   margin-bottom: 0.65rem;
-  color: #A0A0A4;
-  line-height: 1.65;
+  color: rgb(var(--c-ink-soft));
+  line-height: 1.7;
 }
 .lodgify-description ul,
 .lodgify-description ol {
   padding-left: 1.25rem;
   margin-bottom: 0.65rem;
-  color: #A0A0A4;
+  color: rgb(var(--c-ink-soft));
 }
 .lodgify-description li {
   margin-bottom: 0.2rem;
 }
 .lodgify-description strong,
 .lodgify-description b {
-  color: #D0CCC6;
-  font-weight: 500;
+  color: rgb(var(--c-ink));
+  font-weight: 600;
 }
 .lodgify-description em,
 .lodgify-description i {
-  color: #A0A0A4;
+  color: rgb(var(--c-ink-soft));
 }
 .lodgify-description br + br {
   display: none;
 }
 
 @layer utilities {
-  .text-gold {
-    color: #C9A96E;
-  }
-
-  .bg-surface {
-    background-color: #111113;
-  }
-
-  .border-subtle {
-    border-color: #242428;
+  .text-gold-gradient {
+    background: linear-gradient(120deg, rgb(var(--c-accent)) 0%, rgb(var(--c-gold)) 50%, rgb(var(--c-accent)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .gold-gradient {
-    background: linear-gradient(135deg, #C9A96E 0%, #E8C98A 50%, #C9A96E 100%);
+    background: linear-gradient(135deg, #b8935a 0%, #e8c98a 50%, #c9a96e 100%);
   }
 
   .shimmer {
     background: linear-gradient(
       90deg,
-      #111113 0%,
-      #1A1A1D 50%,
-      #111113 100%
+      rgb(var(--c-surface-2)) 0%,
+      rgb(var(--c-line)) 50%,
+      rgb(var(--c-surface-2)) 100%
     );
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }
 
   .glass {
-    background: rgba(17, 17, 19, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgb(var(--c-canvas) / 0.78);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

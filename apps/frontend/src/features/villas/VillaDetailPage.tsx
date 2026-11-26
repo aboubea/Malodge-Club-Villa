@@ -185,8 +185,8 @@ export function VillaDetailPage() {
   if (!villa) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <Building2 size={40} className="text-[#242428] mb-4" />
-        <p className="text-[#6B6B6F]">Villa introuvable</p>
+        <Building2 size={40} className="text-line-strong mb-4" />
+        <p className="text-muted">Villa introuvable</p>
         <Button variant="ghost" size="sm" className="mt-4" onClick={() => navigate('/villas')}>
           Retour aux villas
         </Button>
@@ -199,11 +199,11 @@ export function VillaDetailPage() {
       <div className="flex items-center gap-3 mb-2">
         <button
           onClick={() => navigate('/villas')}
-          className="text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors"
+          className="text-muted hover:text-ink transition-colors"
         >
           <ArrowLeft size={16} />
         </button>
-        <span className="text-xs text-[#6B6B6F]">Villas</span>
+        <span className="text-xs text-muted">Villas</span>
       </div>
 
       <PageHeader
@@ -253,12 +253,12 @@ export function VillaDetailPage() {
           className="lg:col-span-2 space-y-4"
         >
           {/* Cover image */}
-          <div className="aspect-video rounded-xl overflow-hidden bg-[#1A1A1D] border border-[#242428]">
+          <div className="aspect-video rounded-xl overflow-hidden bg-surface-2 border border-line">
             {villa.coverImage ? (
               <img src={villa.coverImage} alt={villa.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Building2 size={48} className="text-[#242428]" />
+                <Building2 size={48} className="text-line-strong" />
               </div>
             )}
           </div>
@@ -271,14 +271,14 @@ export function VillaDetailPage() {
               </CardHeader>
               <CardContent>
                 <p
-                  className="text-sm text-[#6B6B6F] leading-relaxed"
+                  className="text-sm text-muted leading-relaxed"
                   style={!descExpanded ? { overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 10 } : undefined}
                 >
                   {villa.description}
                 </p>
                 <button
                   onClick={() => setDescExpanded((v) => !v)}
-                  className="mt-2 text-xs text-[#C9A96E] hover:text-[#E8C98A] transition-colors"
+                  className="mt-2 text-xs text-accent hover:text-accent-hover transition-colors"
                 >
                   {descExpanded ? 'Voir moins ↑' : 'Voir plus ↓'}
                 </button>
@@ -311,8 +311,8 @@ export function VillaDetailPage() {
               <CardContent>
                 <ul className="space-y-1">
                   {villa.rules.map((rule) => (
-                    <li key={rule} className="text-sm text-[#6B6B6F] flex items-start gap-2">
-                      <span className="text-[#C9A96E] mt-0.5">•</span>
+                    <li key={rule} className="text-sm text-muted flex items-start gap-2">
+                      <span className="text-accent mt-0.5">•</span>
                       {rule}
                     </li>
                   ))}
@@ -342,50 +342,50 @@ export function VillaDetailPage() {
               </div>
 
               <div className="flex items-start gap-2 text-sm">
-                <MapPin size={14} className="text-[#6B6B6F] mt-0.5 shrink-0" />
+                <MapPin size={14} className="text-muted mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-[#F5F0EB]">{villa.address}</p>
-                  <p className="text-[#6B6B6F]">{villa.city}, {villa.country}</p>
+                  <p className="text-ink">{villa.address}</p>
+                  <p className="text-muted">{villa.city}, {villa.country}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-[#242428]">
+              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-line">
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
-                    <Users size={14} className="text-[#6B6B6F]" />
+                    <Users size={14} className="text-muted" />
                   </div>
-                  <p className="text-lg font-light text-[#F5F0EB]">{villa.maxGuests}</p>
-                  <p className="text-[10px] text-[#6B6B6F]">Voyageurs</p>
+                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.maxGuests}</p>
+                  <p className="text-[10px] text-muted">Voyageurs</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
-                    <BedDouble size={14} className="text-[#6B6B6F]" />
+                    <BedDouble size={14} className="text-muted" />
                   </div>
-                  <p className="text-lg font-light text-[#F5F0EB]">{villa.bedrooms}</p>
-                  <p className="text-[10px] text-[#6B6B6F]">Chambres</p>
+                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.bedrooms}</p>
+                  <p className="text-[10px] text-muted">Chambres</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
-                    <Bath size={14} className="text-[#6B6B6F]" />
+                    <Bath size={14} className="text-muted" />
                   </div>
-                  <p className="text-lg font-light text-[#F5F0EB]">{villa.bathrooms}</p>
-                  <p className="text-[10px] text-[#6B6B6F]">SDB</p>
+                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.bathrooms}</p>
+                  <p className="text-[10px] text-muted">SDB</p>
                 </div>
               </div>
 
               {(villa.latitude || villa.longitude) && (
-                <div className="pt-2 border-t border-[#242428]">
-                  <p className="text-xs text-[#6B6B6F]">Coordonnées</p>
-                  <p className="text-xs text-[#F5F0EB] mt-1">
+                <div className="pt-2 border-t border-line">
+                  <p className="text-xs text-muted">Coordonnées</p>
+                  <p className="text-xs text-ink mt-1">
                     {villa.latitude}, {villa.longitude}
                   </p>
                 </div>
               )}
 
               {villa.logifyId && (
-                <div className="pt-2 border-t border-[#242428]">
-                  <p className="text-xs text-[#6B6B6F]">ID Logify</p>
-                  <p className="text-xs font-mono text-[#C9A96E] mt-1">{villa.logifyId}</p>
+                <div className="pt-2 border-t border-line">
+                  <p className="text-xs text-muted">ID Logify</p>
+                  <p className="text-xs font-mono text-accent mt-1">{villa.logifyId}</p>
                 </div>
               )}
             </CardContent>
@@ -397,14 +397,14 @@ export function VillaDetailPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    <List size={14} className="text-[#C9A96E]" />
+                    <List size={14} className="text-accent" />
                     Infos complémentaires
                   </CardTitle>
                   {isStaff && (
                     <button
                       onClick={() => { setAddingField(true); setNewFieldLabel(''); setNewFieldValue(''); }}
                       disabled={addingField}
-                      className="p-1 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors disabled:opacity-40"
+                      className="p-1 text-muted hover:text-accent transition-colors disabled:opacity-40"
                     >
                       <Plus size={13} />
                     </button>
@@ -413,7 +413,7 @@ export function VillaDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {customFields.length === 0 && !addingField && (
-                  <p className="text-xs text-[#6B6B6F] text-center py-2">
+                  <p className="text-xs text-muted text-center py-2">
                     {isStaff ? 'Cliquez sur + pour ajouter.' : '—'}
                   </p>
                 )}
@@ -423,13 +423,13 @@ export function VillaDetailPage() {
                     {editingFieldIdx === idx ? (
                       <div className="space-y-1">
                         <input
-                          className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          className="w-full h-7 px-2 rounded-md bg-canvas border border-accent/40 text-ink text-xs focus:outline-none"
                           placeholder="Label"
                           value={editLabel}
                           onChange={(e) => setEditLabel(e.target.value)}
                         />
                         <input
-                          className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                          className="w-full h-7 px-2 rounded-md bg-canvas border border-accent/40 text-ink text-xs focus:outline-none"
                           placeholder="Valeur"
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
@@ -455,16 +455,16 @@ export function VillaDetailPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-2 py-2 border-b border-[#1A1A1D] last:border-0">
+                      <div className="flex items-start gap-2 py-2 border-b border-surface-2 last:border-0">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-[#6B6B6F] uppercase tracking-wider">{field.label}</p>
-                          <p className="text-xs text-[#F5F0EB] mt-0.5 break-words">{field.value}</p>
+                          <p className="text-[10px] text-muted uppercase tracking-wider">{field.label}</p>
+                          <p className="text-xs text-ink mt-0.5 break-words">{field.value}</p>
                         </div>
                         {isStaff && (
                           <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                             <button
                               onClick={() => { setEditingFieldIdx(idx); setEditLabel(field.label); setEditValue(field.value); }}
-                              className="p-1 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                              className="p-1 text-muted hover:text-accent transition-colors"
                             >
                               <Pencil size={11} />
                             </button>
@@ -474,7 +474,7 @@ export function VillaDetailPage() {
                                 setCustomFields(updated);
                                 updateCustomFieldsMutation.mutate(updated);
                               }}
-                              className="p-1 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                              className="p-1 text-muted hover:text-danger transition-colors"
                             >
                               <Trash2 size={11} />
                             </button>
@@ -488,14 +488,14 @@ export function VillaDetailPage() {
                 {addingField && (
                   <div className="space-y-1 pt-1">
                     <input
-                      className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      className="w-full h-7 px-2 rounded-md bg-canvas border border-accent/40 text-ink text-xs focus:outline-none"
                       placeholder="Label (ex: Code WiFi)"
                       value={newFieldLabel}
                       onChange={(e) => setNewFieldLabel(e.target.value)}
                       autoFocus
                     />
                     <input
-                      className="w-full h-7 px-2 rounded-md bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                      className="w-full h-7 px-2 rounded-md bg-canvas border border-accent/40 text-ink text-xs focus:outline-none"
                       placeholder="Valeur"
                       value={newFieldValue}
                       onChange={(e) => setNewFieldValue(e.target.value)}
@@ -532,7 +532,7 @@ export function VillaDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Sparkles size={14} className="text-[#C9A96E]" />
+                  <Sparkles size={14} className="text-accent" />
                   Services disponibles ({villaServices.length})
                 </CardTitle>
                 <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => setAddServiceOpen(true)}>
@@ -542,22 +542,22 @@ export function VillaDetailPage() {
             </CardHeader>
             <CardContent>
               {villaServices.length === 0 ? (
-                <p className="text-sm text-[#6B6B6F] text-center py-6">Aucun service assigné à cette villa</p>
+                <p className="text-sm text-muted text-center py-6">Aucun service assigné à cette villa</p>
               ) : (
                 <div className="space-y-2">
                   {villaServices.map((vs: any) => {
                     const effectivePrice = vs.customPrice ?? vs.service.basePrice;
                     const isEditing = editServiceId === vs.serviceId;
                     return (
-                      <div key={vs.serviceId} className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
-                        <div className="w-8 h-8 rounded-lg bg-[#C9A96E]/10 flex items-center justify-center shrink-0">
-                          <Sparkles size={12} className="text-[#C9A96E]" />
+                      <div key={vs.serviceId} className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-surface border border-line">
+                        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                          <Sparkles size={12} className="text-accent" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[#F5F0EB] font-medium truncate">{vs.service.name}</p>
-                          <p className="text-[11px] text-[#6B6B6F]">{vs.service.category?.name}</p>
+                          <p className="text-sm text-ink font-medium truncate">{vs.service.name}</p>
+                          <p className="text-[11px] text-muted">{vs.service.category?.name}</p>
                           {vs.service.providers && vs.service.providers.length > 0 && (
-                            <p className="text-[10px] text-[#6B6B6F] mt-0.5">
+                            <p className="text-[10px] text-muted mt-0.5">
                               {vs.service.providers.slice(0, 2).map((p: any) =>
                                 `${p.provider.user.firstName} ${p.provider.user.lastName}`
                               ).join(', ')}
@@ -570,21 +570,21 @@ export function VillaDetailPage() {
                             <input
                               type="number"
                               placeholder={`Prix (défaut: ${vs.service.basePrice})`}
-                              className="w-36 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#C9A96E]/40 text-[#F5F0EB] text-xs focus:outline-none"
+                              className="w-36 h-8 px-2 rounded-lg bg-canvas border border-accent/40 text-ink text-xs focus:outline-none"
                               value={customPrice}
                               onChange={(e) => setCustomPrice(e.target.value)}
                             />
                             <input
                               type="number"
                               placeholder="Comm. %"
-                              className="w-20 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                              className="w-20 h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
                               value={commission}
                               onChange={(e) => setCommission(e.target.value)}
                             />
                             <select
                               value={commissionTo}
                               onChange={(e) => setCommissionTo(e.target.value as any)}
-                              className="h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                              className="h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
                             >
                               <option value="manager">→ Manager</option>
                               <option value="owner">→ Proprio</option>
@@ -594,7 +594,7 @@ export function VillaDetailPage() {
                               <input
                                 type="number"
                                 placeholder="% proprio"
-                                className="w-20 h-8 px-2 rounded-lg bg-[#0A0A0B] border border-[#242428] text-[#F5F0EB] text-xs focus:outline-none"
+                                className="w-20 h-8 px-2 rounded-lg bg-canvas border border-line text-ink text-xs focus:outline-none"
                                 value={ownerShare}
                                 onChange={(e) => setOwnerShare(e.target.value)}
                               />
@@ -618,11 +618,11 @@ export function VillaDetailPage() {
                         ) : (
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="text-sm font-light text-[#C9A96E]">{formatCurrency(effectivePrice)}</p>
+                              <p className="text-sm font-normal text-accent">{formatCurrency(effectivePrice)}</p>
                               {vs.customPrice && (
-                                <p className="text-[10px] text-[#6B6B6F]">défaut: {formatCurrency(vs.service.basePrice)}</p>
+                                <p className="text-[10px] text-muted">défaut: {formatCurrency(vs.service.basePrice)}</p>
                               )}
-                              <p className="text-[10px] text-[#6B6B6F]">Comm. {vs.commission ?? 15}% → {
+                              <p className="text-[10px] text-muted">Comm. {vs.commission ?? 15}% → {
                                 vs.commissionTo === 'owner' ? 'Proprio' :
                                 vs.commissionTo === 'shared' ? `${100 - (vs.ownerShare ?? 50)}% Mgr / ${vs.ownerShare ?? 50}% Proprio` :
                                 'Manager'
@@ -636,13 +636,13 @@ export function VillaDetailPage() {
                                 setCommissionTo(vs.commissionTo ?? 'manager');
                                 setOwnerShare((vs.ownerShare ?? 50).toString());
                               }}
-                              className="p-1.5 text-[#6B6B6F] hover:text-[#C9A96E] transition-colors"
+                              className="p-1.5 text-muted hover:text-accent transition-colors"
                             >
                               <Euro size={13} />
                             </button>
                             <button
                               onClick={() => { if (confirm(`Retirer "${vs.service.name}" ?`)) removeServiceMutation.mutate(vs.serviceId); }}
-                              className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors"
+                              className="p-1.5 text-muted hover:text-danger transition-colors"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -670,10 +670,10 @@ export function VillaDetailPage() {
             {allServices
               .filter((s: any) => !linkedServiceIds.has(s.id))
               .map((s: any) => (
-                <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428] hover:border-[#C9A96E]/20 transition-colors">
+                <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-surface border border-line hover:border-accent/20 transition-colors">
                   <div>
-                    <p className="text-sm text-[#F5F0EB]">{s.name}</p>
-                    <p className="text-[11px] text-[#6B6B6F]">{s.category?.name} · {formatCurrency(s.basePrice)}</p>
+                    <p className="text-sm text-ink">{s.name}</p>
+                    <p className="text-[11px] text-muted">{s.category?.name} · {formatCurrency(s.basePrice)}</p>
                   </div>
                   <Button
                     size="sm"
@@ -693,26 +693,26 @@ export function VillaDetailPage() {
                 </div>
               ))}
             {allServices.filter((s: any) => !linkedServiceIds.has(s.id)).length === 0 && (
-              <p className="text-sm text-[#6B6B6F] text-center py-4">Tous les services sont déjà assignés</p>
+              <p className="text-sm text-muted text-center py-4">Tous les services sont déjà assignés</p>
             )}
           </div>
-          <div className="flex gap-3 pt-2 border-t border-[#242428]">
+          <div className="flex gap-3 pt-2 border-t border-line">
             <div className="flex-1">
-              <label className="text-xs text-[#6B6B6F]">Prix personnalisé (optionnel)</label>
+              <label className="text-xs text-muted">Prix personnalisé (optionnel)</label>
               <input
                 type="number"
                 placeholder="Laisser vide = prix de base"
-                className="w-full mt-1 h-9 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                className="w-full mt-1 h-9 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                 value={customPrice}
                 onChange={(e) => setCustomPrice(e.target.value)}
               />
             </div>
             <div className="w-28">
-              <label className="text-xs text-[#6B6B6F]">Commission %</label>
+              <label className="text-xs text-muted">Commission %</label>
               <input
                 type="number"
                 placeholder="15"
-                className="w-full mt-1 h-9 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                className="w-full mt-1 h-9 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                 value={commission}
                 onChange={(e) => setCommission(e.target.value)}
               />

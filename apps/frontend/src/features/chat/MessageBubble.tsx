@@ -40,14 +40,14 @@ export function MessageBubble({ message, isMe }: Props) {
         )}
       >
         {!isMe && (
-          <span className="text-[10px] text-[#6B6B6F] px-1">{message.sender.firstName}</span>
+          <span className="text-[10px] text-muted px-1">{message.sender.firstName}</span>
         )}
         <div
           className={cn(
             'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
             isMe
-              ? 'bg-[#C9A96E] text-[#0A0A0B] rounded-br-sm'
-              : 'bg-[#1A1A1D] text-[#F5F0EB] border border-[#242428] rounded-bl-sm',
+              ? 'bg-primary text-on-primary rounded-br-sm'
+              : 'bg-surface-2 text-ink border border-line rounded-bl-sm',
           )}
         >
           {message.type === 'text' && <p>{message.content}</p>}
@@ -68,7 +68,7 @@ export function MessageBubble({ message, isMe }: Props) {
               rel="noopener noreferrer"
               className={cn(
                 'flex items-center gap-2 hover:opacity-80',
-                isMe ? 'text-[#0A0A0B]' : 'text-[#C9A96E]',
+                isMe ? 'text-on-accent' : 'text-accent',
               )}
             >
               <FileText size={14} />
@@ -76,7 +76,7 @@ export function MessageBubble({ message, isMe }: Props) {
             </a>
           )}
         </div>
-        <span className="text-[10px] text-[#6B6B6F] px-1">{formatTime(message.createdAt)}</span>
+        <span className="text-[10px] text-muted px-1">{formatTime(message.createdAt)}</span>
       </div>
     </div>
   );

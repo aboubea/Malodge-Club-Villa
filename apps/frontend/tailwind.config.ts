@@ -1,27 +1,51 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * Malodge "Riviera" design system.
+ * Every color is a semantic token backed by a CSS variable (see src/index.css),
+ * so the whole UI switches between the light and dark themes from one place.
+ */
+const token = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 const config: Config = {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        background: '#0A0A0B',
-        surface: '#111113',
-        surface2: '#1A1A1D',
-        border: '#242428',
-        gold: '#C9A96E',
-        'gold-light': '#E8C98A',
-        white: '#F5F0EB',
-        muted: '#6B6B6F',
-        success: '#2D7A4F',
-        danger: '#7A2D2D',
+        canvas: token('canvas'),
+        surface: token('surface'),
+        'surface-2': token('surface-2'),
+        line: token('line'),
+        'line-strong': token('line-strong'),
+        ink: token('ink'),
+        'ink-soft': token('ink-soft'),
+        muted: token('muted'),
+        accent: token('accent'),
+        'accent-hover': token('accent-hover'),
+        'on-accent': token('on-accent'),
+        gold: token('gold'),
+        primary: token('primary'),
+        'primary-hover': token('primary-hover'),
+        'on-primary': token('on-primary'),
+        success: token('success'),
+        danger: token('danger'),
+        warning: token('warning'),
+        info: token('info'),
+        plum: token('plum'),
+        copper: token('copper'),
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
       },
       fontSize: {
-        body: ['14px', { lineHeight: '1.6', letterSpacing: '0.01em' }],
-        'body-lg': ['15px', { lineHeight: '1.6', letterSpacing: '0.01em' }],
+        body: ['14px', { lineHeight: '1.6', letterSpacing: '0.005em' }],
+        'body-lg': ['15px', { lineHeight: '1.6', letterSpacing: '0.005em' }],
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        pop: 'var(--shadow-pop)',
       },
       animation: {
         'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',

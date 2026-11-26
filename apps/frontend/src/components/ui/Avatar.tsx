@@ -30,7 +30,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         ref={ref}
         className={cn(
           'relative rounded-full overflow-hidden shrink-0',
-          'bg-[#1A1A1D] border border-[#242428]',
+          'bg-gradient-to-br from-gold/30 to-gold/10 ring-1 ring-inset ring-gold/30',
           'flex items-center justify-center',
           sizeClasses[size],
           className,
@@ -45,7 +45,7 @@ export const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
             onError={() => setImgError(true)}
           />
         ) : (
-          <span className="font-medium text-[#C9A96E]">{initials}</span>
+          <span className="font-semibold text-accent tracking-wide">{initials}</span>
         )}
       </div>
     );

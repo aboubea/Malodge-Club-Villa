@@ -52,16 +52,16 @@ function KpiCard({ label, value, icon: Icon, color, bgColor, delay }: KpiCardPro
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.25 }}
     >
-      <Card className="p-5 hover:border-[#C9A96E]/20 transition-all duration-200">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-[#6B6B6F] uppercase tracking-wider font-medium">{label}</p>
-            <p className="text-2xl font-light text-[#F5F0EB] mt-2">{formatCurrency(value)}</p>
-          </div>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bgColor}`}>
-            <Icon size={18} className={color} />
+      <Card className="p-6 h-full">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-muted">{label}</p>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bgColor}`}>
+            <Icon size={16} className={color} />
           </div>
         </div>
+        <p className="font-display text-[38px] leading-none tracking-[-0.01em] text-ink tabular mt-4">
+          {formatCurrency(value)}
+        </p>
       </Card>
     </motion.div>
   );
@@ -73,15 +73,15 @@ function RankedBar({ name, amount, maxAmount }: { name: string; amount: number; 
     <div className="flex items-center gap-3 py-2">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-sm text-[#F5F0EB] truncate">{name}</p>
-          <p className="text-sm font-light text-[#C9A96E] ml-2 shrink-0">{formatCurrency(amount)}</p>
+          <p className="text-sm text-ink truncate">{name}</p>
+          <p className="text-sm font-normal text-accent ml-2 shrink-0">{formatCurrency(amount)}</p>
         </div>
-        <div className="h-1.5 bg-[#242428] rounded-full overflow-hidden">
+        <div className="h-1.5 bg-line rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="h-full bg-[#C9A96E] rounded-full"
+            className="h-full bg-accent rounded-full"
           />
         </div>
       </div>
@@ -145,32 +145,32 @@ export function FinancePage() {
       label: 'CA Total',
       value: dashboard?.totalRevenue ?? 0,
       icon: TrendingUp,
-      color: 'text-[#C9A96E]',
-      bgColor: 'bg-[#C9A96E]/10',
+      color: 'text-accent',
+      bgColor: 'bg-gold/15',
       delay: 0,
     },
     {
       label: 'CA Services',
       value: dashboard?.serviceRevenue ?? 0,
       icon: Sparkles,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-900/20',
+      color: 'text-plum',
+      bgColor: 'bg-plum/10',
       delay: 0.05,
     },
     {
       label: 'Commissions',
       value: dashboard?.totalCommissions ?? 0,
       icon: DollarSign,
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-900/20',
+      color: 'text-info',
+      bgColor: 'bg-info/10',
       delay: 0.1,
     },
     {
       label: 'Marge conciergerie',
       value: dashboard?.conciergeMargin ?? 0,
       icon: BarChart3,
-      color: 'text-green-400',
-      bgColor: 'bg-green-900/20',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
       delay: 0.15,
     },
   ];
@@ -203,7 +203,7 @@ export function FinancePage() {
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader title="Finances" description="Vue d'ensemble financière">
         {/* Period selector */}
-        <div className="flex items-center gap-1 bg-[#111113] border border-[#242428] rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-surface border border-line rounded-lg p-1">
           {PERIODS.map((p) => (
             <button
               key={p.value}
@@ -211,8 +211,8 @@ export function FinancePage() {
               className={[
                 'px-3 py-1.5 text-xs rounded-md transition-all duration-150',
                 period === p.value
-                  ? 'bg-[#C9A96E] text-[#0A0A0B] font-medium'
-                  : 'text-[#6B6B6F] hover:text-[#F5F0EB]',
+                  ? 'bg-primary text-on-primary font-medium'
+                  : 'text-muted hover:text-ink',
               ].join(' ')}
             >
               {p.label}
@@ -299,9 +299,9 @@ export function FinancePage() {
                   {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
                 </div>
               ) : villaData.length === 0 ? (
-                <p className="text-sm text-[#6B6B6F] text-center py-8">Aucune donnée</p>
+                <p className="text-sm text-muted text-center py-8">Aucune donnée</p>
               ) : (
-                <div className="divide-y divide-[#242428]">
+                <div className="divide-y divide-line">
                   {villaData.slice(0, 8).map((v) => (
                     <RankedBar key={v.name} name={v.name} amount={v.amount} maxAmount={maxVilla} />
                   ))}
@@ -326,9 +326,9 @@ export function FinancePage() {
                   {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
                 </div>
               ) : serviceData.length === 0 ? (
-                <p className="text-sm text-[#6B6B6F] text-center py-8">Aucune donnée</p>
+                <p className="text-sm text-muted text-center py-8">Aucune donnée</p>
               ) : (
-                <div className="divide-y divide-[#242428]">
+                <div className="divide-y divide-line">
                   {serviceData.slice(0, 8).map((s) => (
                     <RankedBar key={s.name} name={s.name} amount={s.amount} maxAmount={maxService} />
                   ))}
@@ -349,7 +349,7 @@ export function FinancePage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Reversements</CardTitle>
             {/* Tab toggle */}
-            <div className="flex items-center gap-1 bg-[#0A0A0B] border border-[#242428] rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-canvas border border-line rounded-lg p-1">
               {(['provider', 'owner'] as PayoutsTab[]).map((tab) => (
                 <button
                   key={tab}
@@ -357,8 +357,8 @@ export function FinancePage() {
                   className={[
                     'px-4 py-1.5 text-xs rounded-md transition-all duration-150',
                     payoutsTab === tab
-                      ? 'bg-[#1A1A1D] text-[#F5F0EB] border border-[#242428]'
-                      : 'text-[#6B6B6F] hover:text-[#F5F0EB]',
+                      ? 'bg-surface-2 text-ink border border-line'
+                      : 'text-muted hover:text-ink',
                   ].join(' ')}
                 >
                   {tab === 'provider' ? 'Prestataires' : 'Propriétaires'}

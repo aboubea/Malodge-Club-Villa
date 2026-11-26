@@ -130,9 +130,9 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       )}
 
       <div>
-        <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Rôle</label>
+        <label className="text-[12.5px] font-medium text-ink-soft">Rôle</label>
         <select
-          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
           value={form.role}
           onChange={(e) => {
             const newRole = e.target.value as Role;
@@ -148,9 +148,9 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 
       {showCountries && availableCountries.length > 0 && (
         <div>
-          <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+          <label className="text-[12.5px] font-medium text-ink-soft">
             Pays assignés
-            <span className="ml-2 normal-case font-normal text-[#3A3A3E]">
+            <span className="ml-2 normal-case font-normal text-muted">
               (laisser vide = accès global)
             </span>
           </label>
@@ -162,10 +162,10 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
                   key={c.code}
                   type="button"
                   onClick={() => toggleCountry(c.name)}
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                  className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${
                     active
-                      ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]'
-                      : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
                   }`}
                 >
                   {c.flag} {c.name}
@@ -174,7 +174,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             })}
           </div>
           {selectedCountries.length > 0 && (
-            <p className="mt-1.5 text-[11px] text-[#6B6B6F]">
+            <p className="mt-1.5 text-[11px] text-muted">
               Restreint à : {selectedCountries.join(', ')}
             </p>
           )}
@@ -187,9 +187,9 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
             type="checkbox"
             checked={form.isActive}
             onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
-            className="w-4 h-4 rounded border border-[#242428] bg-[#111113] accent-[#C9A96E]"
+            className="w-4 h-4 rounded border border-line bg-surface accent-accent"
           />
-          <span className="text-sm text-[#F5F0EB]">Utilisateur actif</span>
+          <span className="text-sm text-ink">Utilisateur actif</span>
         </label>
       )}
 

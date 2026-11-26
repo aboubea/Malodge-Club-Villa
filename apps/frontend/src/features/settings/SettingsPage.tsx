@@ -11,6 +11,16 @@ import { Badge } from '../../components/ui/Badge';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import type { Country } from '../../hooks/useCountries';
+import { useUIStore, type ThemePreference } from '../../store/uiStore';
+
+const LIGHT = { bg: '#F6F3EE', card: '#FFFEFB', ink: '#1D1B18' };
+const DARK = { bg: '#0E0D0C', card: '#1F1D1B', ink: '#F3EEE6' };
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string; swatches: typeof LIGHT[] }[] = [
+  { value: 'light', label: 'Riviera', hint: 'Clair, ivoire et bronze', swatches: [LIGHT] },
+  { value: 'dark', label: 'Nocturne', hint: 'Sombre, champagne', swatches: [DARK] },
+  { value: 'system', label: 'Automatique', hint: 'Suit votre appareil', swatches: [LIGHT, DARK] },
+];
 
 const TABS = [
   { id: 'general', label: 'Général', icon: Settings },
@@ -40,6 +50,7 @@ export function SettingsPage() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const { theme, setTheme } = useUIStore();
 
 
   const [activeTab, setActiveTab] = useState('general');
@@ -126,8 +137,8 @@ export function SettingsPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-left ${
                   activeTab === tab.id
-                    ? 'bg-[#C9A96E]/10 text-[#C9A96E]'
-                    : 'text-[#6B6B6F] hover:text-[#F5F0EB] hover:bg-[#111113]'
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-muted hover:text-ink hover:bg-surface'
                 }`}
               >
                 <tab.icon size={14} />
@@ -161,9 +172,9 @@ export function SettingsPage() {
                 <Card>
                   <CardHeader><CardTitle>Logo</CardTitle></CardHeader>
                   <CardContent>
-                    <div className="border-2 border-dashed border-[#242428] rounded-xl p-8 text-center cursor-pointer hover:border-[#C9A96E]/30 transition-colors">
-                      <p className="text-sm text-[#6B6B6F]">Glissez votre logo ici ou cliquez pour sélectionner</p>
-                      <p className="text-xs text-[#6B6B6F] mt-1">PNG, JPG, SVG — max 2MB</p>
+                    <div className="border-2 border-dashed border-line rounded-xl p-8 text-center cursor-pointer hover:border-accent/30 transition-colors">
+                      <p className="text-sm text-muted">Glissez votre logo ici ou cliquez pour sélectionner</p>
+                      <p className="text-xs text-muted mt-1">PNG, JPG, SVG — max 2MB</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -172,23 +183,43 @@ export function SettingsPage() {
 
             {activeTab === 'appearance' && (
               <Card>
-                <CardHeader><CardTitle>Thème</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { name: 'Malodge Dark', colors: ['#0A0A0B', '#111113', '#C9A96E', '#F5F0EB'], active: true },
-                      { name: 'Classic Light', colors: ['#FFFFFF', '#F8F9FA', '#1A1A2E', '#1A1A2E'], active: false },
-                    ].map((theme) => (
-                      <div key={theme.name} className={`p-4 rounded-xl border cursor-pointer transition-all ${theme.active ? 'border-[#C9A96E]/50 bg-[#C9A96E]/5' : 'border-[#242428] hover:border-[#C9A96E]/20'}`}>
-                        <div className="flex gap-2 mb-3">
-                          {theme.colors.map((c, i) => (
-                            <div key={i} className="w-6 h-6 rounded-full border border-white/10" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                        <p className="text-sm text-[#F5F0EB]">{theme.name}</p>
-                        {theme.active && <p className="text-xs text-[#C9A96E] mt-0.5">Actif</p>}
-                      </div>
-                    ))}
+                <CardHeader>
+                  <CardTitle>Thème</CardTitle>
+                  <p className="text-[12.5px] text-muted mt-0.5">Préférence enregistrée sur cet appareil.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Thème">
+                    {THEME_OPTIONS.map((opt) => {
+                      const active = theme === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setTheme(opt.value)}
+                          className={`group text-left p-3 rounded-2xl border transition-all ${active ? 'border-accent ring-4 ring-accent/10' : 'border-line hover:border-line-strong'}`}
+                        >
+                          <div className="relative h-24 rounded-xl overflow-hidden border border-black/5 flex">
+                            {opt.swatches.map((half, i) => (
+                              <div key={i} className="flex-1 p-2.5 flex flex-col gap-1.5" style={{ backgroundColor: half.bg }}>
+                                <div className="h-2 w-10 rounded-full" style={{ backgroundColor: half.ink, opacity: 0.85 }} />
+                                <div className="h-2 w-14 rounded-full" style={{ backgroundColor: half.ink, opacity: 0.3 }} />
+                                <div className="mt-auto h-5 w-12 rounded-md" style={{ backgroundColor: half.card, boxShadow: '0 1px 2px rgb(0 0 0 / 0.08)' }} />
+                                <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: '#C9A96E' }} />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between mt-3 px-1">
+                            <div>
+                              <p className="text-[13.5px] font-medium text-ink">{opt.label}</p>
+                              <p className="text-[12px] text-muted">{opt.hint}</p>
+                            </div>
+                            <span className={`w-4 h-4 rounded-full border-2 transition-colors ${active ? 'border-accent bg-accent shadow-[inset_0_0_0_2px_rgb(var(--c-surface))]' : 'border-line-strong'}`} />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -206,14 +237,14 @@ export function SettingsPage() {
                     { key: 'newMessage', label: 'Nouveau message', desc: 'Messages reçus dans les conversations' },
                     { key: 'weeklyReport', label: 'Rapport hebdomadaire', desc: 'Résumé hebdomadaire par email' },
                   ].map(({ key, label, desc }) => (
-                    <div key={key} className="flex items-center justify-between py-2 border-b border-[#242428] last:border-0">
+                    <div key={key} className="flex items-center justify-between py-2 border-b border-line last:border-0">
                       <div>
-                        <p className="text-sm text-[#F5F0EB]">{label}</p>
-                        <p className="text-xs text-[#6B6B6F] mt-0.5">{desc}</p>
+                        <p className="text-sm text-ink">{label}</p>
+                        <p className="text-xs text-muted mt-0.5">{desc}</p>
                       </div>
                       <button
                         onClick={() => setNotifications((p) => ({ ...p, [key]: !(p as any)[key] }))}
-                        className={`w-10 h-5 rounded-full transition-all duration-200 relative ${(notifications as any)[key] ? 'bg-[#C9A96E]' : 'bg-[#242428]'}`}
+                        className={`w-10 h-5 rounded-full transition-all duration-200 relative ${(notifications as any)[key] ? 'bg-accent' : 'bg-line'}`}
                       >
                         <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${(notifications as any)[key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </button>
@@ -231,21 +262,21 @@ export function SettingsPage() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {countries.length === 0 && (
-                      <p className="text-sm text-[#6B6B6F] py-4 text-center">Aucun pays configuré</p>
+                      <p className="text-sm text-muted py-4 text-center">Aucun pays configuré</p>
                     )}
                     {countries.map((c) => (
-                      <div key={c.code} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-[#111113] border border-[#242428]">
+                      <div key={c.code} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-surface border border-line">
                         <div className="flex items-center gap-3">
                           <span className="text-lg">{c.flag}</span>
                           <div>
-                            <p className="text-sm text-[#F5F0EB]">{c.name}</p>
-                            <p className="text-[11px] text-[#6B6B6F] font-mono">{c.code}</p>
+                            <p className="text-sm text-ink">{c.name}</p>
+                            <p className="text-[11px] text-muted font-mono">{c.code}</p>
                           </div>
                         </div>
                         {isSuperAdmin && (
                           <button
                             onClick={() => removeCountry(c.code)}
-                            className="p-1.5 text-[#6B6B6F] hover:text-red-400 transition-colors rounded hover:bg-red-900/10"
+                            className="p-1.5 text-muted hover:text-danger transition-colors rounded hover:bg-danger/10"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -305,7 +336,7 @@ export function SettingsPage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {r.permissions.map((p) => (
-                          <span key={p} className="px-2 py-1 rounded-md text-xs text-[#6B6B6F] bg-[#1A1A1D] border border-[#242428]">{p}</span>
+                          <span key={p} className="px-2 py-1 rounded-md text-xs text-muted bg-surface-2 border border-line">{p}</span>
                         ))}
                       </div>
                     </CardContent>
@@ -327,7 +358,7 @@ export function SettingsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-xs text-[#6B6B6F]">Synchronisez vos propriétés et réservations depuis Lodgify PMS automatiquement.</p>
+                    <p className="text-xs text-muted">Synchronisez vos propriétés et réservations depuis Lodgify PMS automatiquement.</p>
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <Input
@@ -373,8 +404,8 @@ export function SettingsPage() {
                         <div className="flex items-center gap-3">
                           <span className="text-xl">{integ.icon}</span>
                           <div>
-                            <p className="text-sm font-medium text-[#F5F0EB]">{integ.name}</p>
-                            <p className="text-xs text-[#6B6B6F]">{integ.description}</p>
+                            <p className="text-sm font-medium text-ink">{integ.name}</p>
+                            <p className="text-xs text-muted">{integ.description}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">

@@ -18,14 +18,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider"
+            className="text-[12.5px] font-medium text-ink-soft"
           >
             {label}
           </label>
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
               {leftIcon}
             </div>
           )}
@@ -33,27 +33,28 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full h-10 px-3 rounded-lg',
-              'bg-[#111113] border border-[#242428]',
-              'text-[#F5F0EB] text-sm placeholder:text-[#6B6B6F]',
-              'transition-all duration-150',
-              'focus:outline-none focus:border-[#C9A96E]/60 focus:ring-1 focus:ring-[#C9A96E]/20',
-              'disabled:opacity-40 disabled:cursor-not-allowed',
-              error && 'border-red-800/70 focus:border-red-600/60 focus:ring-red-600/20',
-              leftIcon && 'pl-9',
-              rightIcon && 'pr-9',
+              'w-full h-11 px-3.5 rounded-[10px]',
+              'bg-surface border border-line',
+              'text-ink text-[14px] placeholder:text-muted/80',
+              'transition-[border-color,box-shadow] duration-150',
+              'hover:border-line-strong',
+              'focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10',
+              'disabled:opacity-45 disabled:cursor-not-allowed',
+              error && 'border-danger/50 hover:border-danger/60 focus:border-danger/70 focus:ring-danger/10',
+              leftIcon && 'pl-10',
+              rightIcon && 'pr-10',
               className,
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6F] pointer-events-none">
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        {hint && !error && <p className="text-xs text-[#6B6B6F]">{hint}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
+        {hint && !error && <p className="text-xs text-muted">{hint}</p>}
       </div>
     );
   },

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AuthLayout } from './AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { LoginResponseDto } from '@malodge/shared';
@@ -93,24 +94,11 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0A0B] p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-[#C9A96E] flex items-center justify-center">
-            <Crown size={16} className="text-[#0A0A0B]" />
-          </div>
-          <p className="text-sm font-medium text-[#F5F0EB]">Malodge Club Villa</p>
-        </div>
+    <AuthLayout>
 
-        <div className="mb-8">
-          <h2 className="text-2xl font-light text-[#F5F0EB] tracking-tight">Créer un compte</h2>
-          <p className="text-sm text-[#6B6B6F] mt-1.5">Rejoignez Malodge Club Villa</p>
+        <div className="mb-9">
+          <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">Créer un compte</h1>
+          <p className="text-[14.5px] text-muted mt-3">Rejoignez Malodge Club Villa</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -162,7 +150,7 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="hover:text-[#F5F0EB] transition-colors"
+                className="hover:text-ink transition-colors"
               >
                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -189,10 +177,10 @@ export function RegisterPage() {
               <div key={label} className="flex items-center gap-1">
                 <div
                   className={`w-1.5 h-1.5 rounded-full transition-colors duration-150 ${
-                    ok ? 'bg-[#2D7A4F]' : 'bg-[#242428]'
+                    ok ? 'bg-success' : 'bg-line'
                   }`}
                 />
-                <span className={`text-xs transition-colors duration-150 ${ok ? 'text-[#F5F0EB]' : 'text-[#6B6B6F]'}`}>
+                <span className={`text-xs transition-colors duration-150 ${ok ? 'text-ink' : 'text-muted'}`}>
                   {label}
                 </span>
               </div>
@@ -211,12 +199,11 @@ export function RegisterPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <span className="text-sm text-[#6B6B6F]">Déjà un compte ?{' '}</span>
-          <Link to="/login" className="text-sm text-[#C9A96E] hover:text-[#E8C98A] transition-colors">
+          <span className="text-sm text-muted">Déjà un compte ?{' '}</span>
+          <Link to="/login" className="text-sm text-accent hover:text-accent-hover transition-colors">
             Se connecter
           </Link>
         </div>
-      </motion.div>
-    </div>
+    </AuthLayout>
   );
 }

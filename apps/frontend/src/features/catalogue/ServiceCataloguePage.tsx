@@ -175,21 +175,21 @@ export function ServiceCataloguePage() {
 
       {/* WhatsApp confirmation banner */}
       {whatsappUrl && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/20 bg-green-900/10">
-          <MessageCircle size={18} className="text-green-400 shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-success/20 bg-success/10">
+          <MessageCircle size={18} className="text-success shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[#F5F0EB]">Commande passée !</p>
-            <p className="text-xs text-[#6B6B6F]">Contactez le prestataire via WhatsApp pour confirmer sa disponibilité</p>
+            <p className="text-sm font-medium text-ink">Commande passée !</p>
+            <p className="text-xs text-muted">Contactez le prestataire via WhatsApp pour confirmer sa disponibilité</p>
           </div>
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success hover:bg-success/90 text-white text-xs font-medium transition-colors"
           >
             <MessageCircle size={12} /> WhatsApp
           </a>
-          <button onClick={() => setWhatsappUrl(null)} className="text-[#6B6B6F] hover:text-[#F5F0EB]">
+          <button onClick={() => setWhatsappUrl(null)} className="text-muted hover:text-ink">
             <X size={14} />
           </button>
         </div>
@@ -197,25 +197,25 @@ export function ServiceCataloguePage() {
 
       {/* Active stay context banner */}
       {isClient && activeStay && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/5">
-          <div className="w-10 h-10 rounded-lg bg-[#1A1A1D] overflow-hidden shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-accent/20 bg-accent/5">
+          <div className="w-10 h-10 rounded-lg bg-surface-2 overflow-hidden shrink-0">
             {activeStay.villa?.coverImage ? (
               <img src={activeStay.villa.coverImage} alt={activeStay.villa.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Building2 size={16} className="text-[#242428]" />
+                <Building2 size={16} className="text-line-strong" />
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-[#C9A96E] font-medium">Votre séjour actuel</p>
-            <p className="text-sm text-[#F5F0EB] truncate">{activeStay.villa?.name} — {activeStay.villa?.city}</p>
-            <p className="text-[11px] text-[#6B6B6F] flex items-center gap-1 mt-0.5">
+            <p className="text-xs text-accent font-medium">Votre séjour actuel</p>
+            <p className="text-sm text-ink truncate">{activeStay.villa?.name} — {activeStay.villa?.city}</p>
+            <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
               <CalendarDays size={9} />
               {new Date(activeStay.checkIn).toLocaleDateString('fr-FR')} → {new Date(activeStay.checkOut).toLocaleDateString('fr-FR')}
             </p>
           </div>
-          <p className="text-[10px] text-[#6B6B6F]">Prix adaptés à votre villa</p>
+          <p className="text-[10px] text-muted">Prix adaptés à votre villa</p>
         </div>
       )}
 
@@ -232,9 +232,9 @@ export function ServiceCataloguePage() {
           </div>
           {clientVillas.length > 0 && (
             <div>
-              <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider block mb-1.5">Villa</label>
+              <label className="text-[12.5px] font-medium text-ink-soft block mb-1.5">Villa</label>
               <select
-                className="h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                className="h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                 value={selectedVillaId}
                 onChange={(e) => setSelectedVillaId(e.target.value)}
               >
@@ -249,7 +249,7 @@ export function ServiceCataloguePage() {
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${!selectedCategory ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+            className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${!selectedCategory ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
           >
             Tous
           </button>
@@ -257,7 +257,7 @@ export function ServiceCataloguePage() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id === selectedCategory ? '' : cat.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${selectedCategory === cat.id ? 'border-[#C9A96E]/40 bg-[#C9A96E]/10 text-[#C9A96E]' : 'border-[#242428] text-[#6B6B6F] hover:text-[#F5F0EB]'}`}
+              className={`inline-flex items-center h-8 px-3.5 rounded-full text-[12.5px] font-medium border transition-all ${selectedCategory === cat.id ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'}`}
             >
               {cat.icon && <span className="mr-1">{cat.icon}</span>}{cat.name}
             </button>
@@ -269,12 +269,12 @@ export function ServiceCataloguePage() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 rounded-xl bg-[#111113] border border-[#242428] animate-pulse" />
+            <div key={i} className="h-48 rounded-xl bg-surface border border-line animate-pulse" />
           ))}
         </div>
       ) : services.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm text-[#6B6B6F]">Aucun service disponible</p>
+          <p className="text-sm text-muted">Aucun service disponible</p>
         </div>
       ) : selectedCategory ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -289,10 +289,10 @@ export function ServiceCataloguePage() {
             if (!cat) return null;
             return (
               <div key={catId}>
-                <h3 className="text-sm font-medium text-[#F5F0EB] mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-ink mb-3 flex items-center gap-2">
                   {cat.icon && <span>{cat.icon}</span>}
                   {cat.name}
-                  <span className="text-[#6B6B6F] font-normal">({catServices.length})</span>
+                  <span className="text-muted font-normal">({catServices.length})</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {catServices.map((service, i) => (
@@ -309,24 +309,24 @@ export function ServiceCataloguePage() {
       <Modal open={cartOpen} onClose={() => setCartOpen(false)} title="Mon panier" size="lg">
         <div className="space-y-4">
           {cart.map((item) => (
-            <div key={item.service.id} className="flex items-center gap-4 py-3 border-b border-[#242428]">
+            <div key={item.service.id} className="flex items-center gap-4 py-3 border-b border-line">
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#F5F0EB] font-medium">{item.service.name}</p>
-                <p className="text-xs text-[#6B6B6F]">{formatCurrency(item.service.basePrice)} / unité</p>
+                <p className="text-sm text-ink font-medium">{item.service.name}</p>
+                <p className="text-xs text-muted">{formatCurrency(item.service.basePrice)} / unité</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => updateQty(item.service.id, -1)} className="w-7 h-7 rounded-lg border border-[#242428] flex items-center justify-center text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors">
+                <button onClick={() => updateQty(item.service.id, -1)} className="w-7 h-7 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink transition-colors">
                   <Minus size={12} />
                 </button>
-                <span className="text-sm text-[#F5F0EB] w-5 text-center">{item.quantity}</span>
-                <button onClick={() => updateQty(item.service.id, +1)} className="w-7 h-7 rounded-lg border border-[#242428] flex items-center justify-center text-[#6B6B6F] hover:text-[#F5F0EB] transition-colors">
+                <span className="text-sm text-ink w-5 text-center">{item.quantity}</span>
+                <button onClick={() => updateQty(item.service.id, +1)} className="w-7 h-7 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink transition-colors">
                   <Plus size={12} />
                 </button>
               </div>
-              <p className="text-sm text-[#C9A96E] w-20 text-right font-light">
+              <p className="text-sm text-accent w-20 text-right font-normal">
                 {formatCurrency(item.service.basePrice * item.quantity)}
               </p>
-              <button onClick={() => removeFromCart(item.service.id)} className="text-[#6B6B6F] hover:text-red-400 transition-colors">
+              <button onClick={() => removeFromCart(item.service.id)} className="text-muted hover:text-danger transition-colors">
                 <X size={14} />
               </button>
             </div>
@@ -334,10 +334,10 @@ export function ServiceCataloguePage() {
 
           {requiresSchedule && (
             <div>
-              <label className="text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">Date & heure souhaitée</label>
+              <label className="text-[12.5px] font-medium text-ink-soft">Date & heure souhaitée</label>
               <input
                 type="datetime-local"
-                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-[#111113] border border-[#242428] text-[#F5F0EB] text-sm focus:outline-none focus:border-[#C9A96E]/60"
+                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
               />
@@ -351,10 +351,10 @@ export function ServiceCataloguePage() {
             onChange={(e) => setOrderNotes(e.target.value)}
           />
 
-          <div className="flex items-center justify-between pt-2 border-t border-[#242428]">
+          <div className="flex items-center justify-between pt-2 border-t border-line">
             <div>
-              <p className="text-xs text-[#6B6B6F]">Total</p>
-              <p className="text-lg font-light text-[#C9A96E]">{formatCurrency(totalAmount)}</p>
+              <p className="text-xs text-muted">Total</p>
+              <p className="text-lg font-normal text-accent">{formatCurrency(totalAmount)}</p>
             </div>
             <Button
               variant="primary"
@@ -379,49 +379,49 @@ function ServiceCard({ service, index, onAdd, canOrder }: { service: Service & {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.2 }}
     >
-      <Card className="h-full flex flex-col group hover:border-[#C9A96E]/20 transition-colors">
+      <Card className="h-full flex flex-col group hover:border-accent/20 transition-colors">
         {service.images?.[0] ? (
           <div className="h-36 rounded-t-xl overflow-hidden">
             <img src={service.images[0]} alt={service.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           </div>
         ) : (
-          <div className="h-36 rounded-t-xl bg-gradient-to-br from-[#1A1A1D] to-[#111113] flex items-center justify-center">
+          <div className="h-36 rounded-t-xl bg-gradient-to-br from-surface-2 to-surface flex items-center justify-center">
             <span className="text-3xl opacity-30">✨</span>
           </div>
         )}
         <CardContent className="flex flex-col flex-1 py-4 gap-3">
           <div className="flex-1">
             <div className="flex items-start justify-between gap-2 mb-1">
-              <h4 className="text-sm font-medium text-[#F5F0EB] leading-snug">{service.name}</h4>
+              <h4 className="text-sm font-medium text-ink leading-snug">{service.name}</h4>
               <Badge variant="default" className="shrink-0 text-[10px]">{service.category.name}</Badge>
             </div>
             {service.description && (
-              <p className="text-xs text-[#6B6B6F] line-clamp-2">{service.description}</p>
+              <p className="text-xs text-muted line-clamp-2">{service.description}</p>
             )}
             {service.duration && (
               <div className="flex items-center gap-1 mt-1.5">
-                <Clock size={10} className="text-[#6B6B6F]" />
-                <span className="text-[10px] text-[#6B6B6F]">{service.duration} min</span>
+                <Clock size={10} className="text-muted" />
+                <span className="text-[10px] text-muted">{service.duration} min</span>
               </div>
             )}
           </div>
           {service.providers && service.providers.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap mt-1">
               {service.providers.slice(0, 2).map((sp: any) => (
-                <span key={sp.provider.id} className="text-[10px] text-[#6B6B6F] px-1.5 py-0.5 rounded bg-[#1A1A1D] border border-[#242428]">
+                <span key={sp.provider.id} className="text-[10px] text-muted px-1.5 py-0.5 rounded bg-surface-2 border border-line">
                   {sp.provider.user.firstName} {sp.provider.user.lastName}
                 </span>
               ))}
               {service.providers.length > 2 && (
-                <span className="text-[10px] text-[#6B6B6F]">+{service.providers.length - 2}</span>
+                <span className="text-[10px] text-muted">+{service.providers.length - 2}</span>
               )}
             </div>
           )}
           <div className="flex items-center justify-between mt-2">
             <div>
-              <p className="text-base font-light text-[#C9A96E]">{formatCurrency(displayPrice)}</p>
+              <p className="text-base font-normal text-accent">{formatCurrency(displayPrice)}</p>
               {service.effectivePrice && service.effectivePrice !== service.basePrice && (
-                <p className="text-[10px] text-[#6B6B6F] line-through">{formatCurrency(service.basePrice)}</p>
+                <p className="text-[10px] text-muted line-through">{formatCurrency(service.basePrice)}</p>
               )}
             </div>
             {canOrder && (

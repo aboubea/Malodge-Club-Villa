@@ -32,7 +32,7 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
 
   if (data.length === 0) {
     return (
-      <div className="py-12 text-center text-sm text-[#6B6B6F]">
+      <div className="py-12 text-center text-sm text-muted">
         Aucun reversement pour cette période
       </div>
     );
@@ -44,51 +44,51 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-[#242428]">
-            <th className="px-4 py-3 text-left text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+          <tr className="border-b border-line">
+            <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
               {type === 'provider' ? 'Prestataire' : 'Propriétaire / Villa'}
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
               Montant brut
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
               {feeLabel}
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
               Net à reverser
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
               Statut
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-[#6B6B6F] uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
               Action
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#242428]">
+        <tbody className="divide-y divide-line">
           {data.map((row) => {
             const isPaid = paidIds.has(row.id) || row.status === 'paid';
             const fee = row.commission ?? row.managementFee ?? 0;
 
             return (
-              <tr key={row.id} className="hover:bg-[#1A1A1D] transition-colors">
+              <tr key={row.id} className="hover:bg-surface-2 transition-colors">
                 <td className="px-4 py-3">
-                  <p className="text-sm text-[#F5F0EB]">{row.name}</p>
+                  <p className="text-sm text-ink">{row.name}</p>
                   {(row.orderCount != null || row.stayCount != null) && (
-                    <p className="text-xs text-[#6B6B6F]">
+                    <p className="text-xs text-muted">
                       {row.orderCount != null
                         ? `${row.orderCount} commande${row.orderCount !== 1 ? 's' : ''}`
                         : `${row.stayCount} séjour${(row.stayCount ?? 0) !== 1 ? 's' : ''}`}
                     </p>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-[#F5F0EB]">
+                <td className="px-4 py-3 text-right text-sm text-ink">
                   {formatCurrency(row.grossAmount)}
                 </td>
-                <td className="px-4 py-3 text-right text-sm text-[#6B6B6F]">
+                <td className="px-4 py-3 text-right text-sm text-muted">
                   - {formatCurrency(fee)}
                 </td>
-                <td className="px-4 py-3 text-right text-sm font-medium text-[#C9A96E]">
+                <td className="px-4 py-3 text-right text-sm font-medium text-accent">
                   {formatCurrency(row.netAmount)}
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -109,23 +109,23 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
                       Marquer payé
                     </Button>
                   ) : (
-                    <span className="text-xs text-[#6B6B6F]">Versé</span>
+                    <span className="text-xs text-muted">Versé</span>
                   )}
                 </td>
               </tr>
             );
           })}
         </tbody>
-        <tfoot className="border-t border-[#242428]">
+        <tfoot className="border-t border-line">
           <tr>
-            <td className="px-4 py-3 text-sm font-medium text-[#6B6B6F]">Total</td>
-            <td className="px-4 py-3 text-right text-sm font-medium text-[#F5F0EB]">
+            <td className="px-4 py-3 text-sm font-medium text-muted">Total</td>
+            <td className="px-4 py-3 text-right text-sm font-medium text-ink">
               {formatCurrency(data.reduce((s, r) => s + r.grossAmount, 0))}
             </td>
-            <td className="px-4 py-3 text-right text-sm text-[#6B6B6F]">
+            <td className="px-4 py-3 text-right text-sm text-muted">
               - {formatCurrency(data.reduce((s, r) => s + (r.commission ?? r.managementFee ?? 0), 0))}
             </td>
-            <td className="px-4 py-3 text-right text-sm font-medium text-[#C9A96E]">
+            <td className="px-4 py-3 text-right text-sm font-medium text-accent">
               {formatCurrency(data.reduce((s, r) => s + r.netAmount, 0))}
             </td>
             <td colSpan={2} />
