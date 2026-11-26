@@ -11,7 +11,7 @@ interface ImportReport {
   file: string | null;
   read: { people: number; villas: number; catalogue: number; extras: number; settlements: number };
   people: Record<'CLIENT' | 'PROVIDER' | 'OWNER' | 'EMPLOYEE', { created: number; reused: number }>;
-  villas: { created: string[]; updated: string[] };
+  villas: { created: string[]; updated: string[]; matched?: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
   stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
   adjusted: string[];
@@ -48,7 +48,7 @@ function ReportView({ r }: { r: ImportReport }) {
     ['Séjours créés', `${r.stays.created}`],
     ['Règlements', `${r.settlements.validated} validés · ${r.settlements.pending} à valider${r.settlements.cancelled ? ` · ${r.settlements.cancelled} annulés` : ''}`],
     ['Catalogue', `${r.catalogue.created} prestations créées · ${r.catalogue.updated} mises à jour`],
-    ['Villas', `${r.villas.created.length} créées · ${r.villas.updated.length} existantes mises à jour (devise MAD, propriétaire)`],
+    ['Villas', `${r.villas.created.length} créées · ${(r.villas.matched?.length ?? 0) + r.villas.updated.length} existantes reprises (devise MAD, propriétaire)`],
     ...(Object.keys(PEOPLE_LABELS) as (keyof typeof PEOPLE_LABELS)[]).map(
       (k) => [PEOPLE_LABELS[k], `${r.people[k].created} fiches créées · ${r.people[k].reused} existantes reprises`] as [string, string],
     ),
@@ -85,6 +85,11 @@ function ReportView({ r }: { r: ImportReport }) {
               Non créés (ni dates ni extras) : <b className="text-ink-soft">{r.stays.skipped.join(', ')}</b>.
             </>
           )}
+        </p>
+      )}
+      {!!r.villas.matched?.length && (
+        <p className="text-[12.5px] text-muted">
+          Villas de l’Excel rattachées à une villa existante (Lodgify) : <b className="text-ink-soft">{r.villas.matched.join(' ; ')}</b>.
         </p>
       )}
       {r.villas.updated.length > 0 && (

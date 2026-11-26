@@ -8,6 +8,7 @@ import { Actor, ExtrasService } from './extras.service';
 import {
   CreatePersonDto,
   CreateSettlementDto,
+  MergeVillaDto,
   ExtraFiltersDto,
   ExtrasSettingsDto,
   SettlementFiltersDto,
@@ -157,6 +158,13 @@ export class ExtrasController {
     return this.extras.updateVilla(id, dto);
   }
 
+  @Post('villas/:id/merge')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Merge a duplicate villa into another one (local data only, never Lodgify)' })
+  mergeVilla(@Param('id') id: string, @Body() dto: MergeVillaDto) {
+    return this.extras.mergeVilla(id, dto.targetId);
+  }
+
   @Post('stays')
   @Roles(Role.MANAGER)
   createStay(@Body() dto: UpsertStayDto) {
@@ -201,6 +209,13 @@ export class ExtrasController {
   @Roles(Role.MANAGER)
   catalogue() {
     return this.extras.catalogue();
+  }
+
+  @Post('catalogue/cleanup')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Merge duplicate categories and services. dryRun=true previews.' })
+  cleanupCatalogue(@Query('dryRun') dryRun?: string) {
+    return this.extras.cleanupCatalogue(dryRun !== 'false');
   }
 
   @Post('catalogue')

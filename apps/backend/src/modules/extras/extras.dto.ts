@@ -114,6 +114,11 @@ export class UpdateVillaExtrasDto {
   @IsOptional() @IsString() @MinLength(3) @MaxLength(3) currency?: string;
 }
 
+export class MergeVillaDto {
+  /** Villa that is kept (typically the Lodgify listing). */
+  @IsString() targetId!: string;
+}
+
 export class UpsertStayDto {
   @IsString() @MinLength(1) @MaxLength(120) label!: string;
   @IsString() villaId!: string;

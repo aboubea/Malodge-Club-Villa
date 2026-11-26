@@ -15,7 +15,9 @@ import {
   proposedPrice,
   totalsByCurrency,
 } from './extras.calc';
-import { ImportAlreadyDoneError, importExtrasWorkbook, undoImport } from './extras-import';
+import { ImportAlreadyDoneError, VILLA_ALIASES_KEY, importExtrasWorkbook, undoImport } from './extras-import';
+import { villaCandidates } from './villa-match';
+import { cleanupCatalogue } from './catalogue-cleanup';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -555,7 +557,7 @@ export class ExtrasService {
 
   async settings(actor: Actor) {
     const countries = this.scopeCountries(actor);
-    const [markup, people, villas, stays] = await Promise.all([
+    const [markup, people, villaRows, stays, ordersByVilla] = await Promise.all([
       this.getMarkup(),
       this.prisma.user.findMany({
         where: { role: { in: ['OWNER', 'EMPLOYEE', 'PROVIDER'] } },
@@ -569,7 +571,10 @@ export class ExtrasService {
       }),
       this.prisma.villa.findMany({
         where: countries ? { country: { in: countries } } : undefined,
-        select: { id: true, name: true, city: true, country: true, currency: true, ownerId: true, isActive: true },
+        select: {
+          id: true, name: true, city: true, country: true, currency: true, ownerId: true, isActive: true, logifyId: true,
+          _count: { select: { reservations: true } },
+        },
         orderBy: { name: 'asc' },
       }),
       this.prisma.reservation.findMany({
@@ -584,7 +589,18 @@ export class ExtrasService {
         },
         orderBy: { checkIn: 'desc' },
       }),
+      this.prisma.order.groupBy({ by: ['villaId'], _count: { _all: true } }),
     ]);
+    const extrasCount = new Map(ordersByVilla.map((o) => [o.villaId, o._count._all]));
+    const lodgifyVillas = villaRows.filter((v) => v.logifyId).map((v) => ({ id: v.id, name: v.name }));
+    const villas = villaRows.map(({ _count, logifyId, ...v }) => ({
+      ...v,
+      lodgify: !!logifyId,
+      stays: _count.reservations,
+      extras: extrasCount.get(v.id) ?? 0,
+      // A villa entered by hand or imported from the spreadsheet that looks like a Lodgify listing.
+      duplicates: logifyId ? [] : villaCandidates(v.name, lodgifyVillas).slice(0, 3),
+    }));
     return {
       markup,
       people: people.map((p) => ({
@@ -679,6 +695,52 @@ export class ExtrasService {
       },
     });
     return { id };
+  }
+
+  /**
+   * Merges a villa entered by hand or imported from the spreadsheet into another one
+   * (typically its Lodgify listing): stays, extras, villa services, managers, documents
+   * and agenda entries move over, owner and currency are carried, the duplicate is
+   * deleted and its name is remembered so a future import attaches to the right villa.
+   * Only this application's database changes — nothing is ever written to Lodgify.
+   */
+  async mergeVilla(sourceId: string, targetId: string) {
+    if (sourceId === targetId) throw new BadRequestException('Choisissez une autre villa.');
+    const [source, target] = await Promise.all([
+      this.prisma.villa.findUnique({ where: { id: sourceId }, select: { id: true, name: true, logifyId: true, currency: true, ownerId: true } }),
+      this.prisma.villa.findUnique({ where: { id: targetId }, select: { id: true, name: true, currency: true, ownerId: true } }),
+    ]);
+    if (!source || !target) throw new NotFoundException('Villa introuvable');
+    if (source.logifyId) throw new BadRequestException('Une villa issue de Lodgify ne peut pas être fusionnée dans une autre.');
+    if (source.ownerId && target.ownerId && source.ownerId !== target.ownerId) {
+      throw new BadRequestException(`Les deux villas ont un propriétaire différent : alignez-les dans Réglages > Villas avant de rattacher.`);
+    }
+    const targetExtras = await this.prisma.order.count({ where: { OR: [{ villaId: targetId }, { reservation: { villaId: targetId } }] } });
+    const sourceExtras = await this.prisma.order.count({ where: { OR: [{ villaId: sourceId }, { reservation: { villaId: sourceId } }] } });
+    if (targetExtras > 0 && sourceExtras > 0 && source.currency !== target.currency) {
+      throw new BadRequestException(`Devises différentes (${source.currency} / ${target.currency}) avec des extras des deux côtés : impossible de rattacher sans fausser les montants.`);
+    }
+    const currency = sourceExtras > 0 ? source.currency : target.currency;
+
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const stays = await tx.reservation.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
+      const extras = await tx.order.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
+      const targetServices = (await tx.villaService.findMany({ where: { villaId: targetId }, select: { serviceId: true } })).map((x) => x.serviceId);
+      await tx.villaService.updateMany({ where: { villaId: sourceId, serviceId: { notIn: targetServices.length ? targetServices : ['__none__'] } }, data: { villaId: targetId } });
+      await tx.villaService.deleteMany({ where: { villaId: sourceId } });
+      const targetManagers = (await tx.villaManager.findMany({ where: { villaId: targetId }, select: { userId: true } })).map((x) => x.userId);
+      await tx.villaManager.updateMany({ where: { villaId: sourceId, userId: { notIn: targetManagers.length ? targetManagers : ['__none__'] } }, data: { villaId: targetId } });
+      await tx.villaManager.deleteMany({ where: { villaId: sourceId } });
+      await tx.document.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
+      await tx.calendarEvent.updateMany({ where: { villaId: sourceId }, data: { villaId: targetId } });
+      await tx.villa.update({ where: { id: targetId }, data: { currency, ownerId: target.ownerId ?? source.ownerId } });
+      await tx.villa.delete({ where: { id: sourceId } });
+      const row = await tx.appSetting.findUnique({ where: { key: VILLA_ALIASES_KEY } });
+      const aliases = { ...((row?.value as Record<string, string>) ?? {}), [source.name]: targetId };
+      await tx.appSetting.upsert({ where: { key: VILLA_ALIASES_KEY }, update: { value: aliases }, create: { key: VILLA_ALIASES_KEY, value: aliases } });
+      return { stays: stays.count, extras: extras.count };
+    });
+    return { merged: source.name, into: target.name, ...moved };
   }
 
   async createStay(dto: UpsertStayDto) {
@@ -860,6 +922,10 @@ export class ExtrasService {
       if (e instanceof BadRequestException) throw e;
       throw new BadRequestException(e instanceof Error ? e.message : 'Annulation impossible');
     }
+  }
+
+  cleanupCatalogue(dryRun: boolean) {
+    return cleanupCatalogue(this.prisma as any, { dryRun });
   }
 
   async importStatus() {

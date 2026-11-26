@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuthStore } from '../../store/authStore';
 import { cn, formatDay } from '../../lib/utils';
-import { Person, Stay, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
+import { Person, Stay, VillaRef, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
 import { Field, IssueTag, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { ImportPanel } from './ImportPanel';
 
@@ -200,6 +200,79 @@ function StayModal({ stay, open, onClose, villas }: { stay: Stay | null; open: b
   );
 }
 
+function MergeVillaModal({ villa, villas, onClose }: { villa: VillaRef | null; villas: VillaRef[]; onClose: () => void }) {
+  const [targetId, setTargetId] = useState('');
+  useEffect(() => {
+    setTargetId(villa?.duplicates?.[0]?.id ?? '');
+  }, [villa]);
+  const merge = useExtrasMutation(api.mergeVilla, 'Villas rattachées');
+  if (!villa) return null;
+  const suggestions = villa.duplicates ?? [];
+  const lodgify = villas.filter((v) => v.lodgify && !suggestions.some((d) => d.id === v.id));
+  const others = villas.filter((v) => !v.lodgify && v.id !== villa.id);
+  const target = villas.find((v) => v.id === targetId);
+  return (
+    <Modal
+      open={!!villa}
+      onClose={onClose}
+      title={`Rattacher « ${villa.name} »`}
+      description="Pour ne garder qu’une seule fiche par maison. Seules les données de l’application changent : rien n’est jamais modifié sur Lodgify."
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button disabled={!targetId} loading={merge.isPending} onClick={() => merge.mutate({ id: villa.id, targetId }, { onSuccess: onClose })}>
+            Rattacher
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Villa à conserver">
+          <Select value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+            <option value="">Choisir…</option>
+            {suggestions.length > 0 && (
+              <optgroup label="Doublons probables (Lodgify)">
+                {suggestions.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {lodgify.length > 0 && (
+              <optgroup label="Autres villas Lodgify">
+                {lodgify.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {others.length > 0 && (
+              <optgroup label="Autres villas">
+                {others.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </Select>
+        </Field>
+        <div className="rounded-xl bg-surface-2 px-4 py-3 text-[13px] text-ink-soft space-y-1">
+          <p>
+            {villa.stays ?? 0} séjour(s) et {villa.extras ?? 0} extra(s) de « {villa.name} » passeront sur{' '}
+            <b className="text-ink">{target ? `« ${target.name} »` : 'la villa choisie'}</b>, avec son propriétaire et sa devise ({villa.currency}).
+          </p>
+          <p>« {villa.name} » sera ensuite supprimée de l’application, et un futur import de l’Excel se rattachera directement à la bonne villa.</p>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function SettingsTab() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
@@ -207,6 +280,7 @@ export function SettingsTab() {
   const [section, setSection] = useState<'people' | 'stays' | 'villas' | 'import'>('people');
   const [person, setPerson] = useState<Person | null | 'new'>(null);
   const [stay, setStay] = useState<Stay | null | 'new'>(null);
+  const [mergeVilla, setMergeVilla] = useState<VillaRef | null>(null);
   const [markup, setMarkup] = useState('');
   useEffect(() => {
     if (data) setMarkup(String(Math.round(data.markup * 1000) / 10));
@@ -228,7 +302,7 @@ export function SettingsTab() {
           options={[
             { value: 'people', label: 'Personnes & taux', count: data.people.filter((p) => p.issue).length },
             { value: 'stays', label: 'Séjours', count: data.stays.filter((s) => s.issue).length },
-            { value: 'villas', label: 'Villas' },
+            { value: 'villas', label: 'Villas', count: data.villas.filter((v) => v.duplicates?.length).length },
             ...(isAdmin ? [{ value: 'import' as const, label: 'Import Excel' }] : []),
           ]}
         />
@@ -344,6 +418,12 @@ export function SettingsTab() {
 
       {section === 'villas' && (
         <div className="space-y-5">
+          {data.villas.some((v) => v.duplicates?.length) && (
+            <div className="rounded-2xl border border-warning/25 bg-warning/5 px-5 py-4 text-[13px] text-ink-soft">
+              <b className="text-ink">{data.villas.filter((v) => v.duplicates?.length).length} villa(s) ressemblent à une villa Lodgify.</b> Rattachez-les pour ne garder
+              qu’une fiche par maison : séjours, extras, propriétaire et devise sont reportés sur la villa Lodgify.
+            </div>
+          )}
           <TableCard>
             <table className="w-full min-w-[640px]">
               <thead>
@@ -351,16 +431,32 @@ export function SettingsTab() {
                   <th className={th}>Villa / riad</th>
                   <th className={th}>Propriétaire</th>
                   <th className={th}>Devise des extras</th>
+                  <th className={th} aria-label="Actions" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {data.villas.map((v) => (
                   <tr key={v.id}>
                     <td className={td}>
-                      <p className="font-semibold">{v.name}</p>
-                      <p className="text-[12px] text-muted">
-                        {v.city}, {v.country}
+                      <p className="font-semibold">
+                        {v.name}
+                        <span
+                          className={cn(
+                            'ml-2 align-middle inline-flex items-center h-5 px-2 rounded-full text-[10.5px] font-semibold',
+                            v.lodgify ? 'bg-info/10 text-info' : 'bg-surface-2 text-muted',
+                          )}
+                        >
+                          {v.lodgify ? 'Lodgify' : 'Saisie / Excel'}
+                        </span>
                       </p>
+                      <p className="text-[12px] text-muted">
+                        {v.city}, {v.country} · {v.stays ?? 0} séjour(s) · {v.extras ?? 0} extra(s)
+                      </p>
+                      {!!v.duplicates?.length && (
+                        <p className="text-[12px] text-warning font-semibold mt-0.5">
+                          Doublon probable : {v.duplicates.map((d) => `« ${d.name} »`).join(' ou ')}
+                        </p>
+                      )}
                     </td>
                     <td className={td}>
                       <Select
@@ -390,6 +486,13 @@ export function SettingsTab() {
                           <option key={c}>{c}</option>
                         ))}
                       </Select>
+                    </td>
+                    <td className={cn(td, 'text-right')}>
+                      {isAdmin && !v.lodgify && (
+                        <Button size="sm" variant={v.duplicates?.length ? 'primary' : 'secondary'} onClick={() => setMergeVilla(v)}>
+                          Rattacher…
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -424,6 +527,7 @@ export function SettingsTab() {
 
       {section === 'import' && isAdmin && <ImportPanel />}
 
+      <MergeVillaModal villa={mergeVilla} villas={data.villas} onClose={() => setMergeVilla(null)} />
       <PersonModal open={person !== null} person={person === 'new' ? null : person} onClose={() => setPerson(null)} isAdmin={isAdmin} />
       <StayModal open={stay !== null} stay={stay === 'new' ? null : stay} onClose={() => setStay(null)} villas={data.villas} />
     </div>

@@ -150,6 +150,12 @@ export interface VillaRef {
   currency: string;
   ownerId: string | null;
   isActive: boolean;
+  /** Synced from Lodgify (read-only source). */
+  lodgify?: boolean;
+  stays?: number;
+  extras?: number;
+  /** Likely Lodgify listings for the same house. */
+  duplicates?: { id: string; name: string; score: number }[];
 }
 
 export interface CatalogueItem {
@@ -304,6 +310,7 @@ export const api = {
   saveStay: (vars: { id?: string; body: Record<string, unknown> }) =>
     vars.id ? apiClient.put(`/extras/stays/${vars.id}`, vars.body) : apiClient.post('/extras/stays', vars.body),
   updateVilla: (vars: { id: string; body: Record<string, unknown> }) => apiClient.patch(`/extras/villas/${vars.id}`, vars.body),
+  mergeVilla: (vars: { id: string; targetId: string }) => apiClient.post(`/extras/villas/${vars.id}/merge`, { targetId: vars.targetId }),
   saveCatalogueItem: (vars: { id?: string; body: Record<string, unknown> }) =>
     vars.id ? apiClient.patch(`/extras/catalogue/${vars.id}`, vars.body) : apiClient.post('/extras/catalogue', vars.body),
   setMarkup: (markup: number) => apiClient.put('/extras/settings', { markup }),

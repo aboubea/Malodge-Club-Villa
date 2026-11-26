@@ -11,10 +11,14 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import * as bcrypt from 'bcrypt';
+import { uniqueVillaMatch, villaCandidates } from './villa-match';
+import { canonicalCategoryName } from './catalogue-cleanup';
 import { randomBytes } from 'crypto';
 
 const CURRENCY = 'MAD';
 export const IMPORT_KEY = 'extras.spreadsheetImport';
+/** Spreadsheet villa names merged into another villa: name → villa id. */
+export const VILLA_ALIASES_KEY = 'extras.villaAliases';
 const MARKUP_KEY = 'extras.catalogMarkup';
 
 type Role = 'CLIENT' | 'PROVIDER' | 'OWNER' | 'EMPLOYEE';
@@ -25,7 +29,7 @@ export interface ImportReport {
   file: string | null;
   read: { people: number; villas: number; catalogue: number; extras: number; settlements: number };
   people: Record<Role, { created: number; reused: number }>;
-  villas: { created: string[]; updated: string[] };
+  villas: { created: string[]; updated: string[]; matched: string[] };
   catalogue: { created: number; updated: number; categoriesCreated: string[] };
   stays: { created: number; fromExtras: string[]; datesEstimated: string[]; skipped: string[] };
   adjusted: string[];
@@ -195,6 +199,8 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   const warn = (m: string) => report.warnings.push(m);
   const passwordHash = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
 
+  const aliasRow = await tx.appSetting.findUnique({ where: { key: VILLA_ALIASES_KEY } });
+  const aliases = new Map(Object.entries((aliasRow?.value as Record<string, string>) ?? {}).map(([n, id]) => [key(n), id]));
   const [users, providers, villaRows, categories, services] = await Promise.all([
     tx.user.findMany({ where: { role: { in: ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'] } }, select: { id: true, firstName: true, lastName: true, role: true } }),
     tx.provider.findMany({ select: { id: true, userId: true } }),
@@ -207,7 +213,8 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   const providerByUser = new Map(providers.map((p) => [p.userId, p.id]));
   const villaIds = new Map(villaRows.map((v) => [key(v.name), v.id]));
   const villaSlugs = new Set(villaRows.map((v) => v.slug));
-  const categoryIds = new Map(categories.map((c) => [key(c.name), c.id]));
+  // Spreadsheet categories land in the reference categories (no "Transferts" next to "Transport & Transfert").
+  const categoryIds = new Map(categories.map((c) => [key(canonicalCategoryName(c.name)), c.id]));
   const categorySlugs = new Set(categories.map((c) => c.slug));
   const serviceIds = new Map(services.map((s) => [key(s.name), s.id]));
   const serviceSlugs = new Set(services.map((s) => s.slug));
@@ -292,11 +299,25 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
   for (const [k, name] of villaNames) {
     const ownerName = data.villas.find((v) => key(v.name) === k)?.owner;
     const ownerId = ownerName ? person('OWNER', ownerName) : null;
-    const existing = villaIds.get(k);
+    // Same name, a villa it was merged into before, or one unambiguous look-alike
+    // (e.g. its Lodgify listing) — otherwise a new villa is created.
+    let existing = villaIds.get(k) ?? (aliases.has(k) && villaRows.some((v) => v.id === aliases.get(k)) ? aliases.get(k) : undefined);
+    if (!existing) {
+      const match = uniqueVillaMatch(name, villaRows);
+      if (match) {
+        existing = match.id;
+        report.villas.matched.push(`${name} → ${match.name}`);
+      }
+    }
     if (existing) {
       villaUpdates.set(existing, { currency: CURRENCY, ...(ownerId ? { ownerId } : {}) });
-      report.villas.updated.push(name);
+      villaIds.set(k, existing);
+      if (!report.villas.matched.some((m) => m.startsWith(`${name} → `))) report.villas.updated.push(name);
     } else {
+      const lookalikes = villaCandidates(name, villaRows);
+      if (lookalikes.length) {
+        warn(`Villa « ${name} » créée, mais elle ressemble à ${lookalikes.map((c) => `« ${c.name} »`).join(', ')} : rattachez-la dans Réglages > Villas.`);
+      }
       const id = newId();
       newVillas.push({ id, name, slug: uniqueSlug(name, villaSlugs), address: 'À compléter', city: 'Marrakech', country: 'Maroc', currency: CURRENCY, ownerId, isActive: true });
       villaIds.set(k, id);
@@ -307,12 +328,13 @@ async function runImport(tx: Tx, data: Awaited<ReturnType<typeof parseWorkbook>>
 
   // Catalogue
   for (const c of data.catalogue) {
-    let categoryId = categoryIds.get(key(c.category));
+    const categoryName = canonicalCategoryName(c.category);
+    let categoryId = categoryIds.get(key(categoryName));
     if (!categoryId) {
       categoryId = newId();
-      newCategories.push({ id: categoryId, name: c.category, slug: uniqueSlug(c.category, categorySlugs) });
-      categoryIds.set(key(c.category), categoryId);
-      report.catalogue.categoriesCreated.push(c.category);
+      newCategories.push({ id: categoryId, name: categoryName, slug: uniqueSlug(categoryName, categorySlugs) });
+      categoryIds.set(key(categoryName), categoryId);
+      report.catalogue.categoriesCreated.push(categoryName);
     }
     const providerUser = c.provider ? person('PROVIDER', c.provider) : null;
     const fields = {
@@ -527,7 +549,7 @@ export async function importExtrasWorkbook(
     file: opts.fileName ?? null,
     read: { people: data.people.length, villas: data.villas.length, catalogue: data.catalogue.length, extras: data.extras.length, settlements: data.settlements.length },
     people: { CLIENT: emptyPeople(), PROVIDER: emptyPeople(), OWNER: emptyPeople(), EMPLOYEE: emptyPeople() },
-    villas: { created: [], updated: [] },
+    villas: { created: [], updated: [], matched: [] },
     catalogue: { created: 0, updated: 0, categoriesCreated: [] },
     stays: { created: 0, fromExtras: [], datesEstimated: [], skipped: [] },
     adjusted: [],

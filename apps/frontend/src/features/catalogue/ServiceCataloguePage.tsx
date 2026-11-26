@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { apiClient } from '../../lib/apiClient';
-import { formatCurrency } from '../../lib/utils';
+import { formatMoney } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 
 interface ServiceCategory {
@@ -25,6 +25,7 @@ interface Service {
   name: string;
   description?: string;
   basePrice: number;
+  currency?: string;
   duration?: number;
   images: string[];
   requiresDate: boolean;
@@ -151,6 +152,7 @@ export function ServiceCataloguePage() {
   }
 
   const totalAmount = cart.reduce((sum, i) => sum + i.service.basePrice * i.quantity, 0);
+  const cartCurrency = cart[0]?.service.currency ?? 'EUR';
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
   const requiresSchedule = cart.some((i) => i.service.requiresDate || i.service.requiresTime);
 
@@ -168,7 +170,7 @@ export function ServiceCataloguePage() {
       >
         {isClient && cartCount > 0 && (
           <Button variant="primary" icon={<ShoppingCart size={14} />} onClick={() => setCartOpen(true)}>
-            Panier ({cartCount}) · {formatCurrency(totalAmount)}
+            Panier ({cartCount}) · {formatMoney(totalAmount, cartCurrency)}
           </Button>
         )}
       </PageHeader>
@@ -312,7 +314,7 @@ export function ServiceCataloguePage() {
             <div key={item.service.id} className="flex items-center gap-4 py-3 border-b border-line">
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-ink font-medium">{item.service.name}</p>
-                <p className="text-xs text-muted">{formatCurrency(item.service.basePrice)} / unité</p>
+                <p className="text-xs text-muted">{formatMoney(item.service.basePrice, item.service.currency ?? 'EUR')} / unité</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => updateQty(item.service.id, -1)} className="w-7 h-7 rounded-lg border border-line flex items-center justify-center text-muted hover:text-ink transition-colors">
@@ -324,7 +326,7 @@ export function ServiceCataloguePage() {
                 </button>
               </div>
               <p className="text-sm text-accent w-20 text-right font-normal">
-                {formatCurrency(item.service.basePrice * item.quantity)}
+                {formatMoney(item.service.basePrice * item.quantity, item.service.currency ?? 'EUR')}
               </p>
               <button onClick={() => removeFromCart(item.service.id)} className="text-muted hover:text-danger transition-colors">
                 <X size={14} />
@@ -354,7 +356,7 @@ export function ServiceCataloguePage() {
           <div className="flex items-center justify-between pt-2 border-t border-line">
             <div>
               <p className="text-xs text-muted">Total</p>
-              <p className="text-lg font-normal text-accent">{formatCurrency(totalAmount)}</p>
+              <p className="text-lg font-normal text-accent">{formatMoney(totalAmount, cartCurrency)}</p>
             </div>
             <Button
               variant="primary"
@@ -419,9 +421,9 @@ function ServiceCard({ service, index, onAdd, canOrder }: { service: Service & {
           )}
           <div className="flex items-center justify-between mt-2">
             <div>
-              <p className="text-base font-normal text-accent">{formatCurrency(displayPrice)}</p>
+              <p className="text-base font-normal text-accent">{formatMoney(displayPrice, service.currency ?? 'EUR')}</p>
               {service.effectivePrice && service.effectivePrice !== service.basePrice && (
-                <p className="text-[10px] text-muted line-through">{formatCurrency(service.basePrice)}</p>
+                <p className="text-[10px] text-muted line-through">{formatMoney(service.basePrice, service.currency ?? 'EUR')}</p>
               )}
             </div>
             {canOrder && (
