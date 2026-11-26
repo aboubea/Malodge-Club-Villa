@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppRouter } from './router/AppRouter';
 import { useThemeSync } from './hooks/useTheme';
+import { IntroSplash } from './components/brand/IntroSplash';
 
 export default function App() {
   useThemeSync();
@@ -9,6 +10,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppRouter />
+      <IntroSplash />
       <Toaster
         position="top-right"
         toastOptions={{
