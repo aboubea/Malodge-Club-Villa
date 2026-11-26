@@ -4,12 +4,33 @@ import { Response } from 'express';
 import { FinanceService } from './finance.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@malodge/shared';
+import { BadRequestException } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PerformanceService } from './performance.service';
 
 @ApiTags('Finance')
 @ApiBearerAuth()
 @Controller('finance')
 export class FinanceController {
-  constructor(private financeService: FinanceService) {}
+  constructor(
+    private financeService: FinanceService,
+    private performance: PerformanceService,
+  ) {}
+
+  @Get('performance')
+  @Roles(Role.MANAGER)
+  @ApiOperation({ summary: 'Per-house occupancy, price per night, RevPAR, extras and margins, with N-1 (MAD)' })
+  getPerformance(
+    @CurrentUser() user: { role: string; countries?: string[] },
+    @Query('period') period: 'month' | 'quarter' | 'year' = 'month',
+    @Query('date') date?: string,
+  ) {
+    if (!['month', 'quarter', 'year'].includes(period)) throw new BadRequestException('period : month, quarter ou year');
+    const ref = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00.000Z`) : new Date();
+    // Managers and admins limited to some countries only see their villas.
+    const countries = user.role !== Role.SUPER_ADMIN && user.countries?.length ? user.countries : null;
+    return this.performance.report(period, ref, countries);
+  }
 
   @Get('dashboard')
   @Roles(Role.MANAGER)

@@ -22,6 +22,7 @@ import {
   LogOut,
   Wallet,
   ShieldCheck,
+  Gauge,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -59,6 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
       { path: '/', label: 'Tableau de bord', icon: LayoutDashboard, exact: true, roles: STAFF },
       { path: '/agenda', label: 'Agenda', icon: CalendarRange, roles: STAFF },
       { path: '/finances', label: 'Finances', icon: TrendingUp, roles: STAFF },
+      { path: '/performance', label: 'Performance', icon: Gauge, roles: STAFF },
       { path: '/extras', label: 'Suivi des extras', icon: Wallet, roles: STAFF },
     ],
   },

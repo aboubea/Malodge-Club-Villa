@@ -108,6 +108,7 @@ model User {
   settlements                Settlement[]              @relation("SettlementPerson")
   createdSettlements         Settlement[]              @relation("SettlementCreator")
   validatedSettlements       Settlement[]              @relation("SettlementValidator")
+  ownerStatements            OwnerStatement[]          @relation("OwnerStatements")
 }
 
 model Villa {
@@ -135,6 +136,8 @@ model Villa {
   ownerId      String?
   /// Set on a Lodgify listing that is another formula (more or fewer rooms, own price) of the same house
   parentVillaId String?
+  /// Management fee on accommodation revenue (0.2 = 20 %), shown on the owner's monthly statement
+  managementFeeRate Float @default(0.2)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -164,6 +167,8 @@ model Provider {
   siret       String?
   iban        String?
   isActive    Boolean  @default(true)
+  /// Version of the personal link (provider space without password); +1 revokes the links sent
+  accessVersion Int    @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -508,4 +513,27 @@ model CalendarEvent {
   reservation Reservation? @relation(fields: [reservationId], references: [id])
   order       Order?       @relation(fields: [orderId], references: [id])
   creator     User?        @relation("CalendarEventCreator", fields: [createdBy], references: [id])
+}
+
+/// Monthly statement of an owner: prepared (DRAFT), checked by the team, then sent (SENT).
+/// `data` is the snapshot shown and printed (stays, fee, extras share, rate used).
+model OwnerStatement {
+  id        String    @id @default(cuid())
+  ownerId   String
+  /// Month covered, "YYYY-MM"
+  month     String
+  status    String    @default("DRAFT")
+  currency  String    @default("MAD")
+  totalDue  Float
+  data      Json
+  sentAt    DateTime?
+  sentTo    String?
+  sentById  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  owner User @relation("OwnerStatements", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, month])
+  @@index([month])
 }
