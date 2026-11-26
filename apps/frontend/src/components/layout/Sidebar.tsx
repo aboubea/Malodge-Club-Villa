@@ -273,6 +273,14 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
           <LogOut size={17} strokeWidth={1.8} className="text-muted" />
           {!collapsed && 'Se déconnecter'}
         </button>
+        {!collapsed && (
+          <p
+            className="px-3 pt-2 text-[10.5px] text-muted/70 tabular"
+            title={`Version déployée le ${new Date(__APP_BUILT_AT__).toLocaleString('fr-FR')}`}
+          >
+            Version {__APP_VERSION__}
+          </p>
+        )}
 
         {!collapsed && role && APP_USERS.includes(role as RoleKey) && (
           <div className="hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center">

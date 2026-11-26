@@ -303,6 +303,8 @@ export default async function handler(req: any, res: any) {
       bootstrapError,
       cwd: process.cwd(),
       distExists,
+      version: (process.env.VERCEL_GIT_COMMIT_SHA ?? 'local').slice(0, 7),
+      environment: process.env.VERCEL_ENV ?? null,
       ...(url.includes('timing') || req.url?.includes('timing') ? { timing: await dbTiming() } : {}),
     });
     return;
