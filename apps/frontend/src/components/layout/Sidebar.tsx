@@ -69,7 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Mon séjour',
     items: [
-      { path: '/mes-sejours', label: 'Mes séjours', icon: Building2, roles: CLIENT },
+      { path: '/mes-sejours', label: 'Mon séjour', icon: Building2, roles: CLIENT },
       { path: '/catalogue', label: 'Services', icon: Store, roles: CLIENT },
     ],
   },

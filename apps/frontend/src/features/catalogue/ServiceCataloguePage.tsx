@@ -116,7 +116,7 @@ export function ServiceCataloguePage() {
       });
     },
     onSuccess: (res) => {
-      toast.success('Commande passée avec succès !');
+      toast.success('Demande envoyée : l’équipe vous confirme très vite.');
       const order = res.data?.data ?? res.data;
       if (order?.whatsappUrl) setWhatsappUrl(order.whatsappUrl);
       setCart([]);

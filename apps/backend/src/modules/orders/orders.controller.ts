@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
@@ -16,6 +17,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role, OrderStatus } from '@malodge/shared';
+import { ClientRequestsService } from './client-requests.service';
 
 /** Internal extras data (purchase cost, seller) never leaves the staff side. */
 function stripInternal<T>(data: T, role: string): T {
@@ -39,7 +41,10 @@ function stripInternal<T>(data: T, role: string): T {
 @ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(
+    private ordersService: OrdersService,
+    private clientRequests: ClientRequestsService,
+  ) {}
 
   @Get('stats')
   @Roles(Role.MANAGER)
@@ -96,7 +101,18 @@ export class OrdersController {
     @CurrentUser() user: { id: string; role: string },
     @Body() dto: CreateOrderDto,
   ) {
-    const clientId = user.role === Role.CLIENT ? user.id : (dto.clientId ?? user.id);
+    // A client asks; the server prices it (their browser's price is ignored) and the team confirms.
+    if (user.role === Role.CLIENT) {
+      return this.clientRequests.request(user.id, {
+        reservationId: dto.reservationId,
+        scheduledAt: dto.scheduledAt,
+        notes: dto.notes,
+        items: (dto.items ?? []).map((i) => ({ serviceId: i.serviceId, quantity: Math.round(i.quantity), notes: i.notes })),
+      });
+    }
+    // Anybody else (providers…) does not create orders.
+    if (![Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER].includes(user.role as Role)) throw new ForbiddenException();
+    const clientId = dto.clientId ?? user.id;
     return stripInternal(await this.ordersService.create({ ...dto, clientId }), user.role);
   }
 

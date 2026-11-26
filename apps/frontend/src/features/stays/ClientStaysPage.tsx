@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Building2, CalendarDays, Users, MapPin, Clock, ShoppingBag } from 'lucide-react';
+import { Building2, CalendarDays, Users, MapPin, Clock, Sparkles } from 'lucide-react';
+import { RequestExtraModal, StayRef } from './RequestExtraModal';
+import { activityKind } from '../calendar/agendaIcons';
+import { cn } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -33,8 +36,66 @@ function nightsBetween(checkIn: string | null, checkOut: string | null) {
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+interface ExtraRequest {
+  id: string;
+  status: string;
+  scheduledAt: string | null;
+  reservationId: string | null;
+  total: number;
+  currency: string;
+  items: { name: string; category: string | null; quantity: number }[];
+}
+
+const REQUEST_STATUS: Record<string, { label: string; tone: string }> = {
+  PENDING: { label: 'À confirmer', tone: 'bg-peach text-ink' },
+  CONFIRMED: { label: 'Confirmée', tone: 'bg-success/10 text-success' },
+  IN_PROGRESS: { label: 'En cours', tone: 'bg-info/10 text-info' },
+  COMPLETED: { label: 'Réalisée', tone: 'bg-surface-2 text-ink-soft' },
+  CANCELLED: { label: 'Annulée', tone: 'bg-danger/10 text-danger' },
+};
+
+/** Extras asked for during one stay, with their status. */
+function StayRequests({ requests }: { requests: ExtraRequest[] }) {
+  if (!requests.length) return null;
+  return (
+    <div className="mt-3 rounded-xl border border-line bg-surface divide-y divide-line">
+      {requests.map((r) => {
+        const first = r.items[0];
+        const k = activityKind(first?.name, first?.category);
+        const st = REQUEST_STATUS[r.status] ?? REQUEST_STATUS.PENDING;
+        return (
+          <div key={r.id} className="flex items-center gap-3 px-3 py-2.5">
+            <span className={cn('w-8 h-8 rounded-lg border flex items-center justify-center shrink-0', k.tone)}>
+              <k.icon size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-ink truncate">
+                {r.items.map((i) => (i.quantity > 1 ? `${i.name} × ${i.quantity}` : i.name)).join(', ')}
+              </p>
+              <p className="text-[12px] text-muted">
+                {r.scheduledAt ? new Date(r.scheduledAt).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Date à convenir'} ·{' '}
+                {formatCurrency(r.total, r.currency)}
+              </p>
+            </div>
+            <span className={cn('h-6 px-2.5 rounded-full text-[11.5px] font-semibold inline-flex items-center shrink-0', st.tone)}>{st.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ClientStaysPage() {
-  const navigate = useNavigate();
+  const [requestFor, setRequestFor] = useState<StayRef | null>(null);
+  const { data: requests = [] } = useQuery({
+    queryKey: ['my-stay', 'requests'],
+    queryFn: async () => {
+      const r = await apiClient.get('/my-stay/requests');
+      return (r.data?.data ?? r.data) as ExtraRequest[];
+    },
+    refetchInterval: 60_000,
+  });
+  const requestsOf = (stayId: string) => requests.filter((r) => r.reservationId === stayId);
 
   const { data, isLoading } = useQuery({
     queryKey: ['client-stays'],
@@ -46,22 +107,21 @@ export function ClientStaysPage() {
 
   const reservations: any[] = data?.data ?? data ?? [];
 
+  // Stay dates are calendar days: compared as days (a stay ending today is still under way).
   const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const day = (d: string | null) => (d ? d.slice(0, 10) : null);
+  const isActive = (r: any) => r.status !== 'CANCELLED' && !!day(r.checkIn) && !!day(r.checkOut) && day(r.checkIn)! <= today && day(r.checkOut)! >= today;
+  const active = reservations.find((r) => r.status === 'ACTIVE' || isActive(r));
   // A stay whose dates are not known yet counts as upcoming, never as past.
-  const time = (d: string | null) => (d ? new Date(d).getTime() : Infinity);
-  const active = reservations.find(
-    (r) => r.status === 'ACTIVE' || (r.status === 'CONFIRMED' && r.checkIn && r.checkOut && new Date(r.checkIn) <= now && new Date(r.checkOut) >= now),
-  );
   const upcoming = reservations
-    .filter((r) => r !== active && (r.status === 'CONFIRMED' || r.status === 'PENDING') && time(r.checkIn) > now.getTime())
-    .sort((a, b) => time(a.checkIn) - time(b.checkIn));
-  const past = reservations.filter(
-    (r) => r.status === 'COMPLETED' || r.status === 'CANCELLED' || (r.checkOut && new Date(r.checkOut) < now),
-  );
+    .filter((r) => r !== active && (r.status === 'CONFIRMED' || r.status === 'PENDING') && (!day(r.checkIn) || day(r.checkIn)! > today))
+    .sort((a, b) => (day(a.checkIn) ?? '9999').localeCompare(day(b.checkIn) ?? '9999'));
+  const past = reservations.filter((r) => r !== active && !upcoming.includes(r));
 
   return (
     <div className="space-y-6 max-w-[900px]">
-      <PageHeader title="Mes séjours" description="Historique et séjours à venir" />
+      <PageHeader title="Mon séjour" description="Vos séjours, et les extras à demander à l’équipe Malodge (transferts, chef, massages, excursions…)" />
 
       {isLoading ? (
         <div className="space-y-4">
@@ -84,7 +144,8 @@ export function ClientStaysPage() {
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Séjour en cours
               </h2>
-              <StayCard reservation={active} isCurrent onOrderServices={() => navigate('/catalogue')} />
+              <StayCard reservation={active} isCurrent onRequest={() => setRequestFor(active)} />
+              <StayRequests requests={requestsOf(active.id)} />
             </div>
           )}
 
@@ -98,7 +159,8 @@ export function ClientStaysPage() {
               <div className="space-y-3">
                 {upcoming.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <StayCard reservation={r} onOrderServices={() => navigate('/catalogue')} />
+                    <StayCard reservation={r} onRequest={() => setRequestFor(r)} />
+                    <StayRequests requests={requestsOf(r.id)} />
                   </motion.div>
                 ))}
               </div>
@@ -113,6 +175,7 @@ export function ClientStaysPage() {
                 {past.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                     <StayCard reservation={r} />
+                    <StayRequests requests={requestsOf(r.id)} />
                   </motion.div>
                 ))}
               </div>
@@ -120,17 +183,17 @@ export function ClientStaysPage() {
           )}
         </>
       )}
+      <RequestExtraModal stay={requestFor} onClose={() => setRequestFor(null)} />
     </div>
   );
 }
 
-function StayCard({ reservation: r, isCurrent, onOrderServices }: {
+function StayCard({ reservation: r, isCurrent, onRequest }: {
   reservation: any;
   isCurrent?: boolean;
-  onOrderServices?: () => void;
+  onRequest?: () => void;
 }) {
   const nights = nightsBetween(r.checkIn, r.checkOut);
-  const ordersCount = r.orders?.length ?? 0;
 
   return (
     <Card className={isCurrent ? 'border-accent/30 bg-accent/5' : undefined}>
@@ -167,22 +230,17 @@ function StayCard({ reservation: r, isCurrent, onOrderServices }: {
                   <Users size={10} /> {r.guests} voyageur{r.guests > 1 ? 's' : ''}
                 </span>
               </div>
-              {ordersCount > 0 && (
-                <p className="text-[11px] text-muted mt-1 flex items-center gap-1">
-                  <ShoppingBag size={10} /> {ordersCount} service{ordersCount > 1 ? 's' : ''} commandé{ordersCount > 1 ? 's' : ''}
-                </p>
-              )}
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {r.totalAmount && (
+            {r.totalAmount > 0 && (
               <p className="text-sm font-normal text-accent">{formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}</p>
             )}
-            {onOrderServices && isCurrent && (
-              <Button variant="primary" size="sm" onClick={onOrderServices}>
-                Commander des services
+            {onRequest && (
+              <Button variant={isCurrent ? 'primary' : 'secondary'} size="sm" icon={<Sparkles size={13} />} onClick={onRequest}>
+                Demander un extra
               </Button>
             )}
           </div>
