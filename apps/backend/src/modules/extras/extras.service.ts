@@ -15,6 +15,7 @@ import {
   proposedPrice,
   totalsByCurrency,
 } from './extras.calc';
+import { ImportAlreadyDoneError, importExtrasWorkbook } from './extras-import';
 import {
   CreatePersonDto,
   CreateSettlementDto,
@@ -818,6 +819,26 @@ export class ExtrasService {
       catalogue: cat.items.filter((i) => i.isActive),
       settlementKinds: Object.entries(SETTLEMENT_KINDS).map(([kind, d]) => ({ kind, ...d })),
     };
+  }
+
+  /* ─────────────────────────── Spreadsheet import ────────────────────── */
+
+  async importWorkbook(buffer: Buffer, opts: { dryRun: boolean; fileName?: string }) {
+    try {
+      return await importExtrasWorkbook(this.prisma as any, buffer, opts);
+    } catch (e) {
+      if (e instanceof ImportAlreadyDoneError) {
+        const prev = (e.previous ?? {}) as { at?: string; file?: string };
+        const when = prev.at ? new Date(prev.at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) : 'précédemment';
+        throw new BadRequestException(`Le fichier de suivi a déjà été importé (${prev.file ?? 'fichier'} — ${when}). Un second import créerait des doublons.`);
+      }
+      throw new BadRequestException(e instanceof Error ? e.message : 'Import impossible');
+    }
+  }
+
+  async importStatus() {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: 'extras.spreadsheetImport' } });
+    return { imported: !!row, details: row?.value ?? null };
   }
 
   /* ───────────────────────────── My account ──────────────────────────── */

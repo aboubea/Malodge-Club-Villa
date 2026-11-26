@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { cn, formatDate } from '../../lib/utils';
 import { Person, Stay, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
 import { Field, IssueTag, Segmented, Select, TableCard, TextInput, td, th } from './ui';
+import { ImportPanel } from './ImportPanel';
 
 const ROLE_NAMES: Record<string, string> = { OWNER: 'Propriétaire', EMPLOYEE: 'Salarié', PROVIDER: 'Prestataire', CLIENT: 'Client' };
 
@@ -185,7 +186,7 @@ export function SettingsTab() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const { data, isLoading } = useExtrasSettings();
-  const [section, setSection] = useState<'people' | 'stays' | 'villas'>('people');
+  const [section, setSection] = useState<'people' | 'stays' | 'villas' | 'import'>('people');
   const [person, setPerson] = useState<Person | null | 'new'>(null);
   const [stay, setStay] = useState<Stay | null | 'new'>(null);
   const [markup, setMarkup] = useState('');
@@ -210,6 +211,7 @@ export function SettingsTab() {
             { value: 'people', label: 'Personnes & taux', count: data.people.filter((p) => p.issue).length },
             { value: 'stays', label: 'Séjours', count: data.stays.filter((s) => s.issue).length },
             { value: 'villas', label: 'Villas' },
+            ...(isAdmin ? [{ value: 'import' as const, label: 'Import Excel' }] : []),
           ]}
         />
         {section === 'people' && (
@@ -401,6 +403,8 @@ export function SettingsTab() {
           </div>
         </div>
       )}
+
+      {section === 'import' && isAdmin && <ImportPanel />}
 
       <PersonModal open={person !== null} person={person === 'new' ? null : person} onClose={() => setPerson(null)} isAdmin={isAdmin} />
       <StayModal open={stay !== null} stay={stay === 'new' ? null : stay} onClose={() => setStay(null)} villas={data.villas} />

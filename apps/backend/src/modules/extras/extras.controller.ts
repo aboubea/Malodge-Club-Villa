@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@malodge/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -166,6 +167,26 @@ export class ExtrasController {
   @Roles(Role.MANAGER)
   updateStay(@Param('id') id: string, @Body() dto: UpsertStayDto) {
     return this.extras.updateStay(id, dto);
+  }
+
+  /* Spreadsheet import (admins) */
+  @Get('import')
+  @Roles(Role.ADMIN)
+  importStatus() {
+    return this.extras.importStatus();
+  }
+
+  @Post('import')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Import the extras spreadsheet (.xlsx). dryRun=true previews without writing.' })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 4 * 1024 * 1024, files: 1 } }))
+  importWorkbook(
+    @UploadedFile() file: { buffer: Buffer; originalname: string; size: number } | undefined,
+    @Query('dryRun') dryRun?: string,
+  ) {
+    if (!file?.buffer?.length) throw new BadRequestException('Aucun fichier reçu.');
+    if (!/\.xlsx$/i.test(file.originalname)) throw new BadRequestException('Format attendu : classeur Excel .xlsx');
+    return this.extras.importWorkbook(file.buffer, { dryRun: dryRun !== 'false', fileName: file.originalname });
   }
 
   /* Catalogue */
