@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, ForbiddenException } from '@nestjs/common';
+import { AI_CONCIERGE_ENABLED } from '../../common/features';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -14,6 +15,8 @@ export class AiController {
   @Post('query')
   @ApiOperation({ summary: 'Query the AI concierge' })
   query(@Body() dto: { question: string }, @CurrentUser('sub') userId: string) {
+    // Greyed out in the app for every role: closed here too, whoever calls.
+    if (!AI_CONCIERGE_ENABLED) throw new ForbiddenException('Le concierge IA sera bientôt disponible.');
     return this.aiService.query(dto.question, userId);
   }
 

@@ -33,6 +33,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 import { Logo, LogoMark } from '../brand/Logo';
 import { apiClient } from '../../lib/apiClient';
+import { AI_CONCIERGE_ENABLED } from '../../lib/features';
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT' | 'OWNER' | 'EMPLOYEE';
 
@@ -42,6 +43,8 @@ interface NavDef {
   icon: React.ElementType;
   exact?: boolean;
   roles?: RoleKey[]; // undefined = visible to all authenticated users
+  /** Shown greyed out and not clickable, with this reason as tooltip. */
+  disabled?: string;
 }
 
 interface NavSection {
@@ -98,7 +101,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: APP_USERS },
       { path: '/messages', label: 'Messages', icon: MessageSquare, roles: APP_USERS },
-      { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit, roles: APP_USERS },
+      { path: '/concierge-ia', label: 'Concierge IA', icon: BrainCircuit, roles: APP_USERS, disabled: AI_CONCIERGE_ENABLED ? undefined : 'Bientôt disponible' },
       { path: '/notifications', label: 'Notifications', icon: Bell },
     ],
   },
@@ -123,6 +126,24 @@ function NavItem({ item, collapsed, badge, onNavigate }: NavItemProps) {
   const { path, label, icon: Icon, exact } = item;
   const isActive = exact ? location.pathname === path : location.pathname.startsWith(path);
   const hasBadge = badge != null && badge > 0;
+
+  // Greyed out: visible, not clickable.
+  if (item.disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        title={item.disabled}
+        className={cn(
+          'relative flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] font-medium text-muted/60 cursor-not-allowed select-none',
+          collapsed && 'justify-center px-0 w-10 mx-auto',
+        )}
+      >
+        <Icon size={17} strokeWidth={1.8} className="shrink-0 text-muted/50" />
+        {!collapsed && <span className="truncate flex-1">{label}</span>}
+        {!collapsed && <span className="ml-auto h-5 px-1.5 rounded-full bg-surface-2 text-[10px] font-semibold text-muted inline-flex items-center">Bientôt</span>}
+      </span>
+    );
+  }
 
   return (
     <NavLink
@@ -294,20 +315,27 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
         )}
 
         {!collapsed && role && APP_USERS.includes(role as RoleKey) && (
-          <div className="hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center">
+          <div
+            className={cn(
+              'hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center',
+              !AI_CONCIERGE_ENABLED && 'opacity-60 grayscale',
+            )}
+            aria-disabled={!AI_CONCIERGE_ENABLED || undefined}
+          >
             <span className="mx-auto mb-2.5 w-9 h-9 rounded-full bg-surface flex items-center justify-center shadow-card">
-              <BrainCircuit size={17} className="text-accent" />
+              <BrainCircuit size={17} className={AI_CONCIERGE_ENABLED ? 'text-accent' : 'text-muted'} />
             </span>
             <p className="text-[13.5px] font-bold text-ink">Concierge IA</p>
             <p className="text-[12px] text-muted mt-0.5 leading-snug">Une question sur une villa ou un séjour ?</p>
             <button
+              disabled={!AI_CONCIERGE_ENABLED}
               onClick={() => {
                 onNavigate?.();
                 navigate('/concierge-ia');
               }}
-              className="mt-3 h-9 px-5 rounded-full bg-primary text-on-primary text-[12.5px] font-semibold hover:bg-primary-hover transition-colors"
+              className="mt-3 h-9 px-5 rounded-full bg-primary text-on-primary text-[12.5px] font-semibold hover:bg-primary-hover transition-colors disabled:bg-line-strong disabled:text-muted disabled:cursor-not-allowed"
             >
-              Demander
+              {AI_CONCIERGE_ENABLED ? 'Demander' : 'Bientôt disponible'}
             </button>
           </div>
         )}

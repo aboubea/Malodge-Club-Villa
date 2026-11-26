@@ -21,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { cn, formatCurrency } from '../../lib/utils';
 import { useDashboard } from './useDashboard';
+import { AI_CONCIERGE_ENABLED } from '../../lib/features';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'active' | 'confirmed' | 'pending' | 'completed' | 'cancelled' }> = {
   ACTIVE: { label: 'En cours', variant: 'active' },
@@ -344,7 +345,8 @@ export function DashboardPage() {
             </ul>
           </Card>
 
-          <Link to="/concierge-ia" className="block group">
+          {AI_CONCIERGE_ENABLED ? (
+            <Link to="/concierge-ia" className="block group">
             <Card className="relative overflow-hidden p-6 hover:border-line-strong transition-colors">
               <div className="relative flex items-start gap-4">
                 <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -362,7 +364,21 @@ export function DashboardPage() {
                 />
               </div>
             </Card>
-          </Link>
+            </Link>
+          ) : (
+            // Greyed out for everybody until the AI concierge is switched on.
+            <Card className="relative overflow-hidden p-6 opacity-60 grayscale cursor-not-allowed" aria-disabled="true" title="Bientôt disponible">
+              <div className="relative flex items-start gap-4">
+                <span className="w-10 h-10 rounded-full bg-surface-2 flex items-center justify-center shrink-0">
+                  <BrainCircuit size={18} className="text-muted" />
+                </span>
+                <div className="flex-1">
+                  <p className="font-display font-semibold text-[17px] leading-tight text-ink">Concierge IA</p>
+                  <p className="text-[13px] text-muted mt-1">Bientôt disponible.</p>
+                </div>
+              </div>
+            </Card>
+          )}
         </motion.div>
       </div>
     </div>

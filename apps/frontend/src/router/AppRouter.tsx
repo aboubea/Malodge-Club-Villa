@@ -4,6 +4,7 @@ import { AuthGuard } from '../features/auth/AuthGuard';
 import { AppShell } from '../components/layout/AppShell';
 import { LoginPage } from '../features/auth/LoginPage';
 import { useAuthStore } from '../store/authStore';
+import { AI_CONCIERGE_ENABLED } from '../lib/features';
 
 // Each page is loaded when first opened: the first screen downloads far less code.
 const ForgotPasswordPage = lazy(() => import('../features/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
@@ -108,7 +109,8 @@ export function AppRouter() {
                 <Route path="/releves" element={<RoleGuard roles={ADMIN_UP}><OwnerStatementsPage /></RoleGuard>} />
                 <Route path="/documents" element={<RoleGuard roles={STAFF}><DocumentsPage /></RoleGuard>} />
                 <Route path="/messages" element={<RoleGuard roles={ALL_ROLES}><ChatPage /></RoleGuard>} />
-                <Route path="/concierge-ia" element={<RoleGuard roles={ALL_ROLES}><AiConciergePage /></RoleGuard>} />
+                {/* Greyed out in the menu: the address leads back home until it is switched on. */}
+                <Route path="/concierge-ia" element={AI_CONCIERGE_ENABLED ? <RoleGuard roles={ALL_ROLES}><AiConciergePage /></RoleGuard> : <Navigate to="/" replace />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/utilisateurs" element={<RoleGuard roles={ADMIN_UP}><UsersPage /></RoleGuard>} />
                 <Route path="/controle" element={<RoleGuard roles={ADMIN_UP}><CoherencePage /></RoleGuard>} />

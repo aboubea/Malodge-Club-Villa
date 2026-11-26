@@ -15,12 +15,14 @@ export class DashboardService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    // Stay dates are calendar days stored at 00:00 UTC.
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
     const [
       monthOrders,
       lastMonthOrders,
       villaRows,
-      activeReservations,
+      staysUnderWay,
       pendingOrders,
       recentReservations,
       villaCount,
@@ -38,8 +40,10 @@ export class DashboardService {
         select: { totalAmount: true, villaId: true, reservation: { select: { villaId: true } } },
       }),
       this.prisma.villa.findMany({ select: { id: true, currency: true } }),
-      this.prisma.reservation.count({
-        where: { status: { in: ['CONFIRMED', 'ACTIVE'] } },
+      // Stays under way today (arrival ≤ today ≤ departure), not every confirmed booking.
+      this.prisma.reservation.findMany({
+        where: { status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] }, checkIn: { lte: today }, checkOut: { gte: today } },
+        select: { checkOut: true, villaId: true, villa: { select: { parentVillaId: true } } },
       }),
       this.prisma.order.count({
         where: { status: 'PENDING' },
@@ -87,9 +91,13 @@ export class DashboardService {
     const totalRevenue = main?.amount ?? 0;
     const revenueChange = main?.change ?? 0;
 
-    const occupancyRate = villaCount > 0
-      ? Math.round((activeReservations / villaCount) * 100)
-      : 0;
+    // Occupancy tonight: active houses with a stay tonight (a house and its formulas count once).
+    const activeHouses = await this.prisma.villa.count({ where: { isActive: true, parentVillaId: null } });
+    const occupiedHouses = new Set(
+      staysUnderWay.filter((r) => r.checkOut! > today).map((r) => r.villa.parentVillaId ?? r.villaId),
+    ).size;
+    const occupancyRate = activeHouses > 0 ? Math.min(100, Math.round((occupiedHouses / activeHouses) * 100)) : 0;
+    const activeReservations = staysUnderWay.length;
 
     return {
       kpis: {
