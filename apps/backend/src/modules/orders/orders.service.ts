@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VillaCurrencies, orderCurrency } from '../../common/money';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@malodge/shared';
 import { signLink, verifyLink } from '../../common/security/secrets';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private settings?: SettingsService,
+  ) {}
 
   async findAll(params: {
     page?: number;
@@ -178,12 +182,12 @@ export class OrdersService {
     const villaCur = await this.villaCurrencies([order.villaId, order.reservation?.villaId]);
     const priced = { ...order, currency: orderCurrency(villaCur, order) };
     // Build WhatsApp URL for the preferred provider of the first service
-    const whatsappUrl = this.buildWhatsappUrl(priced);
+    const whatsappUrl = this.buildWhatsappUrl(priced, await this.settings?.companyName());
 
     return { ...priced, whatsappUrl };
   }
 
-  private buildWhatsappUrl(order: any): string | null {
+  private buildWhatsappUrl(order: any, company?: string | null): string | null {
     const firstItem = order.items?.[0];
     if (!firstItem) return null;
 
@@ -214,7 +218,7 @@ export class OrdersService {
       `✅ Accepter : ${appUrl}/confirmer?orderId=${order.id}&action=accept&t=${signLink(`${order.id}:accept`)}`,
       `❌ Refuser : ${appUrl}/confirmer?orderId=${order.id}&action=reject&t=${signLink(`${order.id}:reject`)}`,
       '',
-      `Malodge Club Villa`,
+      company || 'Malodge Club Villa',
     ].join('\n');
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;

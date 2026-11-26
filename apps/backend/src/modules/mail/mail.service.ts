@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { withCompanyName } from '../settings/company';
 
 export interface MailResult {
   sent: boolean;
@@ -27,6 +28,8 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   /** Called when an e-mail does not leave (set by the incident journal). */
   onFailure?: (what: string, error: string) => void;
+  /** The company's name once set in Paramètres (set by the settings): signs every e-mail. */
+  brand?: () => Promise<string | null>;
   private readonly apiKey: string;
   private readonly from: string;
   readonly appUrl: string;
@@ -83,8 +86,13 @@ export class MailService {
       return { sent: false, error: 'RESEND_API_KEY absente dans les variables d’environnement du serveur' };
     }
     if (!to || /\.(invalid|local)$/i.test(to)) return { sent: false, error: 'Pas d’adresse e-mail réelle pour ce destinataire' };
+    const name = (await this.brand?.().catch(() => null)) ?? null;
+    subject = withCompanyName(subject, name);
+    html = withCompanyName(html, name);
+    // The sender's display name too, unless MAIL_FROM gives its own.
+    const from = name ? this.from.replace(/^Malodge Club </, `${name} <`) : this.from;
     try {
-      const { data, error } = await new Resend(this.apiKey).emails.send({ from: this.from, to, subject, html, ...(attachments?.length ? { attachments } : {}) });
+      const { data, error } = await new Resend(this.apiKey).emails.send({ from, to, subject, html, ...(attachments?.length ? { attachments } : {}) });
       if (error) {
         const raw = `${(error as any).name ?? 'erreur'} : ${error.message}`;
         this.logger.error(`${what} refusé par Resend pour ${to} — ${raw}`);

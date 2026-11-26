@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FxService } from '../fx/fx.service';
 import { ExtrasService } from '../extras/extras.service';
@@ -6,6 +6,8 @@ import { MailService } from '../mail/mail.service';
 import { DEFAULT_CURRENCY, reservationCurrency } from '../../common/money';
 import { buildStatement, monthRange, StatementData } from './statement';
 import { statementPdf } from './statement-pdf';
+import { houseLabel, listingLabel } from '../../common/villa-name';
+import { SettingsService } from '../settings/settings.service';
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const fullName = (u?: { firstName?: string | null; lastName?: string | null } | null) => [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || '—';
@@ -23,6 +25,7 @@ export class StatementsService {
     private fx: FxService,
     private extras: ExtrasService,
     private mail: MailService,
+    @Optional() private settings?: SettingsService,
   ) {}
 
   private assertMonth(month: string) {
@@ -53,7 +56,7 @@ export class StatementsService {
         where: { villaId: { in: [...houseOf.keys()] }, status: { in: ['CONFIRMED', 'ACTIVE', 'COMPLETED'] }, checkIn: { lte: range.end }, checkOut: { gte: range.start } },
         select: {
           id: true, villaId: true, label: true, checkIn: true, checkOut: true, totalAmount: true, currency: true,
-          villa: { select: { name: true, currency: true } },
+          villa: { select: { name: true, bedrooms: true, currency: true } },
           client: { select: { firstName: true, lastName: true } },
         },
       }),
@@ -67,11 +70,12 @@ export class StatementsService {
     return buildStatement({
       owner: { id: owner.id, name: fullName(owner), email: realEmail(owner.email) },
       month,
-      houses: owned.map((h) => ({ id: h.id, name: h.name, feeRate: h.managementFeeRate })),
+      houses: owned.map((h) => ({ id: h.id, name: houseLabel(h.name, h.formulas.length > 0), feeRate: h.managementFeeRate })),
       stays: reservations.map((r) => ({
         id: r.id,
         house: houseOf.get(r.villaId)!,
-        villa: r.villa.name,
+        // The formula booked, with its own rooms (never its house's).
+        villa: listingLabel(r.villa, (owned.find((h) => h.id === houseOf.get(r.villaId))?.formulas.length ?? 0) > 0),
         guest: r.label || fullName(r.client),
         checkIn: r.checkIn,
         checkOut: r.checkOut,
@@ -181,7 +185,7 @@ export class StatementsService {
     const staff = ['SUPER_ADMIN', 'ADMIN'].includes(viewer.role);
     if (!staff && !(viewer.role === 'OWNER' && viewer.id === st.ownerId && st.status === 'SENT')) throw new ForbiddenException();
     const data = st.data as unknown as StatementData;
-    return { buffer: await statementPdf(data), filename: `releve-${st.month}-${data.owner.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf` };
+    return { buffer: await statementPdf(data, await this.settings?.companyName()), filename: `releve-${st.month}-${data.owner.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf` };
   }
 
   async send(id: string, actorId: string) {

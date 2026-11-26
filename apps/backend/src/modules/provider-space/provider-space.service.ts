@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -6,6 +6,7 @@ import { ExtrasService } from '../extras/extras.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { appSecret, signLink } from '../../common/security/secrets';
 import { DEFAULT_CURRENCY } from '../../common/money';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * The provider's own space (drivers, masseuses…), on their phone:
@@ -44,6 +45,7 @@ export class ProviderSpaceService {
     private mail: MailService,
     private extras: ExtrasService,
     private notifications: NotificationsService,
+    @Optional() private settings?: SettingsService,
   ) {}
 
   /* ───────────── Staff: the link to send ───────────── */
@@ -56,7 +58,7 @@ export class ProviderSpaceService {
     const text = [
       `Bonjour ${p.user.firstName},`,
       '',
-      'Voici votre espace Malodge Club : vos missions du jour et à venir, à accepter ou refuser, et vos règlements.',
+      `Voici votre espace ${(await this.settings?.companyName()) || 'Malodge Club'} : vos missions du jour et à venir, à accepter ou refuser, et vos règlements.`,
       url,
       '',
       'Astuce : ajoutez-le à l’écran d’accueil de votre téléphone. Ce lien est personnel, ne le partagez pas.',

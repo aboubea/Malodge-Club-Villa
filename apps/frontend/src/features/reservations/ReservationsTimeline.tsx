@@ -13,6 +13,7 @@ import { Modal } from '../../components/ui/Modal';
 import { FindBooking } from './FindBooking';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StayInvitePanel } from './StayInvitePanel';
+import { houseLabel, listingLabel } from '../../lib/villaName';
 
 /* ───────────────────────────── Types & helpers ───────────────────────────── */
 
@@ -328,6 +329,12 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
     if (!v || !house?.formulas?.length) return null;
     return [v.bedrooms ? `${v.bedrooms} ch.` : null, v.maxGuests ? `${v.maxGuests} pers.` : null].filter(Boolean).join(' / ') || v.name;
   };
+  // The listing booked, with its own rooms when the house has formulas (7 chambres, never the house's 5).
+  const placeOf = (s: TimelineStay) => {
+    const v = villaInfo.get(s.villaId ?? s.villa?.id);
+    if (!v) return s.villa?.name;
+    return listingLabel(v, !!v.parentVillaId || !!v.formulas?.length);
+  };
   const byVilla = new Map<string, TimelineStay[]>();
   for (const s of visible) {
     const key = houseOf(s.villaId ?? s.villa?.id);
@@ -571,7 +578,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                       )}
                       <span className="min-w-0">
                         <Link to={`/villas/${v.id}`} className="block text-[13px] font-semibold text-ink truncate hover:underline">
-                          {v.name}
+                          {houseLabel(v.name, !!v.formulas?.length)}
                         </Link>
                         <span className="block text-[11.5px] text-muted truncate">
                           {occ > 0 ? `${occ} nuit${occ > 1 ? 's' : ''} réservée${occ > 1 ? 's' : ''}` : v.city}
@@ -668,7 +675,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
                 className="h-8 px-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface-2/50 text-[12.5px] text-ink hover:border-line-strong"
               >
                 <b>{guestName(s)}</b>
-                <span className="text-muted">{s.villa?.name}</span>
+                <span className="text-muted">{placeOf(s)}</span>
               </button>
             ))}
           </div>
@@ -679,6 +686,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
 
       <StayPanel
         stay={selected}
+        place={selected ? placeOf(selected) : undefined}
         onClose={() => setSelected(null)}
         onEdit={
           onEdit
@@ -695,7 +703,7 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
 
 /* ─────────────────────────────── Detail panel ─────────────────────────────── */
 
-function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClose: () => void; onEdit?: (s: TimelineStay) => void }) {
+function StayPanel({ stay, place, onClose, onEdit }: { stay: TimelineStay | null; place?: string; onClose: () => void; onEdit?: (s: TimelineStay) => void }) {
   const s = stay;
   const n = s ? nights(s) : 0;
   const currency = s?.currency || s?.villa?.currency || 'EUR';
@@ -712,7 +720,7 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
   // The guest's stay space, beside the stay (a centred window, easier to read than a side panel).
   const invite = !!s && !s.live && !s.enquiry && s.status !== 'CANCELLED';
   return (
-    <Modal open={!!s} onClose={onClose} title={s ? guestName(s) : ''} description={s?.villa?.name} size={invite ? '2xl' : 'lg'}>
+    <Modal open={!!s} onClose={onClose} title={s ? guestName(s) : ''} description={place ?? s?.villa?.name} size={invite ? '2xl' : 'lg'}>
       {s && (
         <div className={cn('grid gap-6', invite && 'md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
         <div className="space-y-5">

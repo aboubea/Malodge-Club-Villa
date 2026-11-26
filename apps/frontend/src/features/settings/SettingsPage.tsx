@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Globe, Bell, Shield, Puzzle, Save, MapPin, Trash2, Plus, RefreshCw, Key } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,10 @@ import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import type { Country } from '../../hooks/useCountries';
 import { useUIStore, type ThemePreference } from '../../store/uiStore';
+import { useCompany, type Company } from '../../hooks/useCompany';
+import { Logo } from '../../components/brand/Logo';
+
+type CompanyForm = Pick<Company, 'name' | 'supportEmail' | 'phone' | 'website'>;
 
 const LIGHT = { bg: '#F7F7F9', card: '#FFFFFF', ink: '#1C1D29' };
 const DARK = { bg: '#111218', card: '#22232D', ink: '#F0F0F5' };
@@ -54,8 +58,26 @@ export function SettingsPage() {
 
 
   const [activeTab, setActiveTab] = useState('general');
-  const [companyName, setCompanyName] = useState('Malodge Club Villa');
-  const [supportEmail, setSupportEmail] = useState('support@malodge.com');
+  const isAdmin = isSuperAdmin || user?.role === 'ADMIN';
+
+  // The company's details: saved on the server, they sign the e-mails, exports and statements.
+  const { data: company } = useCompany();
+  const [form, setForm] = useState<CompanyForm | null>(null);
+  useEffect(() => {
+    if (company) setForm({ name: company.name, supportEmail: company.supportEmail, phone: company.phone, website: company.website });
+  }, [company]);
+  const changed = !!form && !!company && (['name', 'supportEmail', 'phone', 'website'] as const).some((k) => form[k].trim() !== company[k]);
+  const saveCompany = useMutation({
+    mutationFn: async (f: CompanyForm) => {
+      const r = await apiClient.put('/settings/company', f);
+      return (r.data?.data ?? r.data) as Company;
+    },
+    onSuccess: (c) => {
+      qc.setQueryData(['company'], c);
+      toast.success('Informations enregistrées');
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Enregistrement impossible'),
+  });
 
   // Countries management
   const { data: countriesData } = useQuery<Country[]>({
@@ -174,22 +196,43 @@ export function SettingsPage() {
             {activeTab === 'general' && (
               <>
                 <Card>
-                  <CardHeader><CardTitle>Informations de l'entreprise</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <Input label="Nom de l'entreprise" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-                    <Input label="Email de support" type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} />
-                    <Input label="Téléphone" placeholder="+33 1 00 00 00 00" />
-                    <Input label="Site web" placeholder="https://malodge.com" />
-                    <Button variant="primary" size="sm" icon={<Save size={13} />}>Sauvegarder</Button>
+                  <CardHeader>
+                    <CardTitle>Informations de l'entreprise</CardTitle>
+                    <p className="text-[12.5px] text-muted mt-0.5">Le nom signe les e-mails, les exports, les relevés des propriétaires et la page de connexion.</p>
+                  </CardHeader>
+                  <CardContent>
+                    {!form ? (
+                      <div className="space-y-3">
+                        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-11 rounded-xl bg-surface-2 animate-pulse" />)}
+                      </div>
+                    ) : (
+                      <form
+                        className="space-y-4"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (isAdmin && changed) saveCompany.mutate(form);
+                        }}
+                      >
+                        <Input label="Nom de l'entreprise" value={form.name} maxLength={80} required disabled={!isAdmin} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                        <Input label="E-mail de support" type="email" value={form.supportEmail} placeholder="contact@malodge.com" disabled={!isAdmin} onChange={(e) => setForm({ ...form, supportEmail: e.target.value })} />
+                        <Input label="Téléphone" type="tel" value={form.phone} placeholder="+212 6 00 00 00 00" disabled={!isAdmin} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                        <Input label="Site web" value={form.website} placeholder="malodge.com" disabled={!isAdmin} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+                        {isAdmin ? (
+                          <Button type="submit" variant="primary" size="sm" icon={<Save size={13} />} loading={saveCompany.isPending} disabled={!changed || form.name.trim().length < 2}>
+                            Enregistrer
+                          </Button>
+                        ) : (
+                          <p className="text-[12.5px] text-muted">Seul un administrateur peut modifier ces informations.</p>
+                        )}
+                      </form>
+                    )}
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader><CardTitle>Logo</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="border-2 border-dashed border-line rounded-xl p-8 text-center cursor-pointer hover:border-accent/30 transition-colors">
-                      <p className="text-sm text-muted">Glissez votre logo ici ou cliquez pour sélectionner</p>
-                      <p className="text-xs text-muted mt-1">PNG, JPG, SVG — max 2MB</p>
-                    </div>
+                  <CardContent className="flex flex-wrap items-center gap-5">
+                    <span className="rounded-2xl border border-line px-5 py-4"><Logo size="md" /></span>
+                    <p className="text-[12.5px] text-muted max-w-sm">Le logo MALODGE CLUB est intégré à l’application (menu, connexion, e-mails). Il ne se change pas depuis cette page.</p>
                   </CardContent>
                 </Card>
               </>

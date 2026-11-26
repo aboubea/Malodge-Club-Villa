@@ -190,8 +190,44 @@ export function DashboardPage() {
         </p>
       </motion.header>
 
+      {/* The month's figures, first */}
+      <section aria-label="Chiffres">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] mb-3">Ce mois-ci</h2>
+        {loadingKpis || !k ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[124px] rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Widget
+              delay={1}
+              icon={TrendingUp}
+              label="Chiffre d’affaires"
+              to="/finances"
+              value={formatCurrency(Math.round(k.totalRevenue), k.revenueCurrency ?? 'MAD')}
+              sub={
+                k.revenueChange !== 0 ? (
+                  <span className={cn('inline-flex items-center gap-0.5 font-semibold', k.revenueChange > 0 ? 'text-success' : 'text-danger')}>
+                    {k.revenueChange > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                    {k.revenueChange > 0 ? '+' : ''}
+                    {k.revenueChange} % <span className="font-normal text-muted">vs {k.previousMonth ?? 'mois dernier'}</span>
+                  </span>
+                ) : (
+                  'Hébergement + extras'
+                )
+              }
+            />
+            <Widget delay={2} icon={Moon} label="Occupation ce soir" value={`${k.occupancyRate} %`} sub={`${k.activeVillas} villas actives`} to="/performance" />
+            <Widget delay={3} icon={KeyRound} label="Séjours en cours" value={k.activeReservations} sub="Arrivés, pas encore partis" to="/reservations" />
+            <Widget delay={4} icon={Sparkles} label="Extras du mois" value={k.ordersThisMonth} sub={`${k.pendingOrders} en attente`} to="/extras/saisie" />
+          </div>
+        )}
+      </section>
+
       {/* What to do first */}
-      <motion.section {...rise(1)} aria-label="À faire">
+      <motion.section {...rise(5)} aria-label="À faire">
         <h2 className="text-[20px] font-bold tracking-[-0.02em] mb-3">À faire</h2>
         {isLoading ? (
           <Skeleton className="h-40 rounded-2xl" />
@@ -209,7 +245,7 @@ export function DashboardPage() {
       </motion.section>
 
       {/* Today's guests, Airbnb style */}
-      <motion.section {...rise(2)} aria-label="Clients">
+      <motion.section {...rise(6)} aria-label="Clients">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 className="text-[20px] font-bold tracking-[-0.02em]">Clients</h2>
           <Link to="/reservations" className="text-[14px] font-semibold text-accent hover:underline">
@@ -254,41 +290,6 @@ export function DashboardPage() {
         </div>
       </motion.section>
 
-      {/* The figures */}
-      <section aria-label="Chiffres">
-        <h2 className="text-[20px] font-bold tracking-[-0.02em] mb-3">Ce mois-ci</h2>
-        {loadingKpis || !k ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[124px] rounded-2xl" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Widget
-              delay={3}
-              icon={TrendingUp}
-              label="Chiffre d’affaires"
-              to="/finances"
-              value={formatCurrency(Math.round(k.totalRevenue), k.revenueCurrency ?? 'MAD')}
-              sub={
-                k.revenueChange !== 0 ? (
-                  <span className={cn('inline-flex items-center gap-0.5 font-semibold', k.revenueChange > 0 ? 'text-success' : 'text-danger')}>
-                    {k.revenueChange > 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                    {k.revenueChange > 0 ? '+' : ''}
-                    {k.revenueChange} % <span className="font-normal text-muted">vs {k.previousMonth ?? 'mois dernier'}</span>
-                  </span>
-                ) : (
-                  'Hébergement + extras'
-                )
-              }
-            />
-            <Widget delay={4} icon={Moon} label="Occupation ce soir" value={`${k.occupancyRate} %`} sub={`${k.activeVillas} villas actives`} to="/performance" />
-            <Widget delay={5} icon={KeyRound} label="Séjours en cours" value={k.activeReservations} sub="Arrivés, pas encore partis" to="/reservations" />
-            <Widget delay={6} icon={Sparkles} label="Extras du mois" value={k.ordersThisMonth} sub={`${k.pendingOrders} en attente`} to="/extras/saisie" />
-          </div>
-        )}
-      </section>
     </div>
   );
 }

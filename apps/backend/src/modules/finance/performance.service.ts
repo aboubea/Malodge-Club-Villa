@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { FxService } from '../fx/fx.service';
 import { DEFAULT_CURRENCY, providerCost, reservationCurrency, serviceDateBetween } from '../../common/money';
 import { houseMetrics, Metrics, OrderIn, PeriodRange, periodsFor, StayIn, sumMetrics } from './performance';
+import { houseLabel } from '../../common/villa-name';
 
 type Kind = 'month' | 'quarter' | 'year';
 const REPORT_CURRENCY = 'MAD';
@@ -108,7 +109,7 @@ export class PerformanceService {
       .filter((v) => !v.parentVillaId)
       .map((v) => {
         const formulas = villas.filter((f) => f.parentVillaId === v.id).length;
-        return { id: v.id, name: v.name, city: v.city, country: v.country, lodgify: !!v.logifyId, formulas, current: metricsFor(v.id, current), previous: metricsFor(v.id, previous), isActive: v.isActive };
+        return { id: v.id, name: houseLabel(v.name, formulas > 0), city: v.city, country: v.country, lodgify: !!v.logifyId, formulas, current: metricsFor(v.id, current), previous: metricsFor(v.id, previous), isActive: v.isActive };
       })
       .filter((h) => h.isActive || h.current.nightsSold || h.current.extrasCount || h.previous.nightsSold || h.previous.extrasCount)
       .sort((a, b) => b.current.accommodationRevenue + b.current.extrasRevenue - (a.current.accommodationRevenue + a.current.extrasRevenue));

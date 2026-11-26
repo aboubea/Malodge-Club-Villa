@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Response } from 'express';
 import { FxService } from '../fx/fx.service';
 import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, providerCost, reservationCurrency, serviceDate, serviceDateBetween, stayNightsBetween, stayRevenueBetween, totalsByCurrency } from '../../common/money';
 import { change, chartBuckets, financeRange, FinancePeriod, financeReport, House, OrderIn, previousRange, rangeLabel, StayIn } from './report';
+import { houseLabel } from '../../common/villa-name';
+import { SettingsService } from '../settings/settings.service';
 
 type Period = FinancePeriod;
 
@@ -19,7 +21,13 @@ export class FinanceService {
   constructor(
     private prisma: PrismaService,
     private fx: FxService,
+    @Optional() private settings?: SettingsService,
   ) {}
+
+  /** The name the exports are signed with (Paramètres › Général). */
+  private async companyName() {
+    return (await this.settings?.getCompany())?.name ?? 'Malodge Club Villa';
+  }
 
   private async villaCurrencies(): Promise<VillaCurrencies> {
     const villas = await this.prisma.villa.findMany({ select: { id: true, currency: true } });
@@ -42,12 +50,13 @@ export class FinanceService {
       select: { id: true, name: true, currency: true, parentVillaId: true },
     });
     const villaById = new Map(villas.map((v) => [v.id, v]));
-    // A house and its Lodgify formulas count as one house.
+    const withFormulas = new Set(villas.map((v) => v.parentVillaId).filter(Boolean));
+    // A house and its Lodgify formulas count as one house (named without a formula's rooms).
     const houseOf = (villaId: string | null | undefined): House | null => {
       const v = villaId ? villaById.get(villaId) : undefined;
       if (!v) return null;
       const h = v.parentVillaId ? villaById.get(v.parentVillaId) ?? v : v;
-      return { id: h.id, name: h.name };
+      return { id: h.id, name: houseLabel(h.name, withFormulas.has(h.id)) };
     };
     const villaCurrency = (villaId: string | null | undefined) => (villaId && villaById.get(villaId)?.currency) || DEFAULT_CURRENCY;
 
@@ -270,6 +279,7 @@ export class FinanceService {
             currency: true,
             managementFeeRate: true,
             owner: { select: { firstName: true, lastName: true } },
+            formulas: { select: { id: true }, take: 1 },
             // A formula is paid out with its house: the house's name, owner and rate.
             parentVilla: { select: { id: true, name: true, managementFeeRate: true, owner: { select: { firstName: true, lastName: true } } } },
           },
@@ -300,7 +310,7 @@ export class FinanceService {
       const existing = payoutMap.get(key) || {
         villaId,
         currency,
-        name: house.name,
+        name: houseLabel(house.name, !!res.villa.parentVilla || res.villa.formulas.length > 0),
         ownerName: owner ? `${owner.firstName} ${owner.lastName}`.trim() : 'Non assigné',
         grossAmount: 0,
         managementFee: 0,
@@ -385,7 +395,7 @@ export class FinanceService {
     const ExcelJS = await import('exceljs');
     const x = this.exportSections(data);
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Malodge Club Villa';
+    wb.creator = await this.companyName();
     wb.created = new Date();
     const money = '#,##0.00';
     const sheet = (name: string, header: string[], rows: unknown[][], moneyCols: number[], widths: number[]) => {
@@ -411,6 +421,7 @@ export class FinanceService {
     const pdfkit: any = await import('pdfkit');
     const PDFDocument = pdfkit.default ?? pdfkit; // CommonJS module: no default export once compiled
     const x = this.exportSections(data);
+    const company = await this.companyName();
     const fmt = (n: number | null) => (n == null ? '—' : `${n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).replace(/ /g, ' ')} ${data.currency}`);
 
     return new Promise((resolve, reject) => {
@@ -447,7 +458,7 @@ export class FinanceService {
         rows.forEach((r) => line(r));
       };
 
-      doc.font('Helvetica-Bold').fontSize(20).fillColor('#1C1D29').text('Malodge Club Villa', left);
+      doc.font('Helvetica-Bold').fontSize(20).fillColor('#1C1D29').text(company, left);
       doc.font('Helvetica').fontSize(13).fillColor('#333').text(x.title, left);
       doc.fontSize(9).fillColor('#777').text(`${x.note} · édité le ${new Date().toLocaleDateString('fr-FR')}`, left);
 

@@ -31,12 +31,12 @@ beforeAll(async () => {
   await prisma.appSetting.create({ data: { key: 'fx.latest', value: { base: 'EUR', rates: { EUR: 1, MAD: 11 }, date: '2026-11-26', source: 'test', fetchedAt: new Date().toISOString() } } });
   const house = await prisma.villa.create({
     data: {
-      name: 'Villa 58', slug: 'v58', address: 'Route de Fès', city: 'Marrakech', country: 'Maroc', currency: 'MAD',
+      name: 'Villa 58 - 5 chambres', bedrooms: 5, slug: 'v58', address: 'Route de Fès', city: 'Marrakech', country: 'Maroc', currency: 'MAD',
       welcomeGuide: { checkInTime: '16:00', contactName: 'Youssef', contactPhone: '+212 600 000 000', access: 'Boîte à clés 2580', wifiName: 'Villa58', wifiPassword: 'soleil', autoMessages: true },
     },
   });
   houseId = house.id;
-  const formula = await prisma.villa.create({ data: { name: 'Villa 58 - 3 chambres', slug: 'v58-3', address: '-', city: 'Marrakech', country: 'Maroc', currency: 'MAD', parentVillaId: house.id } });
+  const formula = await prisma.villa.create({ data: { name: 'Villa 58 - Ecolodge', bedrooms: 7, slug: 'v58-7', address: '-', city: 'Marrakech', country: 'Maroc', currency: 'MAD', parentVillaId: house.id } });
   const cat = await prisma.serviceCategory.create({ data: { name: 'Transferts', slug: 'transferts' } });
   transferId = (await prisma.service.create({ data: { name: 'Transfert aéroport', slug: 'transfert', categoryId: cat.id, basePrice: 300, unitCost: 200, currency: 'MAD' } })).id;
   await prisma.service.create({ data: { name: 'Golf', slug: 'golf', categoryId: cat.id, basePrice: 900, currency: 'MAD' } });
@@ -59,13 +59,15 @@ describe('invitation from the booking', () => {
     const a = await stays.access(stayId);
     expect(a.url).toMatch(/^https:\/\/app\.test\/sejour\//);
     expect(a.contact).toMatchObject({ emailKind: 'none', email: null });
-    expect(a).toMatchObject({ villa: { name: 'Villa 58' }, guideReady: true, autoMessages: true, servicesCount: 1, nextStep: 'welcome' });
+    // Booked on the 7-room formula: never the house's 5 rooms; the booklet stays the house's.
+    expect(a).toMatchObject({ villa: { id: houseId, name: 'Villa 58 - Ecolodge - 7 chambres' }, guideReady: true, autoMessages: true, servicesCount: 1, nextStep: 'welcome' });
+    expect((await stays.access(relayStayId)).villa.name).toBe('Villa 58 - 5 chambres');
   });
 
   it('records the e-mail typed by the team and sends the welcome', async () => {
     const r = await stays.invite(stayId, { email: 'Ana@Example.com', sendEmail: true });
     expect(r.email).toEqual({ sent: true });
-    expect(mail.sendGuestMessage).toHaveBeenCalledWith('ana@example.com', 'Bienvenue à Villa 58', expect.any(String), expect.any(Array), expect.objectContaining({ url: r.url }));
+    expect(mail.sendGuestMessage).toHaveBeenCalledWith('ana@example.com', 'Bienvenue à Villa 58 - Ecolodge - 7 chambres', expect.any(String), expect.any(Array), expect.objectContaining({ url: r.url }));
     expect(r.journey.welcome).toMatchObject({ channel: 'email' });
     expect(r.invitedAt).toBeTruthy();
   });
@@ -75,7 +77,7 @@ describe('guest stay space', () => {
   it('opens with the link: the house’s booklet (codes hidden until 2 days before) and services', async () => {
     const s = await prisma.reservation.findUniqueOrThrow({ where: { id: stayId } });
     const v = await stays.guestView(stayToken(stayId, s.accessVersion));
-    expect(v.villa.name).toBe('Villa 58');
+    expect(v.villa.name).toBe('Villa 58 - Ecolodge - 7 chambres');
     expect(v.booklet.guide).toMatchObject({ checkInTime: '16:00', wifiName: 'Villa58', contactPhone: '+212 600 000 000' });
     expect(v.booklet.guide).not.toHaveProperty('access');
     expect(v.booklet.hidden).toEqual(['access', 'wifiPassword']);
@@ -105,7 +107,7 @@ describe('morning job', () => {
     expect(lodgify.syncReservations).toHaveBeenCalled();
     expect(first.sent).toBe(1);
     expect(mail.sendGuestMessage).toHaveBeenCalledTimes(1);
-    expect(mail.sendGuestMessage.mock.calls[0][1]).toBe('Villa 58 : plus qu’une semaine');
+    expect(mail.sendGuestMessage.mock.calls[0][1]).toBe('Villa 58 - Ecolodge - 7 chambres : plus qu’une semaine');
     // Bob's address is an Airbnb relay: nothing sent to him.
     expect(mail.sendGuestMessage.mock.calls.some((c: any[]) => String(c[0]).includes('airbnb'))).toBe(false);
     const again = await stays.daily();

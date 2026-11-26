@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
 import { Logo } from '../../components/brand/Logo';
+import { useCompanyName } from '../../hooks/useCompany';
 
 export function ProviderConfirmPage() {
+  const company = useCompanyName();
   const [params] = useSearchParams();
   const orderId = params.get('orderId');
   const action = params.get('action') as 'accept' | 'reject' | null;
@@ -89,7 +91,7 @@ export function ProviderConfirmPage() {
           )}
         </div>
 
-        <p className="text-xs text-muted">Malodge Club Villa — Conciergerie de luxe</p>
+        <p className="text-xs text-muted">{company} — Conciergerie de luxe</p>
       </div>
     </div>
   );

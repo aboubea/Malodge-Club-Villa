@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FinanceService } from '../finance/finance.service';
+import { listingLabel } from '../../common/villa-name';
 
 @Injectable()
 export class DashboardService {
@@ -110,7 +111,7 @@ export class DashboardService {
         select: {
           id: true, label: true, checkIn: true, checkOut: true, guests: true, invitedAt: true, logifyId: true, source: true,
           client: { select: { firstName: true, lastName: true } },
-          villa: { select: { id: true, name: true, coverImage: true, images: true, parentVilla: { select: { id: true, name: true, coverImage: true, images: true } } } },
+          villa: { select: { id: true, name: true, bedrooms: true, coverImage: true, images: true, formulas: { select: { id: true }, take: 1 }, parentVilla: { select: { id: true, name: true, coverImage: true, images: true } } } },
         },
       }),
       // Requests from guests waiting for the team's answer.
@@ -125,7 +126,7 @@ export class DashboardService {
       return {
         id: s.id,
         guest: s.label || [s.client?.firstName, s.client?.lastName].filter(Boolean).join(' ') || 'Client',
-        villa: { id: house.id, name: house.name, photo: house.coverImage || house.images?.[0] || s.villa.coverImage || s.villa.images?.[0] || null },
+        villa: { id: house.id, name: listingLabel(s.villa, !!s.villa.parentVilla || s.villa.formulas.length > 0), photo: house.coverImage || house.images?.[0] || s.villa.coverImage || s.villa.images?.[0] || null },
         checkIn: day(s.checkIn),
         checkOut: day(s.checkOut),
         nights: s.checkIn && s.checkOut ? Math.round((s.checkOut.getTime() - s.checkIn.getTime()) / DAY) : null,

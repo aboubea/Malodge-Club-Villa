@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCalendarEventDto, UpdateCalendarEventDto } from './dto/calendar.dto';
+import { formulaRooms, houseLabel } from '../../common/villa-name';
+
+/** The house of a stay's listing, without a formula's room count. */
+const houseOfStay = (v: { name: string; parentVilla: { name: string } | null; formulas: { id: string }[] }) =>
+  v.parentVilla ? houseLabel(v.parentVilla.name, true) : houseLabel(v.name, v.formulas.length > 0);
 
 @Injectable()
 export class CalendarService {
@@ -60,7 +65,7 @@ export class CalendarService {
           ...(type && type !== 'reservation' && type !== 'all' ? { id: { in: [] } } : {}),
         },
         include: {
-          villa: { select: { id: true, name: true, city: true, coverImage: true, parentVillaId: true, parentVilla: { select: { id: true, name: true } } } },
+          villa: { select: { id: true, name: true, bedrooms: true, city: true, coverImage: true, parentVillaId: true, formulas: { select: { id: true }, take: 1 }, parentVilla: { select: { id: true, name: true } } } },
           client: { select: { id: true, firstName: true, lastName: true, phone: true } },
           _count: { select: { orders: true } },
         },
@@ -79,7 +84,7 @@ export class CalendarService {
         include: {
           client: { select: { id: true, firstName: true, lastName: true } },
           items: { include: { service: { select: { id: true, name: true, category: { select: { name: true } } } } } },
-          reservation: { select: { id: true, label: true, villa: { select: { id: true, name: true, parentVilla: { select: { id: true, name: true } } } } } },
+          reservation: { select: { id: true, label: true, villa: { select: { id: true, name: true, formulas: { select: { id: true }, take: 1 }, parentVilla: { select: { id: true, name: true } } } } } },
           provider: { select: { user: { select: { firstName: true, lastName: true } } } },
         },
         orderBy: { scheduledAt: 'asc' },
@@ -106,7 +111,7 @@ export class CalendarService {
       })),
       ...reservations.map((r) => ({
         id: `res-${r.id}`,
-        title: `${r.label || `${r.client.firstName} ${r.client.lastName}`.trim()} — ${(r.villa.parentVilla ?? r.villa).name}`,
+        title: `${r.label || `${r.client.firstName} ${r.client.lastName}`.trim()} — ${houseOfStay(r.villa)}`,
         description: `${r.guests} personne(s) · ${r.status}`,
         // Who and where, for the agenda to show at a glance.
         guest: r.label || `${r.client.firstName} ${r.client.lastName}`.trim(),
@@ -114,8 +119,9 @@ export class CalendarService {
         guests: r.source?.startsWith('extras') ? null : r.guests,
         lodgify: !!r.logifyId,
         extras: r._count.orders,
-        house: (r.villa.parentVilla ?? r.villa).name,
-        formula: r.villa.parentVilla ? r.villa.name : null,
+        house: houseOfStay(r.villa),
+        // The formula booked (7 chambres), when the house has several.
+        formula: r.villa.parentVilla || r.villa.formulas.length ? formulaRooms(r.villa) : null,
         startAt: r.checkIn!.toISOString(),
         endAt: r.checkOut!.toISOString(),
         allDay: true,
@@ -136,7 +142,7 @@ export class CalendarService {
         quantity: o.items[0]?.quantity ?? null,
         status: o.status,
         guest: o.reservation?.label || `${o.client.firstName} ${o.client.lastName}`.trim(),
-        house: o.reservation?.villa ? (o.reservation.villa.parentVilla ?? o.reservation.villa).name : null,
+        house: o.reservation?.villa ? houseOfStay(o.reservation.villa) : null,
         provider: o.provider ? `${o.provider.user.firstName} ${o.provider.user.lastName}`.trim() : null,
         startAt: o.scheduledAt!.toISOString(),
         endAt: new Date(o.scheduledAt!.getTime() + 2 * 60 * 60 * 1000).toISOString(),

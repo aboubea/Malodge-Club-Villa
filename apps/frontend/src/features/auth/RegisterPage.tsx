@@ -11,6 +11,7 @@ import { AuthLayout } from './AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { LoginResponseDto } from '@malodge/shared';
+import { useCompanyName } from '../../hooks/useCompany';
 
 function useRegister() {
   const { setAuth } = useAuthStore();
@@ -46,6 +47,7 @@ function useRegister() {
 }
 
 export function RegisterPage() {
+  const company = useCompanyName();
   const { isAuthenticated } = useAuthStore();
   const mutation = useRegister();
 
@@ -98,7 +100,7 @@ export function RegisterPage() {
 
         <div className="mb-9">
           <h1 className="font-display font-semibold text-[30px] leading-[1.02] tracking-tight text-ink">Créer un compte</h1>
-          <p className="text-[14.5px] text-muted mt-3">Rejoignez Malodge Club Villa</p>
+          <p className="text-[14.5px] text-muted mt-3">Rejoignez {company}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

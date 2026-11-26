@@ -5,6 +5,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { SettingsService, Country } from './settings.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@malodge/shared';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Settings')
 @ApiBearerAuth()
@@ -29,6 +30,20 @@ export class SettingsController {
     const to = (body?.to || me?.email || '').trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new BadRequestException('Adresse e-mail invalide');
     return { to, ...(await this.mail.sendTest(to)), status: this.mail.status() };
+  }
+
+  @Get('company')
+  @Public()
+  @ApiOperation({ summary: 'The company’s name and contacts (shown on the login page too)' })
+  getCompany() {
+    return this.settingsService.getCompany();
+  }
+
+  @Put('company')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Save the company’s name and contacts — ADMIN' })
+  setCompany(@Body() body: unknown) {
+    return this.settingsService.setCompany(body);
   }
 
   @Get('countries')

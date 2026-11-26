@@ -8,6 +8,7 @@ import { apiClient } from './lib/apiClient';
 import { setDisplayCurrency, setDisplayQuote } from './lib/display';
 import { useUIStore } from './store/uiStore';
 import { useAuthStore } from './store/authStore';
+import { useCompanyTitle } from './hooks/useCompany';
 
 /**
  * The display currency (top bar) and today's rates, set before the pages render:
@@ -34,6 +35,7 @@ function useDisplayCurrency() {
 export default function App() {
   useThemeSync();
   useDisplayCurrency();
+  useCompanyTitle();
 
   return (
     <BrowserRouter>

@@ -21,6 +21,7 @@ import {
   whatsappNumber,
   whatsappText,
 } from './onboarding';
+import { listingLabel } from '../../common/villa-name';
 
 const fullName = (u?: { firstName?: string | null; lastName?: string | null } | null) => [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim();
 const DAY = 86_400_000;
@@ -31,7 +32,8 @@ const STAY_SELECT = {
   client: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
   villa: {
     select: {
-      id: true, name: true, city: true, address: true, coverImage: true, latitude: true, longitude: true, welcomeGuide: true, parentVillaId: true,
+      id: true, name: true, bedrooms: true, city: true, address: true, coverImage: true, latitude: true, longitude: true, welcomeGuide: true, parentVillaId: true,
+      formulas: { select: { id: true }, take: 1 },
       parentVilla: { select: { id: true, name: true, city: true, address: true, coverImage: true, latitude: true, longitude: true, welcomeGuide: true } },
     },
   },
@@ -68,6 +70,11 @@ export class StaySpaceService {
     return s.villa.parentVilla ?? s.villa;
   }
 
+  /** The listing booked, as the guest knows it: a formula with its own rooms (7 chambres), never its house's. */
+  private place(s: Awaited<ReturnType<StaySpaceService['stay']>>) {
+    return listingLabel(s.villa, !!s.villa.parentVilla || s.villa.formulas.length > 0);
+  }
+
   private guideOf(s: Awaited<ReturnType<StaySpaceService['stay']>>): WelcomeGuide {
     return cleanGuide(this.house(s).welcomeGuide);
   }
@@ -81,7 +88,7 @@ export class StaySpaceService {
   }
 
   private context(s: Awaited<ReturnType<StaySpaceService['stay']>>, servicesCount: number) {
-    return { firstName: s.client.firstName || 'cher client', villa: this.house(s).name, checkIn: s.checkIn, checkOut: s.checkOut, url: this.url(s), guide: this.guideOf(s), servicesCount };
+    return { firstName: s.client.firstName || 'cher client', villa: this.place(s), checkIn: s.checkIn, checkOut: s.checkOut, url: this.url(s), guide: this.guideOf(s), servicesCount };
   }
 
   /* ───────────── Team: the villa's booklet ───────────── */
@@ -119,7 +126,7 @@ export class StaySpaceService {
       contact: { email: emailKind(s.client.email) === 'none' ? null : s.client.email, emailKind: emailKind(s.client.email), phone: s.client.phone },
       whatsappUrl: phone ? `https://wa.me/${phone}?text=${encodeURIComponent(whatsappText(firstStep, ctx))}` : null,
       messageText: whatsappText(firstStep, ctx),
-      villa: { id: this.house(s).id, name: this.house(s).name },
+      villa: { id: this.house(s).id, name: this.place(s) },
       guideReady: guideReady(ctx.guide),
       autoMessages: !!ctx.guide.autoMessages,
       servicesCount: count,
@@ -209,7 +216,7 @@ export class StaySpaceService {
       out.push({
         id: s.id,
         guest: s.label || fullName(s.client),
-        villa: this.house(s).name,
+        villa: this.place(s),
         checkIn: s.checkIn,
         checkOut: s.checkOut,
         guests: s.guests,
@@ -294,7 +301,7 @@ export class StaySpaceService {
         nights: s.checkIn && s.checkOut ? Math.round((s.checkOut.getTime() - s.checkIn.getTime()) / DAY) : null,
         guests: s.guests,
       },
-      villa: { name: house.name, city: house.city, coverImage: house.coverImage, mapsUrl: mapsQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}` : null },
+      villa: { name: this.place(s), city: house.city, coverImage: house.coverImage, mapsUrl: mapsQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}` : null },
       booklet,
       catalogue: { currency: catalogue.currency, services: catalogue.list.map(({ unitCost: _c, ...x }) => x) },
       requests: mine,

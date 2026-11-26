@@ -25,10 +25,12 @@ interface Column {
 }
 
 /** The statement as a PDF (A4), in French. */
-export async function statementPdf(s: StatementData): Promise<Buffer> {
+/** The owner's statement as a PDF, signed with the company's name once set (else Malodge Club). */
+export async function statementPdf(s: StatementData, company?: string | null): Promise<Buffer> {
+  const brand = company || 'Malodge Club';
   const pdfkit: any = await import('pdfkit');
   const PDFDocument = pdfkit.default ?? pdfkit; // CommonJS module: no default export once compiled
-  const doc = new PDFDocument({ size: 'A4', margin: 48, bufferPages: true, info: { Title: `Relevé ${s.monthLabel} — ${s.owner.name}`, Author: 'Malodge Club' } });
+  const doc = new PDFDocument({ size: 'A4', margin: 48, bufferPages: true, info: { Title: `Relevé ${s.monthLabel} — ${s.owner.name}`, Author: brand } });
   const chunks: Buffer[] = [];
   doc.on('data', (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
@@ -211,7 +213,7 @@ export async function statementPdf(s: StatementData): Promise<Buffer> {
     doc.switchToPage(i);
     // Writing in the bottom margin would otherwise open a new page.
     doc.page.margins.bottom = 0;
-    doc.font('Helvetica').fontSize(8).fillColor(MUTED).text(`Malodge Club · Relevé ${s.monthLabel} · ${s.owner.name} · page ${i + 1}/${range.count}`, left, doc.page.height - 40, { width, align: 'center', lineBreak: false });
+    doc.font('Helvetica').fontSize(8).fillColor(MUTED).text(`${brand} · Relevé ${s.monthLabel} · ${s.owner.name} · page ${i + 1}/${range.count}`, left, doc.page.height - 40, { width, align: 'center', lineBreak: false });
   }
 
   doc.end();

@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Logo } from '../../components/brand/Logo';
+import { useCompanyName } from '../../hooks/useCompany';
 
 /** Original illustration: a Riviera arch framing a sunset over the sea. */
 function ArchIllustration() {
@@ -131,6 +132,7 @@ interface AuthLayoutProps {
 }
 
 export function AuthLayout({ children, aside }: AuthLayoutProps) {
+  const company = useCompanyName();
   return (
     <div className="min-h-[100dvh] grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] bg-canvas">
       <div className="flex flex-col min-h-[100dvh] px-6 sm:px-12 py-8">
@@ -151,7 +153,7 @@ export function AuthLayout({ children, aside }: AuthLayoutProps) {
         </div>
 
         <p className="text-[12px] text-muted">
-          © {new Date().getFullYear()} Malodge Club Villa · Conciergerie de luxe
+          © {new Date().getFullYear()} {company} · Conciergerie de luxe
         </p>
       </div>
 
