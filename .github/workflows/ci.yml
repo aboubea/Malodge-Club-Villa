@@ -1,0 +1,68 @@
+# Checks every push and pull request: types, tests (with a throwaway PostgreSQL
+# database) and builds. The Vercel build also runs the unit tests, so a version
+# whose tests fail is never deployed.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: malodge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Empty database for the tests only (its name must contain "test").
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/malodge_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build shared package and Prisma client
+        run: |
+          npm run build --workspace=packages/shared
+          npx --workspace=apps/backend prisma generate
+
+      - name: Types (backend, tests included)
+        run: npm run typecheck --workspace=apps/backend
+
+      - name: Types (frontend)
+        run: npx --workspace=apps/frontend tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      # Applies the migrations to the empty database (and fails if schema.prisma
+      # changed without a migration), then runs the database tests.
+      - name: Database tests
+        run: npm run test:db
+
+      - name: Build
+        run: |
+          npx --workspace=apps/backend nest build
+          npx --workspace=apps/frontend vite build
