@@ -26,6 +26,8 @@ const CURRENCY = /^[A-Z]{3}$/;
 
 export class ExtraFiltersDto {
   @IsOptional() @IsString() stayId?: string;
+  /** The line(s) of one order (order page). */
+  @IsOptional() @IsString() orderId?: string;
   @IsOptional() @IsString() villaId?: string;
   @IsOptional() @IsString() providerId?: string;
   @IsOptional() @IsString() ownerId?: string;

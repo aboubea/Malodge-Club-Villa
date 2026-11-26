@@ -176,6 +176,7 @@ export class ExtrasService {
     const to = f.to ? new Date(`${f.to.slice(0, 10)}T23:59:59.999Z`) : null;
     const q = f.search?.trim().toLowerCase();
     return lines.filter((l) => {
+      if (f.orderId && (l as ExtraLine & { orderId?: string }).orderId !== f.orderId) return false;
       if (f.stayId && l.stay?.id !== f.stayId) return false;
       if (f.villaId && l.villa?.id !== f.villaId) return false;
       if (f.providerId && l.provider?.id !== f.providerId) return false;

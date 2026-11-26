@@ -11,6 +11,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { OrderEdit } from './OrderEdit';
+import { useAuthStore } from '../../store/authStore';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate, formatDateLong, displayEmail } from '../../lib/utils';
 import { OrderStatus, PaymentStatus, PaymentMethod } from '@malodge/shared';
@@ -58,6 +60,8 @@ export function OrderDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [selectedProvider, setSelectedProvider] = useState('');
+  // The team edits the order (date, service, provider, price, cost, status…); a client only reads it.
+  const isStaff = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(useAuthStore((s) => s.user?.role) ?? '');
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
@@ -164,6 +168,7 @@ export function OrderDetailPage() {
         description={`Saisie le ${formatDateLong(order.createdAt)}${order.scheduledAt ? ` · prestation le ${formatDateLong(order.scheduledAt)}` : ''}`}
       >
         <OrderStatusBadge status={order.status} size="md" />
+        {isStaff && <OrderEdit orderId={order.id} />}
         {order.status !== OrderStatus.CANCELLED && order.status !== OrderStatus.COMPLETED && (
           <Button
             variant="destructive"
