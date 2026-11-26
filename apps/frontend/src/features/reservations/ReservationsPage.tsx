@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Plus, CalendarDays, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Plus, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { ReservationsTimeline } from './ReservationsTimeline';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -95,6 +96,8 @@ export function ReservationsPage() {
   const canEdit = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role ?? '');
 
   const [source, setSource] = useState<'local' | 'lodgify'>('local');
+  // Calendar (one line per villa, like Airbnb's multi-calendar) or the detailed list.
+  const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [statusFilter, setStatusFilter] = useState('');
   const [countryFilter, setCountryFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -364,6 +367,29 @@ export function ReservationsPage() {
       )}
 
       {source === 'local' && (
+        <div className="flex items-center gap-1 bg-surface border border-line rounded-full p-1 w-fit" role="tablist" aria-label="Affichage">
+          {([
+            ['calendar', 'Calendrier', CalendarDays],
+            ['list', 'Liste', List],
+          ] as const).map(([v, label, Icon]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-[13px] font-medium transition-all ${view === v ? 'bg-primary text-on-primary' : 'text-ink-soft hover:text-ink'}`}
+            >
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {source === 'local' && view === 'calendar' && (
+        <ReservationsTimeline country={countryFilter || undefined} onEdit={canEdit ? (s) => openEdit(s as unknown as Reservation) : undefined} />
+      )}
+
+      {source === 'local' && view === 'list' && (
       <>
       {/* Filters */}
       <div className="space-y-2">

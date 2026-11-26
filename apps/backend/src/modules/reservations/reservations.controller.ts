@@ -23,10 +23,18 @@ export class ReservationsController {
     @Query('clientId') clientId?: string,
     @Query('status') status?: ReservationStatus,
     @Query('country') country?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('undated') undated?: string,
   ) {
+    const calendar = (!!from && !!to) || undated === 'true';
     return this.reservationsService.findAll({
       page: page ? parseInt(page) : undefined,
-      limit: limit ? parseInt(limit) : undefined,
+      // The calendar needs every stay of the period at once.
+      limit: limit ? Math.min(parseInt(limit) || 20, calendar ? 1000 : 200) : calendar ? 1000 : undefined,
+      from,
+      to,
+      undated: undated === 'true',
       villaId,
       clientId: user.role === Role.CLIENT ? user.id : clientId,
       status,

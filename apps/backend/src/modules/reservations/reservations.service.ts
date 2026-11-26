@@ -17,6 +17,11 @@ export class ReservationsService {
     country?: string;
     userRole?: string;
     userCountries?: string[];
+    /** Stays overlapping [from, to] (YYYY-MM-DD), for the calendar. */
+    from?: string;
+    to?: string;
+    /** Stays without dates (dates not given yet). */
+    undated?: boolean;
   }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
@@ -27,6 +32,14 @@ export class ReservationsService {
     if (params.clientId) where.clientId = params.clientId;
     if (params.status) where.status = params.status;
     if (params.country) where.villa = { ...(where.villa || {}), country: params.country };
+    const day = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00.000Z`) : null);
+    const from = day(params.from);
+    const to = day(params.to);
+    if (params.undated) where.OR = [{ checkIn: null }, { checkOut: null }];
+    else if (from && to) {
+      where.checkIn = { lte: to };
+      where.checkOut = { gte: from };
+    }
 
     if (
       params.userRole &&
@@ -51,6 +64,7 @@ export class ReservationsService {
         include: {
           villa: { select: { id: true, name: true, city: true, coverImage: true, currency: true } },
           client: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+          _count: { select: { orders: true } },
         },
         orderBy: { checkIn: 'desc' },
       }),
