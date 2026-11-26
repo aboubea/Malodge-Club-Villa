@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Malodge "Riviera" design system.
+ * Malodge design system.
  * Every color is a semantic token backed by a CSS variable (see src/index.css),
  * so the whole UI switches between the light and dark themes from one place.
  */
@@ -25,6 +25,7 @@ const config: Config = {
         'accent-hover': token('accent-hover'),
         'on-accent': token('on-accent'),
         gold: token('gold'),
+        peach: token('peach'),
         primary: token('primary'),
         'primary-hover': token('primary-hover'),
         'on-primary': token('on-primary'),
@@ -36,8 +37,8 @@ const config: Config = {
         copper: token('copper'),
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         body: ['14px', { lineHeight: '1.6', letterSpacing: '0.005em' }],

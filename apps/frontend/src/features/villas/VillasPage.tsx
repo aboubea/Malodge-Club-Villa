@@ -14,104 +14,8 @@ import { SkeletonCard } from '../../components/ui/Skeleton';
 import { apiClient } from '../../lib/apiClient';
 import { VillaDto } from '@malodge/shared';
 import { VillaForm } from './VillaForm';
+import { VillaListView } from './VillaListView';
 import { useCountries } from '../../hooks/useCountries';
-
-function VillaCard({ villa, onEdit, onDelete, onClick }: {
-  villa: VillaDto;
-  onEdit: () => void;
-  onDelete: () => void;
-  onClick: () => void;
-}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="group relative rounded-2xl border border-line bg-surface shadow-card overflow-hidden hover:shadow-pop hover:-translate-y-0.5 hover:border-line-strong transition-all duration-300 cursor-pointer flex flex-col h-full"
-      onClick={onClick}
-    >
-      {/* Image */}
-      <div className="aspect-[4/3] bg-surface-2 relative overflow-hidden">
-        {villa.coverImage ? (
-          <img src={villa.coverImage} alt={villa.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Building2 size={32} className="text-line-strong" />
-          </div>
-        )}
-        {/* Status badge */}
-        <div className="absolute top-3 left-3">
-          <Badge
-            variant={villa.isActive ? 'active' : 'inactive'}
-            className="bg-surface/90 backdrop-blur-sm border-transparent shadow-card"
-          >
-            {villa.isActive ? 'Active' : 'Inactive'}
-          </Badge>
-        </div>
-        {/* Menu */}
-        <div
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-sm shadow-card flex items-center justify-center text-ink-soft hover:text-ink transition-colors"
-              aria-label="Actions"
-            >
-              <MoreHorizontal size={14} />
-            </button>
-            {menuOpen && (
-              <div
-                className="absolute right-0 top-9 w-40 bg-surface border border-line rounded-xl shadow-pop z-10 py-1.5"
-                onMouseLeave={() => setMenuOpen(false)}
-              >
-                <button
-                  onClick={() => { setMenuOpen(false); onEdit(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-ink hover:bg-surface-2 transition-colors"
-                >
-                  <Pencil size={12} /> Modifier
-                </button>
-                <button
-                  onClick={() => { setMenuOpen(false); onDelete(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-danger hover:bg-danger/10 transition-colors"
-                >
-                  <Trash2 size={12} /> Supprimer
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-5 pt-4 pb-5 flex flex-col flex-1">
-        <h3 className="font-display text-[23px] leading-tight text-ink truncate">{villa.name}</h3>
-        <div className="flex items-center gap-1.5 mt-1 text-[12.5px] text-muted flex-1">
-          <MapPin size={12} />
-          <span className="truncate">{villa.city}, {villa.country}</span>
-        </div>
-        {/* Stats */}
-        <div className="flex items-center gap-4 mt-4 pt-3.5 border-t border-line text-[12.5px] text-ink-soft">
-          <span className="flex items-center gap-1.5" title="Voyageurs">
-            <Users size={13} className="text-muted" />
-            {villa.maxGuests}
-          </span>
-          <span className="flex items-center gap-1.5" title="Chambres">
-            <BedDouble size={13} className="text-muted" />
-            {villa.bedrooms}
-          </span>
-          <span className="flex items-center gap-1.5" title="Salles de bain">
-            <Bath size={13} className="text-muted" />
-            {villa.bathrooms}
-          </span>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
   const [imgIdx, setImgIdx] = useState(0);
@@ -195,7 +99,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
             {/* Left: main info */}
             <div className="md:col-span-2 space-y-5">
               <div>
-                <h2 className="font-display text-[34px] leading-tight text-ink">{p.name}</h2>
+                <h2 className="font-display font-semibold text-[24px] leading-tight text-ink">{p.name}</h2>
                 {(p.city || p.country) && (
                   <div className="flex items-center gap-1.5 mt-1.5 text-sm text-muted">
                     <MapPin size={13} />
@@ -206,7 +110,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
 
               {p.description && (
                 <div>
-                  <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Description</h3>
+                  <h3 className="text-[12.5px] font-semibold text-muted mb-2">Description</h3>
                   <div
                     className="lodgify-description text-sm text-ink-soft leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: p.description }}
@@ -217,7 +121,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
               {/* Thumbnail strip */}
               {imgs.length > 1 && (
                 <div>
-                  <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Photos</h3>
+                  <h3 className="text-[12.5px] font-semibold text-muted mb-2">Photos</h3>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {imgs.map((src: string, i: number) => (
                       <button key={i} onClick={() => setImgIdx(i)}
@@ -234,7 +138,7 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
             {/* Right: stats card */}
             <div className="space-y-3">
               <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
-                <h3 className="text-xs font-medium text-muted uppercase tracking-wider">Caractéristiques</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted">Caractéristiques</h3>
                 {p.maxGuests && (
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted"><Users size={14} /><span>Voyageurs</span></div>
@@ -693,8 +597,8 @@ export function VillasPage() {
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6">
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}</div>
         </div>
       ) : villas.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -703,17 +607,12 @@ export function VillasPage() {
           <p className="text-xs text-muted mt-1">Ajoutez votre première villa pour commencer</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-          {villas.map((villa) => (
-            <VillaCard
-              key={villa.id}
-              villa={villa}
-              onClick={() => navigate(`/villas/${villa.id}`)}
-              onEdit={() => handleEdit(villa)}
-              onDelete={() => handleDelete(villa)}
-            />
-          ))}
-        </div>
+        <VillaListView
+          villas={villas}
+          onOpen={(villa) => navigate(`/villas/${villa.id}`)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       )}
 
       {/* Pagination */}
@@ -750,7 +649,7 @@ export function VillasPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div>
-                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Champs disponibles</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Champs disponibles</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {(rawDebug.keys ?? []).map((k: string) => (
                     <span key={k} className="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-2 border border-line text-accent">{k}</span>
@@ -758,13 +657,13 @@ export function VillasPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Champs capacité / chambres</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Champs capacité / chambres</h3>
                 <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.occupancyFields, null, 2)}
                 </pre>
               </div>
               <div>
-                <h3 className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Objet complet (1ère propriété)</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Objet complet (1ère propriété)</h3>
                 <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.raw, null, 2)}
                 </pre>

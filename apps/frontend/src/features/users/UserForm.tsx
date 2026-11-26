@@ -132,7 +132,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
       <div>
         <label className="text-[12.5px] font-medium text-ink-soft">Rôle</label>
         <select
-          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+          className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
           value={form.role}
           onChange={(e) => {
             const newRole = e.target.value as Role;

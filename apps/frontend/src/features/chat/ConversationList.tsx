@@ -62,7 +62,7 @@ export function ConversationList({ selectedId, onSelect, onNew }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher..."
-            className="w-full h-8 pl-8 pr-3 rounded-lg text-xs bg-surface border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
+            className="w-full h-8 pl-8 pr-3 rounded-lg text-xs bg-surface border border-line text-ink placeholder:text-muted focus:outline-none focus:border-ink/25"
           />
         </div>
       </div>

@@ -45,22 +45,22 @@ export function PayoutsTable({ type, data, onMarkPaid }: PayoutsTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-line">
-            <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-[12.5px] font-semibold text-muted">
               {type === 'provider' ? 'Prestataire' : 'Propriétaire / Villa'}
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-[12.5px] font-semibold text-muted">
               Montant brut
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-[12.5px] font-semibold text-muted">
               {feeLabel}
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-[12.5px] font-semibold text-muted">
               Net à reverser
             </th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-center text-[12.5px] font-semibold text-muted">
               Statut
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-[12.5px] font-semibold text-muted">
               Action
             </th>
           </tr>

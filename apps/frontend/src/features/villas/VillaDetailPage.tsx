@@ -354,21 +354,21 @@ export function VillaDetailPage() {
                   <div className="flex items-center justify-center mb-1">
                     <Users size={14} className="text-muted" />
                   </div>
-                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.maxGuests}</p>
+                  <p className="font-display font-semibold text-[22px] leading-none text-ink tabular mt-1">{villa.maxGuests}</p>
                   <p className="text-[10px] text-muted">Voyageurs</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
                     <BedDouble size={14} className="text-muted" />
                   </div>
-                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.bedrooms}</p>
+                  <p className="font-display font-semibold text-[22px] leading-none text-ink tabular mt-1">{villa.bedrooms}</p>
                   <p className="text-[10px] text-muted">Chambres</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
                     <Bath size={14} className="text-muted" />
                   </div>
-                  <p className="font-display text-[28px] leading-none text-ink tabular mt-1">{villa.bathrooms}</p>
+                  <p className="font-display font-semibold text-[22px] leading-none text-ink tabular mt-1">{villa.bathrooms}</p>
                   <p className="text-[10px] text-muted">SDB</p>
                 </div>
               </div>
@@ -457,7 +457,7 @@ export function VillaDetailPage() {
                     ) : (
                       <div className="flex items-start gap-2 py-2 border-b border-surface-2 last:border-0">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-muted uppercase tracking-wider">{field.label}</p>
+                          <p className="text-[11.5px] font-medium text-muted">{field.label}</p>
                           <p className="text-xs text-ink mt-0.5 break-words">{field.value}</p>
                         </div>
                         {isStaff && (
@@ -702,7 +702,7 @@ export function VillaDetailPage() {
               <input
                 type="number"
                 placeholder="Laisser vide = prix de base"
-                className="w-full mt-1 h-9 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                className="w-full mt-1 h-9 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={customPrice}
                 onChange={(e) => setCustomPrice(e.target.value)}
               />
@@ -712,7 +712,7 @@ export function VillaDetailPage() {
               <input
                 type="number"
                 placeholder="15"
-                className="w-full mt-1 h-9 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                className="w-full mt-1 h-9 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={commission}
                 onChange={(e) => setCommission(e.target.value)}
               />

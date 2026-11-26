@@ -18,7 +18,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-[12.5px] font-medium text-ink-soft"
+            className="text-[12.5px] font-semibold text-ink-soft"
           >
             {label}
           </label>
@@ -33,12 +33,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full h-11 px-3.5 rounded-[10px]',
+              'w-full h-11 px-3.5 rounded-xl',
               'bg-surface border border-line',
               'text-ink text-[14px] placeholder:text-muted/80',
               'transition-[border-color,box-shadow] duration-150',
               'hover:border-line-strong',
-              'focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10',
+              'focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5',
               'disabled:opacity-45 disabled:cursor-not-allowed',
               error && 'border-danger/50 hover:border-danger/60 focus:border-danger/70 focus:ring-danger/10',
               leftIcon && 'pl-10',

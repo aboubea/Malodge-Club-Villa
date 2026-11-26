@@ -58,7 +58,7 @@ export function SlideOver({
             <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-line shrink-0">
               <div>
                 {title && (
-                  <h2 className="font-display text-[26px] leading-tight text-ink">{title}</h2>
+                  <h2 className="font-display font-semibold text-[19px] leading-tight text-ink">{title}</h2>
                 )}
                 {description && (
                   <p className="text-[13px] text-muted mt-1">{description}</p>

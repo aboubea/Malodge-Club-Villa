@@ -76,7 +76,7 @@ export function NewConversationModal({ onClose, onCreated }: Props) {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Sujet de la conversation..."
-              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-ink/25"
             />
           </div>
 
@@ -89,7 +89,7 @@ export function NewConversationModal({ onClose, onCreated }: Props) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un utilisateur..."
-                className="w-full h-9 pl-8 pr-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
+                className="w-full h-9 pl-8 pr-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-ink/25"
               />
             </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-line bg-surface-2">

@@ -97,7 +97,7 @@ export function RegisterPage() {
     <AuthLayout>
 
         <div className="mb-9">
-          <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">Créer un compte</h1>
+          <h1 className="font-display font-semibold text-[30px] leading-[1.02] tracking-tight text-ink">Créer un compte</h1>
           <p className="text-[14.5px] text-muted mt-3">Rejoignez Malodge Club Villa</p>
         </div>
 

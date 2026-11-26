@@ -323,24 +323,24 @@ export function ProvidersPage() {
             {/* Contact info */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-surface border border-line">
-                <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
+                <p className="text-[11.5px] font-medium text-muted mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
                 <p className="text-sm text-ink">{detailProvider.user.email}</p>
               </div>
               {detailProvider.user.phone && (
                 <div className="p-3 rounded-lg bg-surface border border-line">
-                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Phone size={10} /> Téléphone</p>
+                  <p className="text-[11.5px] font-medium text-muted mb-1 flex items-center gap-1"><Phone size={10} /> Téléphone</p>
                   <p className="text-sm text-ink">{detailProvider.user.phone}</p>
                 </div>
               )}
               {detailProvider.siret && (
                 <div className="p-3 rounded-lg bg-surface border border-line">
-                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><Hash size={10} /> SIRET</p>
+                  <p className="text-[11.5px] font-medium text-muted mb-1 flex items-center gap-1"><Hash size={10} /> SIRET</p>
                   <p className="text-sm font-mono text-ink">{detailProvider.siret}</p>
                 </div>
               )}
               {detailProvider.iban && (
                 <div className="p-3 rounded-lg bg-surface border border-line">
-                  <p className="text-[10px] text-muted uppercase tracking-wider mb-1 flex items-center gap-1"><CreditCard size={10} /> IBAN</p>
+                  <p className="text-[11.5px] font-medium text-muted mb-1 flex items-center gap-1"><CreditCard size={10} /> IBAN</p>
                   <p className="text-sm font-mono text-ink">{detailProvider.iban}</p>
                 </div>
               )}
@@ -349,7 +349,7 @@ export function ProvidersPage() {
             {/* Specialties */}
             {detailProvider.categories.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5"><Tag size={11} /> Spécialités</p>
+                <p className="text-[12.5px] font-semibold text-muted mb-2 flex items-center gap-1.5"><Tag size={11} /> Spécialités</p>
                 <div className="flex flex-wrap gap-2">
                   {detailProvider.categories.map((c) => (
                     <Badge key={c.category.id} variant="default">{c.category.name}</Badge>
@@ -383,7 +383,7 @@ export function ProvidersPage() {
           {/* User section — only when creating */}
           {!editingProvider && (
             <div className="space-y-4">
-              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+              <p className="text-[12.5px] font-semibold text-muted flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[10px] flex items-center justify-center font-bold">1</span>
                 Informations personnelles
               </p>
@@ -421,7 +421,7 @@ export function ProvidersPage() {
           {/* Provider info */}
           <div className="space-y-4">
             {!editingProvider && (
-              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+              <p className="text-[12.5px] font-semibold text-muted flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[10px] flex items-center justify-center font-bold">2</span>
                 Informations professionnelles
               </p>
@@ -475,7 +475,7 @@ export function ProvidersPage() {
           {categories.length > 0 && (
             <div className="space-y-3">
               <div className="border-t border-line" />
-              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+              <p className="text-[12.5px] font-semibold text-muted flex items-center gap-2">
                 <Tag size={11} />
                 Spécialités
               </p>
@@ -505,7 +505,7 @@ export function ProvidersPage() {
           {!editingProvider && allCountries.length > 0 && (
             <div className="space-y-3">
               <div className="border-t border-line" />
-              <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-2">
+              <p className="text-[12.5px] font-semibold text-muted flex items-center gap-2">
                 <Globe size={11} />
                 Pays d'intervention
               </p>

@@ -77,7 +77,7 @@ export function ClientStaysPage() {
           {/* Active stay */}
           {active && (
             <div>
-              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+              <h2 className="text-[12.5px] font-semibold text-muted mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 Séjour en cours
               </h2>
@@ -88,7 +88,7 @@ export function ClientStaysPage() {
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <div>
-              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3 flex items-center gap-2">
+              <h2 className="text-[12.5px] font-semibold text-muted mb-3 flex items-center gap-2">
                 <Clock size={11} />
                 À venir
               </h2>
@@ -105,7 +105,7 @@ export function ClientStaysPage() {
           {/* Past stays */}
           {past.length > 0 && (
             <div>
-              <h2 className="text-xs font-medium text-muted uppercase tracking-wider mb-3">Séjours passés</h2>
+              <h2 className="text-[12.5px] font-semibold text-muted mb-3">Séjours passés</h2>
               <div className="space-y-3">
                 {past.map((r, i) => (
                   <motion.div key={r.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>

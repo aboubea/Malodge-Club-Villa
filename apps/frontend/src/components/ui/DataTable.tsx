@@ -61,7 +61,7 @@ export function DataTable<T extends { id: string }>({
                 <th
                   key={col.key}
                   className={cn(
-                    'px-5 py-3 text-left text-[11px] font-semibold text-muted uppercase tracking-[0.1em] whitespace-nowrap',
+                    'px-5 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap',
                     col.align === 'center' && 'text-center',
                     col.align === 'right' && 'text-right',
                     col.sortable && 'cursor-pointer hover:text-ink transition-colors select-none',
@@ -80,7 +80,7 @@ export function DataTable<T extends { id: string }>({
                 </th>
               ))}
               {showActions && (
-                <th className="px-5 py-3 text-right text-[11px] font-semibold text-muted uppercase tracking-[0.1em] w-24">
+                <th className="px-5 py-3 text-right text-[12px] font-semibold text-muted w-24">
                   Actions
                 </th>
               )}

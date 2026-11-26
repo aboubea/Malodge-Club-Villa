@@ -82,7 +82,7 @@ export function AiConciergePage() {
               <Brain size={28} className="text-[#1D1B18]" />
             </div>
             <div>
-              <p className="font-display text-[30px] leading-tight text-ink">Bonjour, comment puis-je vous aider ?</p>
+              <p className="font-display font-semibold text-[22px] leading-tight text-ink">Bonjour, comment puis-je vous aider ?</p>
               <p className="text-sm text-muted mt-1.5">
                 Je suis votre concierge IA. Posez-moi une question sur les documents de Malodge Club
                 Villa.

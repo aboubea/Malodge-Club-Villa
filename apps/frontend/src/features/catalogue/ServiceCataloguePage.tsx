@@ -234,7 +234,7 @@ export function ServiceCataloguePage() {
             <div>
               <label className="text-[12.5px] font-medium text-ink-soft block mb-1.5">Villa</label>
               <select
-                className="h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                className="h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={selectedVillaId}
                 onChange={(e) => setSelectedVillaId(e.target.value)}
               >
@@ -337,7 +337,7 @@ export function ServiceCataloguePage() {
               <label className="text-[12.5px] font-medium text-ink-soft">Date & heure souhaitée</label>
               <input
                 type="datetime-local"
-                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
               />

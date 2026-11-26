@@ -120,7 +120,7 @@ export function DocumentsPage() {
       <div className="flex flex-1 overflow-hidden gap-4 px-5 pb-5">
         {/* Category sidebar */}
         <div className="w-44 shrink-0 space-y-0.5">
-          <p className="text-[10px] text-muted uppercase tracking-wider font-medium mb-2 px-2">
+          <p className="text-[11.5px] font-medium text-muted font-medium mb-2 px-2">
             Catégories
           </p>
           {CATEGORIES.map((cat) => (
@@ -262,7 +262,7 @@ export function DocumentsPage() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Guide d'accueil Villa Émeraude"
-              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-ink/25"
             />
           </div>
           <div>
@@ -270,7 +270,7 @@ export function DocumentsPage() {
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink focus:outline-none focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink focus:outline-none focus:border-ink/25"
             >
               <option value="application/pdf">PDF</option>
               <option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">
@@ -287,7 +287,7 @@ export function DocumentsPage() {
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink focus:outline-none focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink focus:outline-none focus:border-ink/25"
             >
               <option value="general">Général</option>
               <option value="villas">Villas</option>
@@ -304,7 +304,7 @@ export function DocumentsPage() {
               value={form.fileUrl}
               onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
               placeholder="https://r2.example.com/documents/guide.pdf"
-              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-lg text-sm bg-surface-2 border border-line text-ink placeholder:text-muted focus:outline-none focus:border-ink/25"
             />
           </div>
           <Button

@@ -48,9 +48,9 @@ function ArchIllustration() {
         {/* Distant headland */}
         <path d="M48 318 C 90 300, 120 296, 150 306 C 165 311, 172 318, 180 318 Z" fill="#7C4A3A" opacity="0.55" />
         {/* Cypress silhouettes */}
-        <path d="M92 500 C 70 420, 78 330, 96 268 C 112 330, 122 420, 100 500 Z" fill="#1A1611" />
-        <path d="M126 500 C 112 440, 116 380, 128 336 C 140 380, 146 440, 134 500 Z" fill="#221C15" />
-        <path d="M318 500 C 300 430, 304 360, 316 312 C 330 360, 338 430, 326 500 Z" fill="#1A1611" />
+        <path d="M92 500 C 70 420, 78 330, 96 268 C 112 330, 122 420, 100 500 Z" fill="#171826" />
+        <path d="M126 500 C 112 440, 116 380, 128 336 C 140 380, 146 440, 134 500 Z" fill="#1C1D2C" />
+        <path d="M318 500 C 300 430, 304 360, 316 312 C 330 360, 338 430, 326 500 Z" fill="#171826" />
         {/* Terrace balustrade */}
         <rect x="0" y="452" width="400" height="6" fill="#E9DCC6" opacity="0.9" />
         {Array.from({ length: 16 }).map((_, i) => (
@@ -61,14 +61,14 @@ function ArchIllustration() {
       <path
         d="M48 500 V196 A152 152 0 0 1 352 196 V500"
         fill="none"
-        stroke="#C9A96E"
+        stroke="#E9A686"
         strokeOpacity="0.55"
         strokeWidth="1.2"
       />
       <path
         d="M30 500 V196 A170 170 0 0 1 370 196 V500"
         fill="none"
-        stroke="#C9A96E"
+        stroke="#E9A686"
         strokeOpacity="0.22"
         strokeWidth="1"
       />
@@ -79,8 +79,8 @@ function ArchIllustration() {
 function Showcase() {
   return (
     <div className="hidden lg:block p-3 h-[100dvh] sticky top-0">
-      <div className="relative h-full rounded-[28px] overflow-hidden bg-[#15120E] text-[#F3EEE6] flex flex-col">
-        <div aria-hidden className="absolute -top-40 left-1/2 -translate-x-1/2 w-[620px] h-[620px] rounded-full bg-[#C9A96E]/[0.14] blur-3xl" />
+      <div className="relative h-full rounded-[28px] overflow-hidden bg-[#1F2130] text-[#F3F3F7] flex flex-col">
+        <div aria-hidden className="absolute -top-40 left-1/2 -translate-x-1/2 w-[620px] h-[620px] rounded-full bg-[#E9A686]/[0.16] blur-3xl" />
         <div aria-hidden className="absolute inset-0 opacity-[0.035] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:18px_18px]" />
 
         <div className="relative flex-1 min-h-0 flex items-end justify-center px-12 pt-14">
@@ -100,11 +100,11 @@ function Showcase() {
           transition={{ duration: 0.7, delay: 0.25 }}
           className="relative px-12 pb-12 pt-10"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C9A96E]">
+          <p className="text-[12.5px] font-semibold text-[#F2B69A]">
             Conciergerie privée
           </p>
-          <h2 className="font-display text-[44px] leading-[1.02] mt-4 text-[#F6F1E8] max-w-md">
-            L'art de recevoir, <em className="text-[#E8C98A] whitespace-nowrap">sur-mesure</em>.
+          <h2 className="font-display font-semibold text-[30px] leading-[1.02] mt-4 text-white max-w-md">
+            L'art de recevoir, <span className="text-[#F2B69A] whitespace-nowrap">sur-mesure</span>.
           </h2>
           <div className="mt-8 grid grid-cols-3 gap-6 border-t border-white/10 pt-6 text-[13px]">
             {[
@@ -113,8 +113,8 @@ function Showcase() {
               ['Pilotage', 'en temps réel'],
             ].map(([a, b]) => (
               <div key={a}>
-                <p className="text-[#F3EEE6] font-medium">{a}</p>
-                <p className="text-[#F3EEE6]/55 mt-0.5">{b}</p>
+                <p className="text-white font-semibold">{a}</p>
+                <p className="text-white/55 mt-0.5">{b}</p>
               </div>
             ))}
           </div>
@@ -164,7 +164,7 @@ export function AuthLayout({ children, aside }: AuthLayoutProps) {
 export function AuthHeading({ title, subtitle }: { title: ReactNode; subtitle?: ReactNode }) {
   return (
     <div className="mb-9">
-      <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">{title}</h1>
+      <h1 className="font-display font-semibold text-[30px] leading-[1.02] tracking-tight text-ink">{title}</h1>
       {subtitle && <p className="text-[14.5px] text-muted mt-3 leading-relaxed">{subtitle}</p>}
     </div>
   );

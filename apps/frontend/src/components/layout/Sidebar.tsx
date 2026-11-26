@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -19,15 +19,14 @@ import {
   Store,
   CalendarRange,
   X,
+  LogOut,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
-import { Avatar } from '../ui/Avatar';
 import { Logo, LogoMark } from '../brand/Logo';
 import { apiClient } from '../../lib/apiClient';
-import { ROLES_LABELS } from '../../lib/constants';
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'PROVIDER' | 'CLIENT';
 
@@ -110,33 +109,31 @@ function NavItem({ item, collapsed, badge, onNavigate }: NavItemProps) {
       onClick={onNavigate}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-3 h-9 px-3 rounded-lg text-[13.5px] transition-colors duration-150',
+        'group relative flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] transition-colors duration-150',
         isActive
-          ? 'bg-surface-2 text-ink font-medium'
-          : 'text-ink-soft hover:text-ink hover:bg-surface-2/60',
+          ? 'bg-primary text-on-primary font-semibold shadow-[0_4px_12px_-4px_rgb(var(--c-primary)/0.45)]'
+          : 'text-ink-soft font-medium hover:text-ink hover:bg-surface-2',
         collapsed && 'justify-center px-0 w-10 mx-auto',
       )}
     >
-      {isActive && (
-        <motion.span
-          layoutId="nav-active-indicator"
-          className="absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-accent"
-          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-        />
-      )}
       <span className="relative shrink-0">
         <Icon
           size={17}
-          strokeWidth={isActive ? 2 : 1.75}
-          className={cn(isActive ? 'text-accent' : 'text-muted group-hover:text-ink-soft')}
+          strokeWidth={isActive ? 2.1 : 1.8}
+          className={cn(isActive ? 'text-on-primary' : 'text-muted group-hover:text-ink-soft')}
         />
         {hasBadge && collapsed && (
-          <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-accent ring-2 ring-surface" />
+          <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-gold ring-2 ring-surface" />
         )}
       </span>
       {!collapsed && <span className="truncate flex-1">{label}</span>}
       {!collapsed && hasBadge && (
-        <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-on-accent text-[10.5px] font-semibold flex items-center justify-center tabular">
+        <span
+          className={cn(
+            'ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[10.5px] font-bold flex items-center justify-center tabular',
+            isActive ? 'bg-on-primary/20 text-on-primary' : 'bg-gold text-[#2A1A12]',
+          )}
+        >
           {badge! > 99 ? '99+' : badge}
         </span>
       )}
@@ -157,7 +154,12 @@ interface SidebarContentProps {
 
 export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
   const { toggleSidebar, setMobileNavOpen } = useUIStore();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
   const role = user?.role;
 
   const { data: unreadData } = useQuery({
@@ -179,15 +181,27 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div className={cn('flex items-center h-[76px] shrink-0 px-6', collapsed && 'justify-center px-0')}>
-        {collapsed ? <LogoMark size={32} /> : <Logo size="sm" />}
-        {mobile && (
+      <div className={cn('flex items-center h-[76px] shrink-0 px-6', collapsed && 'flex-col justify-center gap-2 px-0 h-[104px]')}>
+        {collapsed ? <LogoMark size={26} /> : <Logo size="sm" />}
+        {mobile ? (
           <button
             onClick={() => setMobileNavOpen(false)}
-            className="ml-auto w-9 h-9 -mr-2 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2"
+            className="ml-auto w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2"
             aria-label="Fermer le menu"
           >
             <X size={18} />
+          </button>
+        ) : (
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              'w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors',
+              !collapsed && 'ml-auto -mr-2',
+            )}
+            title={collapsed ? 'Déployer le menu' : 'Réduire le menu'}
+            aria-label={collapsed ? 'Déployer le menu' : 'Réduire le menu'}
+          >
+            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           </button>
         )}
       </div>
@@ -195,11 +209,11 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
       {/* Main nav */}
       <nav className={cn('flex-1 overflow-y-auto scrollbar-none pt-3 pb-4', collapsed ? 'px-2' : 'px-3')}>
         {sections.map((section, idx) => (
-          <div key={section.title} className={cn(idx > 0 && 'mt-5')}>
+          <div key={section.title} className={cn(idx > 0 && 'mt-4')}>
             {collapsed ? (
               idx > 0 && <div className="mx-auto mb-3 w-6 h-px bg-line" />
             ) : (
-              <p className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted/80">
+              <p className="px-3 mb-1.5 text-[11px] font-semibold text-muted/80">
                 {section.title}
               </p>
             )}
@@ -218,11 +232,11 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
         ))}
 
         {visibleBottom.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-4">
             {collapsed ? (
               <div className="mx-auto mb-3 w-6 h-px bg-line" />
             ) : (
-              <p className="px-3 mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted/80">
+              <p className="px-3 mb-1.5 text-[11px] font-semibold text-muted/80">
                 Administration
               </p>
             )}
@@ -235,48 +249,37 @@ export function SidebarContent({ collapsed, mobile }: SidebarContentProps) {
         )}
       </nav>
 
-      {/* User + collapse */}
-      <div className={cn('shrink-0 border-t border-line', collapsed ? 'p-2' : 'p-3')}>
-        {user && (
-          <div
-            className={cn(
-              'flex items-center gap-3 rounded-xl',
-              collapsed ? 'justify-center py-2' : 'px-2.5 py-2',
-            )}
-            title={collapsed ? `${user.firstName} ${user.lastName}` : undefined}
-          >
-            <Avatar src={user.avatar} firstName={user.firstName} lastName={user.lastName} size="sm" />
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-ink truncate leading-tight">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-[11.5px] text-muted truncate leading-tight mt-0.5">
-                  {ROLES_LABELS[role ?? ''] ?? role}
-                </p>
-              </div>
-            )}
-            {!collapsed && !mobile && (
-              <button
-                onClick={toggleSidebar}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors"
-                title="Réduire le menu"
-                aria-label="Réduire le menu"
-              >
-                <PanelLeftClose size={16} />
-              </button>
-            )}
+      {/* Footer: logout + concierge card */}
+      <div className={cn('shrink-0 border-t border-line pt-3', collapsed ? 'px-2 pb-4' : 'px-3 pb-4')}>
+        <button
+          onClick={handleLogout}
+          title={collapsed ? 'Se déconnecter' : undefined}
+          className={cn(
+            'w-full flex items-center gap-3 h-9 px-3 rounded-[10px] text-[13.5px] font-medium text-ink-soft hover:text-danger hover:bg-danger/5 transition-colors',
+            collapsed && 'justify-center px-0',
+          )}
+        >
+          <LogOut size={17} strokeWidth={1.8} className="text-muted" />
+          {!collapsed && 'Se déconnecter'}
+        </button>
+
+        {!collapsed && (
+          <div className="hidden [@media(min-height:1000px)]:block mt-4 rounded-2xl bg-surface-2 border border-line p-4 text-center">
+            <span className="mx-auto mb-2.5 w-9 h-9 rounded-full bg-surface flex items-center justify-center shadow-card">
+              <BrainCircuit size={17} className="text-accent" />
+            </span>
+            <p className="text-[13.5px] font-bold text-ink">Concierge IA</p>
+            <p className="text-[12px] text-muted mt-0.5 leading-snug">Une question sur une villa ou un séjour ?</p>
+            <button
+              onClick={() => {
+                onNavigate?.();
+                navigate('/concierge-ia');
+              }}
+              className="mt-3 h-9 px-5 rounded-full bg-primary text-on-primary text-[12.5px] font-semibold hover:bg-primary-hover transition-colors"
+            >
+              Demander
+            </button>
           </div>
-        )}
-        {collapsed && !mobile && (
-          <button
-            onClick={toggleSidebar}
-            className="mt-1 w-10 h-9 mx-auto rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors"
-            title="Déployer le menu"
-            aria-label="Déployer le menu"
-          >
-            <PanelLeftOpen size={16} />
-          </button>
         )}
       </div>
     </div>
@@ -290,7 +293,7 @@ export function Sidebar() {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: sidebarCollapsed ? 72 : 256 }}
+      animate={{ width: sidebarCollapsed ? 76 : 248 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className="hidden lg:block h-full bg-surface border-r border-line overflow-hidden shrink-0"
     >

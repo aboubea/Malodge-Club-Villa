@@ -54,12 +54,12 @@ function KpiCard({ label, value, icon: Icon, color, bgColor, delay }: KpiCardPro
     >
       <Card className="p-6 h-full">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-muted">{label}</p>
+          <p className="text-[13px] font-medium text-muted">{label}</p>
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bgColor}`}>
             <Icon size={16} className={color} />
           </div>
         </div>
-        <p className="font-display text-[38px] leading-none tracking-[-0.01em] text-ink tabular mt-4">
+        <p className="font-display font-semibold text-[28px] leading-none tracking-tight text-ink tabular mt-4">
           {formatCurrency(value)}
         </p>
       </Card>

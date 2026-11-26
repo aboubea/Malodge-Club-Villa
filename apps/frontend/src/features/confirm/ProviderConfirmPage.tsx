@@ -58,7 +58,7 @@ export function ProviderConfirmPage() {
                 )}
               </div>
               <div>
-                <h1 className="font-display text-[32px] leading-tight text-ink">
+                <h1 className="font-display font-semibold text-[24px] leading-tight text-ink">
                   {isAccept ? 'Disponibilité confirmée' : 'Demande refusée'}
                 </h1>
                 <p className="text-sm text-muted mt-2">
@@ -81,7 +81,7 @@ export function ProviderConfirmPage() {
                 <XCircle size={36} className="text-danger" />
               </div>
               <div>
-                <h1 className="font-display text-[32px] leading-tight text-ink">Lien invalide</h1>
+                <h1 className="font-display font-semibold text-[24px] leading-tight text-ink">Lien invalide</h1>
                 <p className="text-sm text-muted mt-2">{errorMsg}</p>
               </div>
             </>

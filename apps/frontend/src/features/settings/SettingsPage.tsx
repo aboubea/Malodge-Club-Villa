@@ -13,12 +13,12 @@ import { useAuthStore } from '../../store/authStore';
 import type { Country } from '../../hooks/useCountries';
 import { useUIStore, type ThemePreference } from '../../store/uiStore';
 
-const LIGHT = { bg: '#F6F3EE', card: '#FFFEFB', ink: '#1D1B18' };
-const DARK = { bg: '#0E0D0C', card: '#1F1D1B', ink: '#F3EEE6' };
+const LIGHT = { bg: '#F7F7F9', card: '#FFFFFF', ink: '#1C1D29' };
+const DARK = { bg: '#111218', card: '#22232D', ink: '#F0F0F5' };
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string; swatches: typeof LIGHT[] }[] = [
-  { value: 'light', label: 'Riviera', hint: 'Clair, ivoire et bronze', swatches: [LIGHT] },
-  { value: 'dark', label: 'Nocturne', hint: 'Sombre, champagne', swatches: [DARK] },
+  { value: 'light', label: 'Clair', hint: 'Blanc, gris doux et pêche', swatches: [LIGHT] },
+  { value: 'dark', label: 'Sombre', hint: 'Bleu nuit et pêche', swatches: [DARK] },
   { value: 'system', label: 'Automatique', hint: 'Suit votre appareil', swatches: [LIGHT, DARK] },
 ];
 
@@ -206,7 +206,7 @@ export function SettingsPage() {
                                 <div className="h-2 w-10 rounded-full" style={{ backgroundColor: half.ink, opacity: 0.85 }} />
                                 <div className="h-2 w-14 rounded-full" style={{ backgroundColor: half.ink, opacity: 0.3 }} />
                                 <div className="mt-auto h-5 w-12 rounded-md" style={{ backgroundColor: half.card, boxShadow: '0 1px 2px rgb(0 0 0 / 0.08)' }} />
-                                <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: '#C9A96E' }} />
+                                <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: '#E9A686' }} />
                               </div>
                             ))}
                           </div>

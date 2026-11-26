@@ -161,7 +161,7 @@ export function MessageThread({ conversationId }: Props) {
           className={cn(
             'flex-1 resize-none rounded-xl px-3 py-2.5 text-sm',
             'bg-surface border border-line text-ink placeholder:text-muted',
-            'focus:outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/10',
+            'focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-accent/10',
             'max-h-32 transition-all duration-150',
           )}
           style={{ minHeight: '40px' }}

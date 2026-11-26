@@ -388,7 +388,7 @@ export function CalendarPage() {
                 <label className="text-[12.5px] font-medium text-ink-soft">Début</label>
                 <input
                   type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                   value={form.startAt}
                   onChange={(e) => setForm((p) => ({ ...p, startAt: e.target.value }))}
                 />
@@ -397,7 +397,7 @@ export function CalendarPage() {
                 <label className="text-[12.5px] font-medium text-ink-soft">Fin</label>
                 <input
                   type="datetime-local"
-                  className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                   value={form.endAt}
                   onChange={(e) => setForm((p) => ({ ...p, endAt: e.target.value }))}
                 />
@@ -407,7 +407,7 @@ export function CalendarPage() {
             <div>
               <label className="text-[12.5px] font-medium text-ink-soft">Type</label>
               <select
-                className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+                className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
                 value={form.type}
                 onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
               >

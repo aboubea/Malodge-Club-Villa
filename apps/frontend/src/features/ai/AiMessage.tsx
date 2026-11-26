@@ -50,7 +50,7 @@ export function AiMessage({ question, answer, sources, hasAnswer, index }: Props
           </div>
           {hasAnswer && sources.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] text-muted uppercase tracking-wider font-medium px-1">
+              <p className="text-[11.5px] font-medium text-muted font-medium px-1">
                 Sources
               </p>
               {sources.map((src) => (

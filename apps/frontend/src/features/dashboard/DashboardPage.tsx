@@ -19,7 +19,6 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { cn, formatCurrency } from '../../lib/utils';
-import { useAuthStore } from '../../store/authStore';
 import { useDashboard } from './useDashboard';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'active' | 'confirmed' | 'pending' | 'completed' | 'cancelled' }> = {
@@ -64,12 +63,12 @@ function ChangePill({ value }: { value: number }) {
 }
 
 function StatLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-muted">{children}</p>;
+  return <p className="text-[13px] font-medium text-muted">{children}</p>;
 }
 
 function BigNumber({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn('font-display text-[44px] leading-none tracking-[-0.01em] text-ink tabular', className)}>
+    <p className={cn('font-display font-semibold text-[30px] leading-none tracking-tight text-ink tabular', className)}>
       {children}
     </p>
   );
@@ -91,18 +90,9 @@ function ProgressBar({ value, className }: { value: number; className?: string }
 
 export function DashboardPage() {
   const { data, isLoading } = useDashboard();
-  const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  const today = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  const hour = new Date().getHours();
-  const greeting = hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour';
-
+  
   const kpis = data?.kpis;
   const recentReservations = data?.recentReservations ?? [];
   const villaRatio = kpis && kpis.totalVillas > 0 ? (kpis.activeVillas / kpis.totalVillas) * 100 : 0;
@@ -134,8 +124,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={today.charAt(0).toUpperCase() + today.slice(1)}
-        title={`${greeting}${user?.firstName ? `, ${user.firstName}` : ''}`}
+        title="Tableau de bord"
         description="Voici l'essentiel de l'activité de vos villas."
       >
         <Button variant="secondary" icon={<CalendarRange size={15} />} onClick={() => navigate('/agenda')}>
@@ -149,11 +138,22 @@ export function DashboardPage() {
       {/* Headline metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <motion.div {...fadeUp(0)} className="sm:col-span-2">
-          <Card className="relative h-full overflow-hidden p-6 sm:p-7">
-            <div
+          <Card className="relative h-full overflow-hidden p-6 sm:p-7 bg-peach border-transparent shadow-none">
+            <svg
               aria-hidden
-              className="pointer-events-none absolute -top-32 -right-24 w-80 h-80 rounded-full bg-gold/[0.12] blur-3xl"
-            />
+              viewBox="0 0 300 120"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute right-6 top-14 w-[42%] h-20 opacity-80"
+            >
+              <path
+                d="M0 95 C 40 90, 60 70, 95 74 S 150 98, 185 70 S 245 30, 300 22"
+                fill="none"
+                stroke="rgb(var(--c-gold))"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <circle cx="300" cy="22" r="5" fill="rgb(var(--c-gold))" />
+            </svg>
             <div className="relative flex items-start justify-between gap-4">
               <StatLabel>Chiffre d'affaires · ce mois</StatLabel>
               {kpis && kpis.revenueChange !== 0 && <ChangePill value={kpis.revenueChange} />}
@@ -161,7 +161,7 @@ export function DashboardPage() {
             {isLoading ? (
               <Skeleton className="relative h-14 w-56 mt-6" />
             ) : (
-              <BigNumber className="relative mt-5 text-[52px] sm:text-[60px]">
+              <BigNumber className="relative mt-5 text-[34px] sm:text-[38px]">
                 {formatCurrency(kpis?.totalRevenue ?? 0)}
               </BigNumber>
             )}
@@ -313,7 +313,7 @@ export function DashboardPage() {
                     {isLoading ? (
                       <Skeleton className="h-6 w-10" />
                     ) : (
-                      <span className="font-display text-[28px] leading-none text-ink tabular">{value}</span>
+                      <span className="font-display font-semibold text-[22px] leading-none text-ink tabular">{value}</span>
                     )}
                   </Link>
                 </li>
@@ -322,17 +322,13 @@ export function DashboardPage() {
           </Card>
 
           <Link to="/concierge-ia" className="block group">
-            <Card className="relative overflow-hidden p-6 border-gold/30 hover:border-gold/60 transition-colors">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gold/15 via-transparent to-transparent"
-              />
+            <Card className="relative overflow-hidden p-6 hover:border-line-strong transition-colors">
               <div className="relative flex items-start gap-4">
-                <span className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center shrink-0">
-                  <BrainCircuit size={18} className="text-[#1D1B18]" />
+                <span className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <BrainCircuit size={18} className="text-on-primary" />
                 </span>
                 <div className="flex-1">
-                  <p className="font-display text-[22px] leading-tight text-ink">Concierge IA</p>
+                  <p className="font-display font-semibold text-[17px] leading-tight text-ink">Concierge IA</p>
                   <p className="text-[13px] text-muted mt-1">
                     Posez une question sur vos villas, réservations ou documents.
                   </p>

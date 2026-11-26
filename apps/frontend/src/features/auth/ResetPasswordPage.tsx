@@ -35,7 +35,7 @@ export function ResetPasswordPage() {
           <div className="w-16 h-16 rounded-full bg-danger/10 flex items-center justify-center mx-auto mb-5">
             <AlertCircle size={28} className="text-danger" />
           </div>
-          <h2 className="font-display text-[34px] leading-tight text-ink mb-3">Lien invalide</h2>
+          <h2 className="font-display font-semibold text-[24px] leading-tight text-ink mb-3">Lien invalide</h2>
           <p className="text-sm text-muted mb-6">
             Ce lien de réinitialisation est invalide ou a expiré.
           </p>
@@ -94,7 +94,7 @@ export function ResetPasswordPage() {
           <div className="w-16 h-16 rounded-full bg-success/15 flex items-center justify-center mx-auto mb-5">
             <CheckCircle size={28} className="text-success" />
           </div>
-          <h2 className="font-display text-[34px] leading-tight text-ink mb-3">
+          <h2 className="font-display font-semibold text-[24px] leading-tight text-ink mb-3">
             Mot de passe réinitialisé
           </h2>
           <p className="text-sm text-muted mb-6">
@@ -109,7 +109,7 @@ export function ResetPasswordPage() {
     <AuthLayout>
 
         <div className="mb-9">
-          <h1 className="font-display text-[44px] leading-[1.02] tracking-[-0.01em] text-ink">
+          <h1 className="font-display font-semibold text-[30px] leading-[1.02] tracking-tight text-ink">
             Nouveau mot de passe
           </h1>
           <p className="text-[14.5px] text-muted mt-3">

@@ -30,8 +30,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const SELECT_CLS =
-  'w-full h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm ' +
-  'focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all appearance-none';
+  'w-full h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm ' +
+  'focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5 transition-all appearance-none';
 
 interface Reservation {
   id: string;
@@ -307,7 +307,7 @@ export function ReservationsPage() {
               <thead>
                 <tr className="border-b border-line bg-surface">
                   {['Client', 'Propriété', 'Séjour', 'Voyageurs', 'Statut', 'Montant'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -408,7 +408,7 @@ export function ReservationsPage() {
             <thead>
               <tr className="border-b border-line bg-surface">
                 {['Client', 'Villa', 'Séjour', 'Voyageurs', 'Statut', 'Montant', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-muted uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -572,17 +572,17 @@ export function ReservationsPage() {
                       <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Prénom *" value={newClientForm.firstName}
                           onChange={(e) => setNewClientForm((p) => ({ ...p, firstName: e.target.value }))}
-                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
+                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5" />
                         <input placeholder="Nom *" value={newClientForm.lastName}
                           onChange={(e) => setNewClientForm((p) => ({ ...p, lastName: e.target.value }))}
-                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
+                          className="h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5" />
                       </div>
                       <input placeholder="Email *" type="email" value={newClientForm.email}
                         onChange={(e) => setNewClientForm((p) => ({ ...p, email: e.target.value }))}
-                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
+                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5" />
                       <input placeholder="Téléphone" type="tel" value={newClientForm.phone}
                         onChange={(e) => setNewClientForm((p) => ({ ...p, phone: e.target.value }))}
-                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10" />
+                        className="w-full h-9 px-3 rounded-lg bg-canvas border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5" />
                       <Button size="sm" variant="secondary" type="button"
                         loading={createClientMutation.isPending}
                         disabled={!newClientForm.firstName || !newClientForm.lastName || !newClientForm.email}
@@ -652,7 +652,7 @@ export function ReservationsPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[12.5px] font-medium text-ink-soft">Notes</label>
             <textarea
-              className="w-full px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all resize-none"
+              className="w-full px-3 py-2.5 rounded-xl bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5 transition-all resize-none"
               rows={3}
               placeholder="Informations complémentaires..."
               value={form.notes}

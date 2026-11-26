@@ -14,9 +14,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary text-on-primary hover:bg-primary-hover border-transparent shadow-[0_1px_2px_rgb(0_0_0/0.12)]',
+    'bg-primary text-on-primary hover:bg-primary-hover border-transparent shadow-[0_6px_16px_-6px_rgb(var(--c-primary)/0.5)]',
   secondary:
-    'bg-surface text-ink border-line hover:bg-surface-2 hover:border-line-strong shadow-card',
+    'bg-surface text-ink border-line-strong/70 hover:bg-surface-2 hover:border-line-strong',
   destructive:
     'bg-danger/10 text-danger border-danger/25 hover:bg-danger/15 hover:border-danger/40',
   ghost:
@@ -24,9 +24,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[12.5px] gap-1.5 rounded-lg',
-  md: 'h-10 px-4 text-[13.5px] gap-2 rounded-[10px]',
-  lg: 'h-12 px-6 text-[14.5px] gap-2 rounded-xl',
+  sm: 'h-8 px-3.5 text-[12.5px] gap-1.5 rounded-full',
+  md: 'h-10 px-5 text-[13.5px] gap-2 rounded-full',
+  lg: 'h-12 px-7 text-[14.5px] gap-2 rounded-full',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -50,9 +50,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          'inline-flex items-center justify-center whitespace-nowrap border font-medium select-none',
+          'inline-flex items-center justify-center whitespace-nowrap border font-semibold select-none',
           'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out active:scale-[0.98]',
-          'focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/20',
+          'focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/15',
           'disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100',
           variantClasses[variant],
           sizeClasses[size],

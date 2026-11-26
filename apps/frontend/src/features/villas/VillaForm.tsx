@@ -70,7 +70,7 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
       <div>
         <label className="text-[12.5px] font-medium text-ink-soft">Description</label>
         <textarea
-          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 transition-all resize-none"
+          className="w-full mt-1.5 px-3 py-2.5 rounded-xl bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5 transition-all resize-none"
           rows={3}
           placeholder="Description de la villa..."
           value={form.description || ''}

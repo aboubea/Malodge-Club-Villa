@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Bell, Search, LogOut, User, Settings, ChevronDown, Menu, Moon, Sun } from 'lucide-react';
+import { Bell, Search, LogOut, User, Settings, ChevronDown, Menu, Moon, Sun, CalendarDays } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import { formatDistanceToNow } from '../../lib/utils';
@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { Avatar } from '../ui/Avatar';
-import { LogoMark } from '../brand/Logo';
 import { useUIStore } from '../../store/uiStore';
 import { useIsDark } from '../../hooks/useTheme';
 import { ROLES_LABELS } from '../../lib/constants';
@@ -73,46 +72,56 @@ export function TopBar() {
     navigate('/login');
   };
 
+  const hour = new Date().getHours();
+  const greeting = hour >= 18 || hour < 5 ? 'Bonsoir' : 'Bonjour';
+  const todayRaw = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
+
   return (
-    <header className="h-16 flex items-center gap-3 px-4 sm:px-6 lg:px-8 glass border-b border-line shrink-0 relative z-30">
+    <header className="h-[76px] flex items-center gap-3 px-4 sm:px-6 lg:px-8 bg-surface border-b border-line shrink-0 relative z-30">
       {/* Mobile menu */}
       <button
         onClick={() => setMobileNavOpen(true)}
-        className="lg:hidden w-10 h-10 -ml-2 rounded-lg flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+        className="lg:hidden w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
         aria-label="Ouvrir le menu"
       >
         <Menu size={20} />
       </button>
-      <span className="lg:hidden">
-        <LogoMark size={28} />
-      </span>
 
-      {/* Search */}
-      <div className="relative hidden sm:block max-w-sm w-full">
-        <Search
-          size={15}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-        />
-        <input
-          type="text"
-          placeholder="Rechercher une villa, un client, une commande…"
-          aria-label="Rechercher"
-          className={cn(
-            'w-full h-10 pl-10 pr-3 rounded-full text-[13px]',
-            'bg-surface border border-line',
-            'text-ink placeholder:text-muted',
-            'focus:outline-none focus:border-accent/50 focus:ring-4 focus:ring-accent/10',
-            'transition-all duration-150',
-          )}
-        />
+      {/* Greeting */}
+      <div className="min-w-0">
+        <p className="text-[17px] sm:text-[19px] text-ink leading-tight truncate">
+          {greeting}, <span className="font-bold">{user?.firstName}</span>
+        </p>
+        <p className="hidden sm:flex items-center gap-1.5 text-[12.5px] text-muted mt-1">
+          <CalendarDays size={13} />
+          {today}
+        </p>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="flex items-center gap-2 ml-auto">
+        {/* Search */}
+        <div className="relative hidden md:block w-56 lg:w-64">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Rechercher"
+            aria-label="Rechercher"
+            className={cn(
+              'w-full h-10 pl-10 pr-3 rounded-xl text-[13px]',
+              'bg-surface border border-line',
+              'text-ink placeholder:text-muted',
+              'focus:outline-none focus:border-ink/20 focus:ring-4 focus:ring-ink/5',
+              'transition-all duration-150',
+            )}
+          />
+        </div>
+
         {/* Theme */}
         <button
           onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+          className="w-10 h-10 rounded-full border border-line flex items-center justify-center text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
           title={isDark ? 'Passer en thème clair' : 'Passer en thème sombre'}
           aria-label={isDark ? 'Passer en thème clair' : 'Passer en thème sombre'}
         >
@@ -124,7 +133,7 @@ export function TopBar() {
           <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
             className={cn(
-              'relative w-10 h-10 rounded-full flex items-center justify-center',
+              'relative w-10 h-10 rounded-full border border-line flex items-center justify-center',
               'text-ink-soft hover:text-ink hover:bg-surface-2',
               'transition-colors duration-150',
               notificationsOpen && 'text-ink bg-surface-2',
@@ -133,7 +142,7 @@ export function TopBar() {
           >
             <Bell size={17} />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent ring-2 ring-canvas text-[9px] font-bold text-on-accent flex items-center justify-center tabular">
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-gold ring-2 ring-surface text-[9px] font-bold text-[#2A1A12] flex items-center justify-center tabular">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -217,9 +226,9 @@ export function TopBar() {
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className={cn(
-              'flex items-center gap-2.5 pl-1 pr-2 sm:pr-3 py-1 ml-1 rounded-full border border-transparent',
-              'hover:bg-surface hover:border-line transition-colors duration-150',
-              userMenuOpen && 'bg-surface border-line',
+              'flex items-center gap-2.5 pl-1 pr-2 sm:pr-2.5 py-1 ml-1 rounded-full',
+              'hover:bg-surface-2 transition-colors duration-150',
+              userMenuOpen && 'bg-surface-2',
             )}
             aria-label="Menu utilisateur"
           >
@@ -230,10 +239,9 @@ export function TopBar() {
               size="sm"
             />
             <div className="hidden sm:block text-left">
-              <p className="text-[13px] font-medium text-ink leading-none">
+              <p className="text-[13.5px] font-semibold text-ink leading-none">
                 {user?.firstName}
               </p>
-              <p className="text-[11px] text-muted leading-none mt-1">{ROLES_LABELS[user?.role ?? ''] ?? user?.role}</p>
             </div>
             <ChevronDown
               size={12}
@@ -263,6 +271,7 @@ export function TopBar() {
                     {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-xs text-muted truncate">{user?.email}</p>
+                  <p className="text-[11px] font-medium text-accent mt-1">{ROLES_LABELS[user?.role ?? ''] ?? user?.role}</p>
                 </div>
                 <div className="py-1">
                   <button

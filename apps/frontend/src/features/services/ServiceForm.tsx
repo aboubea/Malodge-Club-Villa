@@ -121,7 +121,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
       <div>
         <label className="text-[12.5px] font-medium text-ink-soft">Description</label>
         <textarea
-          className="w-full mt-1.5 px-3 py-2.5 rounded-lg bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10 resize-none"
+          className="w-full mt-1.5 px-3 py-2.5 rounded-xl bg-surface border border-line text-ink text-sm placeholder:text-muted focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5 resize-none"
           rows={3}
           value={form.description}
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
@@ -132,7 +132,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
       <div>
         <label className="text-[12.5px] font-medium text-ink-soft">Catégorie</label>
         <select
-          className="w-full mt-1.5 h-10 px-3 rounded-lg bg-surface border border-line text-ink text-sm focus:outline-none focus:border-accent/60 focus:ring-4 focus:ring-accent/10"
+          className="w-full mt-1.5 h-10 px-3 rounded-xl bg-surface border border-line text-ink text-sm focus:outline-none focus:border-ink/25 focus:ring-4 focus:ring-ink/5"
           value={form.categoryId}
           onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
         >
@@ -185,7 +185,7 @@ export function ServiceForm({ service, categories, onSuccess }: ServiceFormProps
       {service && (
         <div className="border-t border-line pt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted uppercase tracking-wider flex items-center gap-1.5">
+            <p className="text-[12.5px] font-semibold text-muted flex items-center gap-1.5">
               <UserCheck size={11} /> Prestataires assignés
             </p>
             <button
