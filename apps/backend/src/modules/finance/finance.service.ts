@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Response } from 'express';
-import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, reservationCurrency, totalsByCurrency } from '../../common/money';
+import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, providerCost, reservationCurrency, serviceDate, serviceDateBetween, totalsByCurrency } from '../../common/money';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -49,10 +49,11 @@ export class FinanceService {
     const { start, end } = getPeriodRange(period);
     const villaCur = await this.villaCurrencies();
 
+    // Revenue is dated by the day the service is done, not the day it was keyed in.
     const allOrders = await this.prisma.order.findMany({
       where: {
         status: { in: ['COMPLETED', 'IN_PROGRESS'] },
-        createdAt: { gte: start, lte: end },
+        ...serviceDateBetween(start, end),
       },
       include: {
         items: { include: { service: { include: { category: true } } } },
@@ -94,12 +95,14 @@ export class FinanceService {
     const accommodationRevenue = reservations.reduce((sum, r) => sum + r.totalAmount, 0);
 
     // Concierge margin
-    const conciergeMargin = totalCommissions;
+    // Margin = what the client pays minus what the provider is owed (its cost when
+    // known, as in the extras tracking), before the owner's and seller's shares.
+    const conciergeMargin = completedOrders.reduce((sum, o) => sum + (o.totalAmount - providerCost(o)), 0);
 
     // Revenue by day
     const revenueByDayMap = new Map<string, number>();
     for (const order of completedOrders) {
-      const day = order.createdAt.toISOString().split('T')[0];
+      const day = serviceDate(order).toISOString().split('T')[0];
       revenueByDayMap.set(day, (revenueByDayMap.get(day) || 0) + order.totalAmount);
     }
     const revenueByDay = Array.from(revenueByDayMap.entries())
@@ -143,7 +146,7 @@ export class FinanceService {
       if (order.provider) {
         const { id: providerId } = order.provider;
         const name = `${order.provider.user.firstName} ${order.provider.user.lastName}`;
-        const netAmount = order.totalAmount - order.commission;
+        const netAmount = providerCost(order);
         const existing = providerPayoutMap.get(providerId) || { providerId, name, amount: 0 };
         existing.amount += netAmount;
         providerPayoutMap.set(providerId, existing);
@@ -186,10 +189,11 @@ export class FinanceService {
     const orders = await this.prisma.order.findMany({
       where: {
         status: 'COMPLETED',
-        completedAt: { gte: start, lte: end },
+        ...serviceDateBetween(start, end),
         providerId: { not: null },
       },
       include: {
+        items: { select: { quantity: true, unitCost: true } },
         provider: {
           include: {
             user: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -229,8 +233,10 @@ export class FinanceService {
         orderCount: 0,
       };
       existing.grossAmount += order.totalAmount;
-      existing.commission += order.commission;
-      existing.netAmount += order.totalAmount - order.commission;
+      // The provider is owed its cost when the extra has one, else the total minus commission.
+      const owed = providerCost(order);
+      existing.commission += order.totalAmount - owed;
+      existing.netAmount += owed;
       existing.orderCount += 1;
       payoutMap.set(key, existing);
     }

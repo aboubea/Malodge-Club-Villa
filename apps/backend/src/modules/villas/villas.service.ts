@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { canonicalCountry } from '../../common/geo';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateVillaDto } from './dto/create-villa.dto';
 import { UpdateVillaDto } from './dto/update-villa.dto';
@@ -41,7 +42,7 @@ export class VillasService {
       ];
     }
     if (params.city) where.city = { contains: params.city, mode: 'insensitive' };
-    if (params.country) where.country = params.country;
+    if (params.country) where.country = canonicalCountry(params.country);
     if (params.isActive !== undefined) where.isActive = params.isActive;
 
     // Restrict ADMIN/MANAGER to their assigned countries
@@ -105,6 +106,7 @@ export class VillasService {
     return this.prisma.villa.create({
       data: {
         ...dto,
+        ...(dto.country !== undefined && { country: canonicalCountry(dto.country) }),
         slug,
         amenities: dto.amenities || [],
         rules: dto.rules || [],
@@ -117,7 +119,7 @@ export class VillasService {
     await this.findOne(id);
     return this.prisma.villa.update({
       where: { id },
-      data: dto,
+      data: { ...dto, ...(dto.country !== undefined && { country: canonicalCountry(dto.country) }) },
     });
   }
 

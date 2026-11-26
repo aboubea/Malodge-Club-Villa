@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { canonicalCountries } from '../../common/geo';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -91,6 +92,7 @@ export class UsersService {
     const user = await this.prisma.user.create({
       data: {
         ...dto,
+        ...(dto.countries && { countries: canonicalCountries(dto.countries) }),
         password: hashedPassword,
       },
       select: {
@@ -113,7 +115,7 @@ export class UsersService {
     await this.findOne(id);
     return this.prisma.user.update({
       where: { id },
-      data: dto,
+      data: { ...dto, ...(dto.countries && { countries: canonicalCountries(dto.countries) }) },
       select: {
         id: true,
         email: true,

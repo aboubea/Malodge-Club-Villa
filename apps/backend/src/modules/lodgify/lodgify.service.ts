@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import * as https from 'https';
 import { extractCapacity } from './lodgify-capacity';
 import { currencyForCountry } from '../../common/money';
+import { canonicalCountry } from '../../common/geo';
 
 /** Number of guests of a Lodgify booking, whatever the API version. */
 export function bookingGuests(r: any): number | null {
@@ -393,7 +394,7 @@ export class LodgifyService {
       bathrooms: count(prop.bathrooms),
       address: text(prop.address),
       city: text(prop.city),
-      country: text(prop.country),
+      country: text(prop.country) ? canonicalCountry(text(prop.country)) : null,
       coverImage: text(prop.coverImage),
       description: text(prop.description),
     };

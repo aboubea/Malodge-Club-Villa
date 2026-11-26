@@ -12,7 +12,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Input } from '../../components/ui/Input';
 import { apiClient } from '../../lib/apiClient';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { formatCurrency, formatDate, displayEmail } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { useCountries } from '../../hooks/useCountries';
 
@@ -471,7 +471,7 @@ export function ReservationsPage() {
                             <p className="text-ink font-normal truncate max-w-[140px]">
                               {r.client.firstName} {r.client.lastName}
                             </p>
-                            <p className="text-[11px] text-muted truncate max-w-[140px]">{r.client.email}</p>
+                            {displayEmail(r.client.email) && <p className="text-[11px] text-muted truncate max-w-[140px]">{r.client.email}</p>}
                           </div>
                         </div>
                       </td>
@@ -590,7 +590,7 @@ export function ReservationsPage() {
                       <select value={form.clientId} onChange={set('clientId')} className={SELECT_CLS}>
                         <option value="">Sélectionner un client</option>
                         {clients.map((c: any) => (
-                          <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.email})</option>
+                          <option key={c.id} value={c.id}>{c.firstName} {c.lastName} {displayEmail(c.email) ? ` (${c.email})` : ''}</option>
                         ))}
                       </select>
                       {errors.clientId && <p className="text-xs text-danger">{errors.clientId}</p>}

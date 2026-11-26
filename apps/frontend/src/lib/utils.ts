@@ -6,12 +6,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency = 'EUR'): string {
+  // Cents are kept (312,50 MAD must not read 313 MAD); whole amounts show none.
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
+}
+
+/** A real contact address, or null for the placeholders of records without app access. */
+export function displayEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  return /@fiche\.malodge\.invalid$|@malodge\.local$|\.invalid$/i.test(email) ? null : email;
 }
 
 export function formatDate(date: string | Date | null | undefined): string {

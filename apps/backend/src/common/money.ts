@@ -46,3 +46,30 @@ export function pickCurrency(available: { currency: string; amount: number }[], 
   if (a && /^[A-Z]{3}$/.test(a)) return a;
   return available[0]?.currency ?? DEFAULT_CURRENCY;
 }
+
+/**
+ * Revenue is counted on the day the service is done (its scheduled date),
+ * not the day the order was keyed in or imported.
+ */
+export function serviceDate(o: { scheduledAt?: Date | null; completedAt?: Date | null; createdAt: Date }): Date {
+  return o.scheduledAt ?? o.completedAt ?? o.createdAt;
+}
+
+/** Prisma filter: orders whose service date falls in [start, end]. */
+export function serviceDateBetween(start: Date, end?: Date) {
+  const range = end ? { gte: start, lte: end } : { gte: start };
+  return {
+    OR: [
+      { scheduledAt: range },
+      { scheduledAt: null, completedAt: range },
+      { scheduledAt: null, completedAt: null, createdAt: range },
+    ],
+  };
+}
+
+/** What the provider is owed for an order: its cost when known, else total minus commission. */
+export function providerCost(o: { totalAmount: number; commission: number; items?: { quantity: number; unitCost?: number | null }[] }): number {
+  const items = o.items ?? [];
+  if (items.length && items.every((i) => i.unitCost != null)) return items.reduce((s, i) => s + i.quantity * (i.unitCost as number), 0);
+  return o.totalAmount - (o.commission ?? 0);
+}

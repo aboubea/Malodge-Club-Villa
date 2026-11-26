@@ -148,7 +148,8 @@ export function FinancePage() {
 
   const kpis: KpiCardProps[] = [
     {
-      label: 'CA Total',
+      // Services done (Réalisée / En cours), counted on the day they are done.
+      label: 'CA réalisé',
       value: dashboard?.totalRevenue ?? 0,
       currency,
       icon: TrendingUp,
@@ -175,7 +176,7 @@ export function FinancePage() {
       delay: 0.1,
     },
     {
-      label: 'Marge conciergerie',
+      label: 'Marge brute (prix − coût)',
       value: dashboard?.conciergeMargin ?? 0,
       currency,
       icon: BarChart3,

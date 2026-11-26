@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { canonicalCountry } from '../../common/geo';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface Country { code: string; name: string; flag: string; }
@@ -13,6 +14,17 @@ const DEFAULT_COUNTRIES: Country[] = [
   { code: 'TN', name: 'Tunisie', flag: '🇹🇳' },
 ];
 
+/** "Morocco" and "Maroc" are one country: keep the app's spelling, once. */
+function dedupeCountries(list: Country[]): Country[] {
+  const out: Country[] = [];
+  for (const c of list ?? []) {
+    const name = canonicalCountry(c.name);
+    if (!name || out.some((o) => o.name === name)) continue;
+    out.push({ ...c, name });
+  }
+  return out;
+}
+
 @Injectable()
 export class SettingsService {
   constructor(private prisma: PrismaService) {}
@@ -20,10 +32,11 @@ export class SettingsService {
   async getCountries(): Promise<Country[]> {
     const setting = await this.prisma.appSetting.findUnique({ where: { key: 'countries' } });
     if (!setting) return DEFAULT_COUNTRIES;
-    return setting.value as unknown as Country[];
+    return dedupeCountries(setting.value as unknown as Country[]);
   }
 
-  async setCountries(countries: Country[]): Promise<Country[]> {
+  async setCountries(input: Country[]): Promise<Country[]> {
+    const countries = dedupeCountries(input);
     await this.prisma.appSetting.upsert({
       where: { key: 'countries' },
       update: { value: countries as any },

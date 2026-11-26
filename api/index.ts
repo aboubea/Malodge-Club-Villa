@@ -149,6 +149,9 @@ async function bootstrap() {
       `ALTER TABLE "Reservation" ALTER COLUMN "checkIn" DROP NOT NULL`,
       `ALTER TABLE "Reservation" ALTER COLUMN "checkOut" DROP NOT NULL`,
       `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "currency" TEXT`,
+      // One spelling per country: Lodgify's "Morocco" is the app's "Maroc".
+      `UPDATE "Villa" SET "country" = 'Maroc' WHERE lower(trim("country")) IN ('morocco', 'ma', 'maroc') AND "country" <> 'Maroc'`,
+      `UPDATE "User" SET "countries" = ARRAY(SELECT DISTINCT CASE WHEN lower(trim(c)) IN ('morocco', 'ma', 'maroc') THEN 'Maroc' ELSE c END FROM unnest("countries") AS c) WHERE EXISTS (SELECT 1 FROM unnest("countries") AS c WHERE lower(trim(c)) IN ('morocco', 'ma') OR c = 'maroc')`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DATA TYPE DOUBLE PRECISION`,
       `ALTER TABLE "OrderItem" ALTER COLUMN "quantity" SET DEFAULT 1`,
       `CREATE TABLE IF NOT EXISTS "Settlement" (

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { DEFAULT_CURRENCY, orderCurrency, totalsByCurrency } from '../../common/money';
+import { DEFAULT_CURRENCY, orderCurrency, serviceDateBetween, totalsByCurrency } from '../../common/money';
 
 @Injectable()
 export class DashboardService {
@@ -25,11 +25,12 @@ export class DashboardService {
       ordersThisMonth,
     ] = await Promise.all([
       this.prisma.order.findMany({
-        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, createdAt: { gte: startOfMonth } },
+        // Revenue of the month = services done this month (not keyed in this month).
+        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, ...serviceDateBetween(startOfMonth) },
         select: { totalAmount: true, villaId: true, reservation: { select: { villaId: true } } },
       }),
       this.prisma.order.findMany({
-        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } },
+        where: { status: { in: ['COMPLETED', 'IN_PROGRESS'] }, ...serviceDateBetween(startOfLastMonth, endOfLastMonth) },
         select: { totalAmount: true, villaId: true, reservation: { select: { villaId: true } } },
       }),
       this.prisma.villa.findMany({ select: { id: true, currency: true } }),

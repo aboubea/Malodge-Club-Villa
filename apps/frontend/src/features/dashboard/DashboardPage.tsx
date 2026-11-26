@@ -179,7 +179,7 @@ export function DashboardPage() {
             <p className="relative text-[13px] text-muted mt-4">
               {kpis && kpis.revenueChange !== 0
                 ? `${kpis.revenueChange >= 0 ? 'En hausse' : 'En baisse'} par rapport au mois dernier`
-                : 'Revenus cumulés des séjours et services'}
+                : 'Prestations réalisées ce mois, comptées à leur date'}
             </p>
           </Card>
         </motion.div>

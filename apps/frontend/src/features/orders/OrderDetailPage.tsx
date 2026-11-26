@@ -12,7 +12,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
-import { formatCurrency, formatDate, formatDateLong } from '../../lib/utils';
+import { formatCurrency, formatDate, formatDateLong, displayEmail } from '../../lib/utils';
 import { OrderStatus, PaymentStatus, PaymentMethod } from '@malodge/shared';
 
 async function fetchOrder(id: string) {
@@ -140,7 +140,11 @@ export function OrderDetailPage() {
 
   const currentStepIndex = STATUS_ORDER.indexOf(order.status as OrderStatus);
   const subtotal = order.items?.reduce((sum: number, it: any) => sum + it.total, 0) ?? order.totalAmount;
-  const netToProvider = subtotal - order.commission;
+  // Staff see each item's cost: the provider is owed the cost, the rest is the margin.
+  const items: any[] = order.items ?? [];
+  const costKnown = items.length > 0 && items.every((it) => it.unitCost != null);
+  const providerCost = costKnown ? items.reduce((sum, it) => sum + it.quantity * it.unitCost, 0) : null;
+  const netToProvider = providerCost ?? subtotal - order.commission;
 
   const shortId = order.id.slice(-6).toUpperCase();
 
@@ -157,7 +161,7 @@ export function OrderDetailPage() {
 
       <PageHeader
         title={`Commande #${shortId}`}
-        description={`Créée le ${formatDateLong(order.createdAt)}`}
+        description={`Saisie le ${formatDateLong(order.createdAt)}${order.scheduledAt ? ` · prestation le ${formatDateLong(order.scheduledAt)}` : ''}`}
       >
         <OrderStatusBadge status={order.status} size="md" />
         {order.status !== OrderStatus.CANCELLED && order.status !== OrderStatus.COMPLETED && (
@@ -197,7 +201,7 @@ export function OrderDetailPage() {
                   <p className="text-base font-normal text-ink">
                     {order.client?.firstName} {order.client?.lastName}
                   </p>
-                  <p className="text-sm text-muted">{order.client?.email}</p>
+                  {displayEmail(order.client?.email) && <p className="text-sm text-muted">{order.client.email}</p>}
                   {order.client?.phone && (
                     <p className="text-sm text-muted">{order.client?.phone}</p>
                   )}
@@ -211,7 +215,7 @@ export function OrderDetailPage() {
               </div>
               {order.scheduledAt && (
                 <div className="mt-4 pt-4 border-t border-line">
-                  <p className="text-xs text-muted">Planifiée le</p>
+                  <p className="text-xs text-muted">Date de la prestation</p>
                   <p className="text-sm text-ink">{formatDateLong(order.scheduledAt)}</p>
                 </div>
               )}
@@ -267,14 +271,21 @@ export function OrderDetailPage() {
                 <span className="text-muted">Sous-total</span>
                 <span className="text-ink">{formatCurrency(subtotal, order.currency)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted">
-                  Commission ({subtotal > 0 ? Math.round((order.commission / subtotal) * 100) : 0}%)
-                </span>
-                <span className="text-muted">- {formatCurrency(order.commission, order.currency)}</span>
-              </div>
+              {providerCost != null ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted">Marge</span>
+                  <span className="text-muted">{formatCurrency(subtotal - providerCost, order.currency)}</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted">
+                    Commission ({subtotal > 0 ? Math.round((order.commission / subtotal) * 100) : 0}%)
+                  </span>
+                  <span className="text-muted">- {formatCurrency(order.commission, order.currency)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm border-t border-line pt-2 mt-2">
-                <span className="text-ink font-medium">Net prestataire</span>
+                <span className="text-ink font-medium">{providerCost != null ? 'Dû au prestataire (coût)' : 'Net prestataire'}</span>
                 <span className="text-accent font-medium">{formatCurrency(netToProvider, order.currency)}</span>
               </div>
             </div>

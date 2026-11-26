@@ -10,7 +10,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Modal } from '../../components/ui/Modal';
 import { DataTable, Column } from '../../components/ui/DataTable';
 import { apiClient } from '../../lib/apiClient';
-import { formatDate } from '../../lib/utils';
+import { formatDate, displayEmail } from '../../lib/utils';
 import { useCountries } from '../../hooks/useCountries';
 
 interface Category {
@@ -187,7 +187,7 @@ export function ProvidersPage() {
           <Avatar firstName={row.user.firstName} lastName={row.user.lastName} src={row.user.avatar} size="sm" />
           <div>
             <p className="text-sm text-ink">{row.user.firstName} {row.user.lastName}</p>
-            <p className="text-xs text-muted">{row.user.email}</p>
+            <p className="text-xs text-muted">{displayEmail(row.user.email) ?? 'Fiche sans accès à l’application'}</p>
           </div>
         </div>
       ),
@@ -324,7 +324,7 @@ export function ProvidersPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-surface border border-line">
                 <p className="text-[11.5px] font-medium text-muted mb-1 flex items-center gap-1"><Mail size={10} /> Email</p>
-                <p className="text-sm text-ink">{detailProvider.user.email}</p>
+                <p className="text-sm text-ink">{displayEmail(detailProvider.user.email) ?? '—'}</p>
               </div>
               {detailProvider.user.phone && (
                 <div className="p-3 rounded-lg bg-surface border border-line">
