@@ -4,9 +4,33 @@ import { Pencil, Search, Trash2, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { cn, formatDay } from '../../lib/utils';
-import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, api, pct, useExtraLines, useExtrasMutation } from './api';
+import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, Totals, api, pct, useExtraLines, useExtrasMutation } from './api';
 import { ExtraFormModal } from './forms';
 import { EmptyState, IssueTag, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
+import { formatMoney } from '../../lib/utils';
+import { displayCurrency, toDisplay } from '../../lib/display';
+
+/** Totals of several currencies as one, in the display currency (null when a rate is missing). */
+function mergeTotals(list: Totals[]): (Totals & { currency: string }) | null {
+  if (!list.length) return null;
+  if (list.length === 1) return list[0];
+  const target = displayCurrency();
+  const keys = ['billed', 'cost', 'margin', 'ownerShare', 'sellerShare', 'net', 'billedNoCost', 'marginBilled'] as const;
+  const out: any = { currency: target, count: 0, incomplete: 0, noCostCount: 0, netMissing: 0 };
+  keys.forEach((k) => (out[k] = 0));
+  for (const t of list) {
+    const probe = toDisplay(1, t.currency);
+    if (!probe.converted && t.currency !== target) return { ...list[0] };
+    const f = probe.amount;
+    keys.forEach((k) => (out[k] += ((t as any)[k] ?? 0) * f));
+    out.count += t.count;
+    out.incomplete += t.incomplete;
+    out.noCostCount += t.noCostCount ?? 0;
+    out.netMissing += t.netMissing ?? 0;
+  }
+  // Already converted: shown as is.
+  return out;
+}
 
 export function LinesTab({ options }: { options: Options | undefined }) {
   const [params, setParams] = useSearchParams();
@@ -123,24 +147,37 @@ export function LinesTab({ options }: { options: Options | undefined }) {
         </div>
       </div>
 
-      {/* Totals */}
-      {data?.totals.map((t) => (
-        <div key={t.currency} className={cn('grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 transition-opacity', isFetching && 'opacity-60')}>
-          {[
-            ['Facturé aux clients', t.billed, true],
-            ['Coût des prestataires', t.cost],
-            ['Marge brute', t.margin],
-            ['Part des propriétaires', t.ownerShare],
-            ['Part des salariés', t.sellerShare],
-            ['Net Malodge', t.net, true],
-          ].map(([label, value, strong]) => (
-            <div key={label as string} className={cn('rounded-2xl px-4 py-3.5', strong ? 'bg-peach' : 'bg-surface border border-line')}>
-              <p className="text-[12px] text-muted">{label}</p>
-              <Money value={value as number} currency={t.currency} className="block text-[18px] font-bold text-ink mt-1" />
-            </div>
-          ))}
-        </div>
-      ))}
+      {/* Totals: one row, in the display currency (each currency converted at today's rate). */}
+      {(() => {
+        const t = mergeTotals(data?.totals ?? []);
+        if (!t) return null;
+        // Below each card, what it leaves out: so that Billed − Cost = Margin reads right.
+        const notes: Record<string, string | null> = {
+          cost: t.noCostCount ? `+ ${t.noCostCount} extra${t.noCostCount > 1 ? 's' : ''} sans coût (${formatMoney(t.billedNoCost, t.currency)} facturés)` : null,
+          margin: t.marginBilled != null && Math.abs(t.marginBilled - t.billed) > 0.5 ? `sur ${formatMoney(t.marginBilled, t.currency)} facturés avec coût` : null,
+          net: t.netMissing ? `${t.netMissing} extra${t.netMissing > 1 ? 's' : ''} sans taux : non compté${t.netMissing > 1 ? 's' : ''}` : null,
+        };
+        return (
+          <div className={cn('grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 transition-opacity', isFetching && 'opacity-60')}>
+            {(
+              [
+                ['Facturé aux clients', t.billed, true, null],
+                ['Coût des prestataires', t.cost, false, notes.cost],
+                ['Marge brute', t.margin, false, notes.margin],
+                ['Part des propriétaires', t.ownerShare, false, t.netMissing ? notes.net : null],
+                ['Part des salariés', t.sellerShare, false, null],
+                ['Net Malodge', t.net, true, notes.net],
+              ] as const
+            ).map(([label, value, strong, note]) => (
+              <div key={label} className={cn('rounded-2xl px-4 py-3.5', strong ? 'bg-peach' : 'bg-surface border border-line')}>
+                <p className="text-[12px] text-muted">{label}</p>
+                <Money value={value} currency={t.currency} className="block text-[18px] font-bold text-ink mt-1" />
+                {note && <p className="mt-1 text-[11.5px] text-warning leading-snug">{note}</p>}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       <p className="text-[12.5px] text-muted -mt-2">
         {lines.length} extra{lines.length > 1 ? 's' : ''} affiché{lines.length > 1 ? 's' : ''}
         {data?.totals[0]?.incomplete ? `, dont ${data.totals.reduce((s, t) => s + t.incomplete, 0)} à compléter (montants partiels)` : ''}

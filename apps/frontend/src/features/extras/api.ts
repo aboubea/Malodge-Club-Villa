@@ -51,6 +51,13 @@ export interface Totals {
   ownerShare: number;
   sellerShare: number;
   net: number;
+  /** Billed without a provider cost (in "billed", not in cost nor margin). */
+  billedNoCost?: number;
+  noCostCount?: number;
+  /** Billed on the lines whose margin is known. */
+  marginBilled?: number;
+  /** Lines with a margin but a missing owner or seller rate. */
+  netMissing?: number;
 }
 
 export type AccountState = 'Réglé' | 'Partiel' | 'Non réglé' | 'Avance' | 'Rien à régler' | 'À compléter';

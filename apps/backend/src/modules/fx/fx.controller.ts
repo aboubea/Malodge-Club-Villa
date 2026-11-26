@@ -1,7 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Role } from '@malodge/shared';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { AllowRestrictedRoles } from '../../common/decorators/roles.decorator';
 import { FxService } from './fx.service';
 
 @ApiTags('Fx')
@@ -10,8 +9,9 @@ import { FxService } from './fx.service';
 export class FxController {
   constructor(private fx: FxService) {}
 
+  /** Public market rates: every signed-in user shows amounts in their display currency. */
   @Get()
-  @Roles(Role.MANAGER)
+  @AllowRestrictedRoles()
   @ApiOperation({ summary: "Today's exchange rates (EUR base), to show amounts converted" })
   async quote() {
     const q = await this.fx.quote();

@@ -1,18 +1,21 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { toDisplay } from './display';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function formatCurrency(amount: number, currency = 'EUR'): string {
-  // Cents are kept (312,50 MAD must not read 313 MAD); whole amounts show none.
+  // Shown in the display currency chosen in the top bar (converted at today's rate).
+  const d = toDisplay(amount, currency);
+  // Cents are kept (312,50 MAD must not read 313 MAD); a converted amount is rounded (no false precision).
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency,
+    currency: d.currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+    maximumFractionDigits: d.converted ? 0 : 2,
+  }).format(d.amount);
 }
 
 /** A real contact address, or null for the placeholders of records without app access. */
@@ -76,15 +79,16 @@ export function formatDistanceToNow(date: string | Date): string {
 /** Money with up to 2 decimals, in the given ISO currency (MAD, EUR…). */
 export function formatMoney(amount: number | null | undefined, currency = 'EUR'): string {
   if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
+  const d = toDisplay(amount, currency);
   try {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency,
+      currency: d.currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount);
+      maximumFractionDigits: d.converted ? 0 : 2,
+    }).format(d.amount);
   } catch {
-    return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${currency}`;
+    return `${d.amount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${d.currency}`;
   }
 }
 

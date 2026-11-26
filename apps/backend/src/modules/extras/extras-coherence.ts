@@ -37,7 +37,23 @@ interface Line {
   issue: string | null;
   warning: string | null;
   stay: { id: string; label: string; checkIn?: Date | string | null; checkOut?: Date | string | null } | null;
-  villa: { id: string; name: string } | null;
+  villa: { id: string; name: string; country?: string } | null;
+  status?: string;
+  total?: number | null;
+  cost?: number | null;
+  owner?: { id: string; name: string } | null;
+  seller?: { id: string; name: string } | null;
+  ownerRate?: number | null;
+  sellerRate?: number | null;
+}
+
+const money = (n: number, c: string) => `${Math.round(n).toLocaleString('fr-FR')} ${c}`;
+
+/** Lines grouped by a key, largest group first. */
+function groupBy<T>(xs: T[], key: (x: T) => string) {
+  const m = new Map<string, T[]>();
+  for (const x of xs) m.set(key(x), [...(m.get(key(x)) ?? []), x]);
+  return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
 }
 
 const day = (d: Date | string | null | undefined) =>
@@ -259,6 +275,75 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
       href: '/extras/saisie?incomplete=true&stays=all',
       items: incomplete.map((l) => ({ label: `${l.stay?.label ?? '—'} — ${l.label} : ${l.issue}` })),
     });
+
+  // Root causes of the "à compléter" lines: one setting fixes many lines.
+  const ownerNoRate = active.filter((l) => l.owner && l.ownerRate == null);
+  if (ownerNoRate.length)
+    extraFindings.push({
+      severity: 'error',
+      title: 'Propriétaires sans taux de commission',
+      detail:
+        'Leur part, le net Malodge et leur relevé mensuel ne peuvent pas être calculés pour ces extras. Renseignez le taux du propriétaire dans Suivi des extras › Réglages : toutes ses lignes se complètent d’un coup.',
+      href: '/extras/reglages',
+      items: groupBy(ownerNoRate, (l) => l.owner!.name).map(([name, ls]) => ({ label: `${name} : ${ls.length} extra(s) bloqué(s)` })),
+    });
+  const sellerNoRate = active.filter((l) => l.seller && l.sellerRate == null);
+  if (sellerNoRate.length)
+    extraFindings.push({
+      severity: 'warning',
+      title: 'Vendeurs (salariés) sans taux de commission',
+      detail: 'Leur commission et le net Malodge ne sont pas calculés pour ces extras (Suivi des extras › Réglages).',
+      href: '/extras/reglages',
+      items: groupBy(sellerNoRate, (l) => l.seller!.name).map(([name, ls]) => ({ label: `${name} : ${ls.length} extra(s)` })),
+    });
+  const noCost = active.filter((l) => l.total != null && l.cost == null);
+  if (noCost.length)
+    extraFindings.push({
+      severity: 'warning',
+      title: `${noCost.length} extra(s) facturé(s) sans coût prestataire`,
+      detail:
+        'Ils comptent dans « Facturé aux clients » mais pas dans la marge : c’est pourquoi Facturé − Coût ne donne pas la Marge brute. Renseignez le coût (ou le coût au catalogue).',
+      href: '/extras/saisie?incomplete=true&stays=all',
+      items: [
+        ...groupBy(noCost, (l) => l.currency).map(([c, ls]) => ({ label: `Total facturé sans coût : ${money(ls.reduce((t, l) => t + (l.total ?? 0), 0), c)}` })),
+        ...noCost.map((l) => ({ label: `${day(l.date)} — ${l.stay?.label ?? '—'} — ${l.label}` })),
+      ],
+    });
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+  const startOfToday = new Date(endOfToday.getTime() - 86_400_000 + 1);
+  const doneInFuture = active.filter((l) => l.status === 'COMPLETED' && l.date && new Date(l.date) > endOfToday);
+  if (doneInFuture.length)
+    extraFindings.push({
+      severity: 'error',
+      title: 'Extras « Réalisée » datés dans le futur',
+      detail: 'Une prestation ne peut pas être réalisée à une date à venir : probablement une erreur de date (mois ou année).',
+      href: '/extras/saisie?stays=all',
+      items: doneInFuture.map((l) => ({ label: `${day(l.date)} — ${l.stay?.label ?? '—'} — ${l.label}` })),
+    });
+  const stalePending = active.filter((l) => l.status === 'PENDING' && l.date && new Date(l.date) < startOfToday);
+  if (stalePending.length)
+    extraFindings.push({
+      severity: 'warning',
+      title: `${stalePending.length} extra(s) passé(s) encore « À confirmer »`,
+      detail:
+        'Ni réalisés ni annulés : ils comptent dans « Facturé aux clients » du suivi des extras, mais pas dans le chiffre d’affaires des Finances (qui ne compte que le réalisé). Passez-les en Réalisée ou Annulée.',
+      href: '/extras/saisie?stays=all',
+      items: stalePending.map((l) => ({ label: `${day(l.date)} — ${l.stay?.label ?? '—'} — ${l.label}` })),
+    });
+  const wrongCurrency = active.filter((l) => l.villa?.country && l.currency !== currencyForCountry(l.villa.country));
+  if (wrongCurrency.length)
+    extraFindings.push({
+      severity: 'error',
+      title: 'Extras dans une autre devise que celle du pays de la villa',
+      detail:
+        'Ex. des montants en € sur une villa au Maroc : la villa est restée en euros (souvent une annonce Lodgify). Si ces montants ont été saisis en dirhams, ils sont faux en euros : corrigez la devise de la villa (fiche villa) avant toute conversion.',
+      href: '/villas',
+      items: groupBy(wrongCurrency, (l) => `${l.villa!.name} (${l.villa!.country}) en ${l.currency}`).map(([k, ls]) => ({
+        label: `${k} : ${ls.length} extra(s), ${money(ls.reduce((t, l) => t + (l.total ?? 0), 0), ls[0].currency)}`,
+      })),
+    });
+
   const currencyMismatch = items.filter((it) => {
     const villaId = it.order.villaId ?? it.order.reservation?.villaId;
     const v = villaId ? villaById.get(villaId) : null;

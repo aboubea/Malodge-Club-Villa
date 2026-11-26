@@ -24,7 +24,7 @@ interface Notification {
 
 export function TopBar() {
   const { user, logout } = useAuthStore();
-  const { setMobileNavOpen, setTheme } = useUIStore();
+  const { setMobileNavOpen, setTheme, currency, setCurrency } = useUIStore();
   const isDark = useIsDark();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -129,6 +129,29 @@ export function TopBar() {
         >
           {isDark ? <Sun size={17} /> : <Moon size={17} />}
         </button>
+
+        {/* Display currency: every amount on screen in MAD or in € (today's rate) */}
+        <div
+          role="group"
+          aria-label="Devise affichée"
+          title="Devise affichée : les montants sont convertis au taux du jour"
+          className="h-10 rounded-full border border-line p-1 flex items-center"
+        >
+          {(['MAD', 'EUR'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCurrency(c)}
+              aria-pressed={currency === c}
+              className={cn(
+                'h-8 min-w-[40px] px-2.5 rounded-full text-[12.5px] font-bold transition-colors',
+                currency === c ? 'bg-primary text-on-primary' : 'text-ink-soft hover:text-ink',
+              )}
+            >
+              {c === 'EUR' ? '€' : 'MAD'}
+            </button>
+          ))}
+        </div>
 
         {/* Notifications */}
         <div className="relative" ref={notifRef}>

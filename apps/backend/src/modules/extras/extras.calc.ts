@@ -272,6 +272,13 @@ export interface Totals {
   ownerShare: number;
   sellerShare: number;
   net: number;
+  /** Billed on lines without a provider cost: in "billed", not in cost nor margin. */
+  billedNoCost: number;
+  noCostCount: number;
+  /** Billed on the lines whose margin is known (margin = marginBilled − cost). */
+  marginBilled: number;
+  /** Lines with a margin but a missing owner or seller rate: not in the shares nor the net. */
+  netMissing: number;
 }
 
 export function totalsByCurrency(lines: ExtraLine[]): Totals[] {
@@ -279,7 +286,7 @@ export function totalsByCurrency(lines: ExtraLine[]): Totals[] {
   for (const l of lines) {
     let t = map.get(l.currency);
     if (!t) {
-      t = { currency: l.currency, count: 0, incomplete: 0, billed: 0, cost: 0, margin: 0, ownerShare: 0, sellerShare: 0, net: 0 };
+      t = { currency: l.currency, count: 0, incomplete: 0, billed: 0, cost: 0, margin: 0, ownerShare: 0, sellerShare: 0, net: 0, billedNoCost: 0, noCostCount: 0, marginBilled: 0, netMissing: 0 };
       map.set(l.currency, t);
     }
     t.count += 1;
@@ -291,11 +298,18 @@ export function totalsByCurrency(lines: ExtraLine[]): Totals[] {
     t.ownerShare += l.ownerShare ?? 0;
     t.sellerShare += l.sellerShare ?? 0;
     t.net += l.net ?? 0;
+    if (l.total != null && l.cost == null) {
+      t.billedNoCost += l.total;
+      t.noCostCount += 1;
+    }
+    if (l.margin != null) t.marginBilled += l.total ?? 0;
+    if (l.margin != null && l.net == null) t.netMissing += 1;
   }
   return [...map.values()].map((t) => ({
     ...t,
     billed: round2(t.billed), cost: round2(t.cost), margin: round2(t.margin),
     ownerShare: round2(t.ownerShare), sellerShare: round2(t.sellerShare), net: round2(t.net),
+    billedNoCost: round2(t.billedNoCost), marginBilled: round2(t.marginBilled),
   }));
 }
 

@@ -24,6 +24,9 @@ export function useFx() {
   });
 }
 
+/** Amounts are converted on screen to the display currency (top bar), so equivalents are not shown. */
+const DISPLAY_CONVERTS = true;
+
 /** How many `to` for one `from`, or null when unknown. */
 export function fxRate(q: FxQuote | null | undefined, from: string, to: string): number | null {
   if (!from || !to) return null;
@@ -44,6 +47,8 @@ export function convert(q: FxQuote | null | undefined, amount: number, from: str
  */
 export function MadEquivalent({ amount, currency, className }: { amount: number | null | undefined; currency: string | null | undefined; className?: string }) {
   const { data: q } = useFx();
+  // Every amount is now shown in the display currency chosen in the top bar: no second figure.
+  if (DISPLAY_CONVERTS) return null;
   if (amount == null || !currency || currency === 'MAD') return null;
   const mad = convert(q, amount, currency, 'MAD');
   if (mad == null) return null;

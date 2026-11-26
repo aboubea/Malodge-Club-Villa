@@ -114,6 +114,16 @@ describe('accounts', () => {
     expect(totals.find((t) => t.currency === 'MAD')).toMatchObject({ count: 2, billed: 1_000, margin: 400 });
     expect(totals.find((t) => t.currency === 'EUR')).toMatchObject({ count: 1, billed: 100, margin: 40 });
   });
+
+  it('says what each total leaves out, so that billed − cost = margin can be checked', () => {
+    const t = totalsByCurrency([
+      computeExtra(extra()),
+      computeExtra(extra({ id: 'no-cost', unitCost: null })),
+      computeExtra(extra({ id: 'no-rate', owner: { id: 'o2', name: 'Christophe', rate: null } })),
+    ])[0];
+    expect(t).toMatchObject({ billed: 3_000, cost: 1_200, margin: 800, billedNoCost: 1_000, noCostCount: 1, marginBilled: 2_000, netMissing: 1 });
+    expect(t.marginBilled - t.cost).toBe(t.margin);
+  });
 });
 
 describe('catalogue price', () => {
