@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MadEquivalent } from '../../lib/fx';
 import { Pencil, Plus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -195,6 +196,7 @@ export function CatalogueTab({ options }: { options: Options | undefined }) {
                   </td>
                   <td className={cn(td, 'text-right font-semibold')}>
                     <Money value={i.proposedPrice} currency={i.currency} />
+                    <MadEquivalent amount={i.proposedPrice} currency={i.currency} className="block text-[11px] font-normal text-muted" />
                     {i.publicPrice == null && i.unitCost != null && <span className="block text-[11px] font-normal text-muted">coût + {pct(data?.markup)}</span>}
                   </td>
                   <td className={cn(td, 'text-ink-soft')}>{i.defaultProvider?.name ?? '—'}</td>

@@ -124,7 +124,7 @@ export async function coherenceReport(prisma: PrismaClient, lines: Line[]): Prom
     villaFindings.push({
       severity: badCurrency.some((v) => extrasByVilla.get(v.id)) ? 'warning' : 'info',
       title: 'Devise différente de celle du pays',
-      detail: 'Les extras d’une villa sont dans sa devise. Vérifiez que c’est voulu.',
+      detail: 'Une villa Lodgify encore en euros dans un pays en dirhams passe en MAD à la prochaine synchronisation, ses extras convertis au taux du jour (montant en euros conservé).',
       items: badCurrency.map((v) => ({ label: `${v.name} (${v.country}) : ${v.currency}, attendu ${currencyForCountry(v.country)}${extrasByVilla.get(v.id) ? ` · ${extrasByVilla.get(v.id)} extra(s)` : ''}`, href: `/villas/${v.id}` })),
     });
   const noOwner = villas.filter((v) => !v.ownerId && extrasByVilla.get(v.id));

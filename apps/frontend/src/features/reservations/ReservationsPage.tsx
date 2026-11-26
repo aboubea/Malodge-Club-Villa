@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MadEquivalent } from '../../lib/fx';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Plus, CalendarDays, ChevronLeft, ChevronRight, RefreshCw, List } from 'lucide-react';
@@ -356,7 +357,11 @@ export function ReservationsPage() {
                       <td className="px-4 py-3.5">
                         <span className="px-2 py-0.5 rounded-full text-[10px] border border-line text-muted capitalize">{r.status}</span>
                       </td>
-                      <td className="px-4 py-3.5 text-accent font-normal">{formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}</td>
+                      <td className="px-4 py-3.5 text-accent font-normal">
+                        {formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}
+                        <MadEquivalent amount={r.totalAmount} currency={r.currency ?? r.villa?.currency} className="block text-[11px] text-muted" />
+                        <MadEquivalent amount={r.totalAmount} currency={r.currency ?? r.villa?.currency} className="block text-[11px] text-muted" />
+                      </td>
                     </motion.tr>
                   ))
                 }
@@ -490,6 +495,7 @@ export function ReservationsPage() {
                       </td>
                       <td className="px-4 py-3.5 text-accent font-normal whitespace-nowrap">
                         {formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}
+                        <MadEquivalent amount={r.totalAmount} currency={r.currency ?? r.villa?.currency} className="block text-[11px] text-muted" />
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {canEdit && (

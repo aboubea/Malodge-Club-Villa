@@ -17,6 +17,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ExtrasModule } from './modules/extras/extras.module';
+import { FxModule } from './modules/fx/fx.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -40,6 +41,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     DocumentsModule,
     NotificationsModule,
     ExtrasModule,
+    FxModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

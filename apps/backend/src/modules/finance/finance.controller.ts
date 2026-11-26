@@ -24,11 +24,14 @@ export class FinanceController {
   getProviderPayouts(
     @Query('month') month: string,
     @Query('year') year: string,
+    @Query('currency') currency?: string,
   ) {
     const now = new Date();
     return this.financeService.getProviderPayouts(
       month ? parseInt(month) : now.getMonth() + 1,
       year ? parseInt(year) : now.getFullYear(),
+      // Converted to dirhams unless one currency is asked for.
+      !currency || currency.toUpperCase() === 'ALL',
     );
   }
 
@@ -38,11 +41,14 @@ export class FinanceController {
   getOwnerPayouts(
     @Query('month') month: string,
     @Query('year') year: string,
+    @Query('currency') currency?: string,
   ) {
     const now = new Date();
     return this.financeService.getOwnerPayouts(
       month ? parseInt(month) : now.getMonth() + 1,
       year ? parseInt(year) : now.getFullYear(),
+      // Converted to dirhams unless one currency is asked for.
+      !currency || currency.toUpperCase() === 'ALL',
     );
   }
 

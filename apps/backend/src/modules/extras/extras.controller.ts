@@ -6,6 +6,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AllowRestrictedRoles, Roles } from '../../common/decorators/roles.decorator';
 import { Actor, ExtrasService } from './extras.service';
 import {
+  ConvertCurrencyDto,
   CreatePersonDto,
   CreateSettlementDto,
   MergeVillaDto,
@@ -164,6 +165,13 @@ export class ExtrasController {
   mergeVillaPreview(@Param('id') id: string, @Query('targetId') targetId: string) {
     if (!targetId) throw new BadRequestException('targetId requis');
     return this.extras.mergeVillaPreview(id, targetId);
+  }
+
+  @Post('villas/:id/convert-currency')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: "Move a villa to another currency, its extras converted at today's rate (original amounts kept)" })
+  convertVillaCurrency(@Param('id') id: string, @Body() body: ConvertCurrencyDto) {
+    return this.extras.convertVillaCurrency(id, body.to);
   }
 
   @Post('villas/:id/merge')

@@ -19,6 +19,8 @@ import { ImportAlreadyDoneError, VILLA_ALIASES_KEY, importExtrasWorkbook, undoIm
 import { villaCandidates } from './villa-match';
 import { checkImportDates } from './extras-dates-check';
 import { coherenceReport } from './extras-coherence';
+import { FxService } from '../fx/fx.service';
+import { convertVillaCurrency } from '../fx/convert-villa';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import {
   CreatePersonDto,
@@ -61,7 +63,10 @@ const toDate = (v: string | null | undefined) => (v ? new Date(v) : null);
 
 @Injectable()
 export class ExtrasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fx: FxService,
+  ) {}
 
   /* ───────────────────────────── Loading ───────────────────────────── */
 
@@ -954,6 +959,15 @@ export class ExtrasService {
         throw new BadRequestException(`Le fichier de suivi a déjà été importé (${prev.file ?? 'fichier'} — ${when}). Un second import créerait des doublons.`);
       }
       throw new BadRequestException(e instanceof Error ? e.message : 'Import impossible');
+    }
+  }
+
+  /** Moves a villa to another currency, its extras converted at today's rate (original kept). */
+  async convertVillaCurrency(id: string, to: string) {
+    try {
+      return await convertVillaCurrency(this.prisma, this.fx, id, to);
+    } catch (e: any) {
+      throw new BadRequestException(e?.message ?? 'Conversion impossible');
     }
   }
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Response } from 'express';
+import { FxService } from '../fx/fx.service';
 import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, providerCost, reservationCurrency, serviceDate, serviceDateBetween, totalsByCurrency } from '../../common/money';
 
 type Period = 'day' | 'week' | 'month' | 'year';
@@ -34,7 +35,10 @@ function getPeriodRange(period: Period): { start: Date; end: Date } {
 
 @Injectable()
 export class FinanceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fx: FxService,
+  ) {}
 
   private async villaCurrencies(): Promise<VillaCurrencies> {
     const villas = await this.prisma.villa.findMany({ select: { id: true, currency: true } });
@@ -80,9 +84,43 @@ export class FinanceService {
       (x) => x.c,
       (x) => x.a,
     );
-    const currency = pickCurrency(currencies, askedCurrency);
-    const completedOrders = allOrders.filter((o) => orderCurrency(villaCur, o) === currency);
-    const reservations = allReservations.filter((r) => reservationCurrency(r) === currency);
+    // Default view: everything converted to dirhams at today's rate (amounts in the
+    // database stay in their own currency). `currency=EUR|MAD…` shows one currency, unconverted.
+    const converted = !askedCurrency || askedCurrency.toUpperCase() === 'ALL';
+    let currency: string;
+    let completedOrders: typeof allOrders;
+    let reservations: typeof allReservations;
+    let fx: { rate: number | null; date: string; source: string; stale: boolean } | null = null;
+    const notConverted = new Set<string>();
+    if (converted) {
+      const q = await this.fx.quote();
+      currency = 'MAD';
+      fx = q ? { rate: this.fx.rateOf(q, 'EUR', 'MAD'), date: q.date, source: q.source, stale: !!q.stale } : null;
+      const factor = (c: string) => {
+        const f = this.fx.rateOf(q, c, 'MAD');
+        if (f == null) notConverted.add(c);
+        return f;
+      };
+      completedOrders = allOrders.flatMap((o) => {
+        const f = factor(orderCurrency(villaCur, o));
+        if (f == null) return [];
+        if (f === 1) return [o];
+        return [{
+          ...o,
+          totalAmount: o.totalAmount * f,
+          commission: o.commission * f,
+          items: o.items.map((i) => ({ ...i, total: i.total * f, unitPrice: i.unitPrice != null ? i.unitPrice * f : i.unitPrice, unitCost: i.unitCost != null ? i.unitCost * f : i.unitCost })),
+        }];
+      });
+      reservations = allReservations.flatMap((r) => {
+        const f = factor(reservationCurrency(r));
+        return f == null ? [] : [f === 1 ? r : { ...r, totalAmount: r.totalAmount * f }];
+      });
+    } else {
+      currency = pickCurrency(currencies, askedCurrency);
+      completedOrders = allOrders.filter((o) => orderCurrency(villaCur, o) === currency);
+      reservations = allReservations.filter((r) => reservationCurrency(r) === currency);
+    }
 
     // Total revenue
     const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
@@ -165,6 +203,10 @@ export class FinanceService {
 
     return {
       currency,
+      /** True when every currency was converted to MAD at today's rate. */
+      converted,
+      fx,
+      notConverted: [...notConverted],
       /** Every currency with money in the period, largest first: switch with `currency`. */
       currencies,
       totalRevenue,
@@ -181,7 +223,8 @@ export class FinanceService {
     };
   }
 
-  async getProviderPayouts(month: number, year: number) {
+  async getProviderPayouts(month: number, year: number, convert = true) {
+    const q = convert ? await this.fx.quote() : null;
     const villaCur = await this.villaCurrencies();
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
@@ -219,8 +262,11 @@ export class FinanceService {
       const providerId = order.provider.id;
       const name = `${order.provider.user.firstName} ${order.provider.user.lastName}`;
       const email = order.provider.user.email;
-      // One line per provider and currency: MAD and EUR are never added together.
-      const currency = orderCurrency(villaCur, order);
+      // One line per provider and currency, or per provider in dirhams once converted.
+      const own = orderCurrency(villaCur, order);
+      const f = convert ? this.fx.rateOf(q, own, 'MAD') : 1;
+      if (f == null) continue;
+      const currency = convert ? 'MAD' : own;
       const key = `${providerId}|${currency}`;
       const existing = payoutMap.get(key) || {
         providerId,
@@ -232,10 +278,10 @@ export class FinanceService {
         netAmount: 0,
         orderCount: 0,
       };
-      existing.grossAmount += order.totalAmount;
+      existing.grossAmount += order.totalAmount * f;
       // The provider is owed its cost when the extra has one, else the total minus commission.
-      const owed = providerCost(order);
-      existing.commission += order.totalAmount - owed;
+      const owed = providerCost(order) * f;
+      existing.commission += order.totalAmount * f - owed;
       existing.netAmount += owed;
       existing.orderCount += 1;
       payoutMap.set(key, existing);
@@ -244,7 +290,8 @@ export class FinanceService {
     return Array.from(payoutMap.values()).sort((a, b) => b.netAmount - a.netAmount);
   }
 
-  async getOwnerPayouts(month: number, year: number) {
+  async getOwnerPayouts(month: number, year: number, convert = true) {
+    const q = convert ? await this.fx.quote() : null;
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -284,7 +331,10 @@ export class FinanceService {
 
     for (const res of reservations) {
       const villaId = res.villa.id;
-      const currency = reservationCurrency(res);
+      const own = reservationCurrency(res);
+      const f = convert ? this.fx.rateOf(q, own, 'MAD') : 1;
+      if (f == null) continue;
+      const currency = convert ? 'MAD' : own;
       const key = `${villaId}|${currency}`;
       const existing = payoutMap.get(key) || {
         villaId,
@@ -298,10 +348,11 @@ export class FinanceService {
         netAmount: 0,
         stayCount: 0,
       };
-      const fee = res.totalAmount * MANAGEMENT_FEE_RATE;
-      existing.grossAmount += res.totalAmount;
+      const amount = res.totalAmount * f;
+      const fee = amount * MANAGEMENT_FEE_RATE;
+      existing.grossAmount += amount;
       existing.managementFee += fee;
-      existing.netAmount += res.totalAmount - fee;
+      existing.netAmount += amount - fee;
       existing.stayCount += 1;
       payoutMap.set(key, existing);
     }
@@ -337,7 +388,9 @@ export class FinanceService {
     const lines: string[] = [];
     lines.push(`Rapport Finances - Période: ${period}`);
     lines.push(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`);
-    lines.push(`Devise: ${data.currency} (montants non convertis${data.currencies?.length > 1 ? `, autres devises : ${data.currencies.filter((c: any) => c.currency !== data.currency).map((c: any) => c.currency).join(', ')}` : ''})`);
+    lines.push(data.converted
+      ? `Devise: MAD (tout converti au taux du ${data.fx?.date ?? '—'} : 1 EUR = ${data.fx?.rate ?? '—'} MAD, source ${data.fx?.source ?? '—'})`
+      : `Devise: ${data.currency} (montants non convertis${data.currencies?.length > 1 ? `, autres devises : ${data.currencies.filter((c: any) => c.currency !== data.currency).map((c: any) => c.currency).join(', ')}` : ''})`);
     lines.push('');
     lines.push('RÉSUMÉ');
     lines.push(`CA Total,${data.totalRevenue}`);

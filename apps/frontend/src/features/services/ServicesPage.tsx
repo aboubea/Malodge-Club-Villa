@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MadEquivalent } from '../../lib/fx';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Sparkles, Pencil, Trash2, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -49,7 +50,10 @@ function ActivityCard({
               {item.variant || 'Tarif unique'}
               {!item.isActive && <span className="ml-1.5 text-[11px] font-semibold text-muted">(inactif)</span>}
             </span>
-            <span className="text-[13px] font-bold text-ink tabular whitespace-nowrap">{formatMoney(item.basePrice, item.currency ?? 'EUR')}</span>
+            <span className="text-[13px] font-bold text-ink tabular whitespace-nowrap text-right">
+              {formatMoney(item.basePrice, item.currency ?? 'EUR')}
+              <MadEquivalent amount={item.basePrice} currency={item.currency ?? 'EUR'} className="block text-[11px] font-normal text-muted" />
+            </span>
             <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
               <button type="button" onClick={() => onEdit(item)} className="w-7 h-7 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2" aria-label={`Modifier ${item.name}`}>
                 <Pencil size={13} />

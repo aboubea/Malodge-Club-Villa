@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { MadEquivalent } from '../../lib/fx';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, CalendarDays, ChevronLeft, ChevronRight, Moon, Pencil, ShoppingBag, Users } from 'lucide-react';
@@ -517,7 +518,14 @@ function StayPanel({ stay, onClose, onEdit }: { stay: TimelineStay | null; onClo
             )}
             <li className="flex items-center gap-2.5">
               <CalendarDays size={15} className="text-muted" />
-              {s.totalAmount > 0 ? <>Montant du séjour : <b className="text-ink">{formatCurrency(s.totalAmount, currency)}</b></> : 'Montant du séjour non renseigné'}
+              {s.totalAmount > 0 ? (
+                <span>
+                  Montant du séjour : <b className="text-ink">{formatCurrency(s.totalAmount, currency)}</b>{' '}
+                  <MadEquivalent amount={s.totalAmount} currency={currency} />
+                </span>
+              ) : (
+                'Montant du séjour non renseigné'
+              )}
             </li>
             {!s.live && (
               <li className="flex items-center gap-2.5">

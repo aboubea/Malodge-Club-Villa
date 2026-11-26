@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { MadEquivalent, FxNote } from '../../lib/fx';
 import { motion } from 'framer-motion';
 import {
   ArrowUpRight,
@@ -167,14 +168,25 @@ export function DashboardPage() {
                 {formatCurrency(kpis?.totalRevenue ?? 0, kpis?.revenueCurrency ?? 'EUR')}
               </BigNumber>
             )}
-            {(kpis?.revenueByCurrency?.length ?? 0) > 1 && (
-              <p className="relative text-[13px] font-semibold text-ink-soft mt-2 tabular">
-                {kpis!.revenueByCurrency!
-                  .slice(1)
-                  .map((r) => `+ ${formatCurrency(r.amount, r.currency)}`)
-                  .join('  ·  ')}
-                <span className="font-normal text-muted"> (non convertis)</span>
+            {kpis?.revenueConverted ? (
+              <p className="relative text-[13px] text-ink-soft mt-2 tabular">
+                dont{' '}
+                {kpis.revenueByCurrency!
+                  .filter((r) => r.currency !== 'MAD' && r.amount)
+                  .map((r) => formatCurrency(r.amount, r.currency))
+                  .join(' · ')}{' '}
+                converti(s) au taux du jour · <FxNote className="text-muted" />
               </p>
+            ) : (
+              (kpis?.revenueByCurrency?.length ?? 0) > 1 && (
+                <p className="relative text-[13px] font-semibold text-ink-soft mt-2 tabular">
+                  {kpis!.revenueByCurrency!
+                    .slice(1)
+                    .map((r) => `+ ${formatCurrency(r.amount, r.currency)}`)
+                    .join('  ·  ')}
+                  <span className="font-normal text-muted"> (non convertis)</span>
+                </p>
+              )
             )}
             <p className="relative text-[13px] text-muted mt-4">
               {kpis && kpis.revenueChange !== 0

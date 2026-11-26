@@ -4,6 +4,8 @@ import * as https from 'https';
 import { extractCapacity } from './lodgify-capacity';
 import { currencyForCountry } from '../../common/money';
 import { canonicalCountry } from '../../common/geo';
+import { FxService } from '../fx/fx.service';
+import { convertVillaCurrency } from '../fx/convert-villa';
 
 /** Number of guests of a Lodgify booking, whatever the API version. */
 export function bookingGuests(r: any): number | null {
@@ -24,7 +26,10 @@ export function bookingGuests(r: any): number | null {
 export class LodgifyService {
   private readonly logger = new Logger(LodgifyService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fx: FxService,
+  ) {}
 
   private async getApiKey(): Promise<string | null> {
     const setting = await this.prisma.appSetting.findUnique({ where: { key: 'lodgify_api_key' } });
@@ -223,11 +228,27 @@ export class LodgifyService {
   private bookingCache: { at: number; items: NonNullable<ReturnType<LodgifyService['mapBooking']>>[] } | null = null;
 
   private async cachedBookings() {
-    if (this.bookingCache && Date.now() - this.bookingCache.at < 5 * 60_000) return this.bookingCache.items;
+    const TTL = 5 * 60_000;
+    if (this.bookingCache && Date.now() - this.bookingCache.at < TTL) return this.bookingCache.items;
+    type Booking = NonNullable<ReturnType<LodgifyService['mapBooking']>>;
+    // Shared by every server instance (kept in the database), so a cold start does not re-read Lodgify.
+    const KEY = 'lodgify.bookingsCache';
+    const revive = (b: any): Booking => ({ ...b, checkIn: b.checkIn ? new Date(b.checkIn) : null, checkOut: b.checkOut ? new Date(b.checkOut) : null });
+    try {
+      const row = (await this.prisma.appSetting.findUnique({ where: { key: KEY } }))?.value as { at: number; items: any[] } | undefined;
+      if (row && Date.now() - row.at < TTL) {
+        this.bookingCache = { at: row.at, items: row.items.map(revive) };
+        return this.bookingCache.items;
+      }
+    } catch { /* no shared cache: read Lodgify */ }
     const apiKey = await this.getApiKey();
     if (!apiKey) return [];
-    const items = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean) as NonNullable<ReturnType<LodgifyService['mapBooking']>>[];
+    const items = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean) as Booking[];
     this.bookingCache = { at: Date.now(), items };
+    try {
+      const value = { at: this.bookingCache.at, items } as any;
+      await this.prisma.appSetting.upsert({ where: { key: KEY }, update: { value }, create: { key: KEY, value } });
+    } catch { /* non-fatal */ }
     return items;
   }
 
@@ -521,13 +542,17 @@ export class LodgifyService {
       (await this.prisma.villa.findFirst({ where: { logifyId: lodgifyId } })) ??
       (opts.matchByName ? await this.prisma.villa.findFirst({ where: { name, logifyId: null } }) : null);
     if (existing) {
-      // A villa still on the default currency, without any extra yet, takes its country's (MAD in Morocco).
-      const expected = currencyForCountry((known.country as string) ?? existing.country);
-      if (existing.currency !== expected && existing.currency === 'EUR') {
-        const extras = await this.prisma.order.count({ where: { OR: [{ villaId: existing.id }, { reservation: { villaId: existing.id } }] } });
-        if (extras === 0) update.currency = expected;
-      }
       await this.prisma.villa.update({ where: { id: existing.id }, data: { ...update, name, logifyId: lodgifyId } });
+      // A villa still in euros in a dirham country moves to its country's currency, its
+      // extras converted at today's rate (the amount in euros is kept on each extra).
+      const expected = currencyForCountry((known.country as string) ?? existing.country);
+      if (existing.currency === 'EUR' && expected !== 'EUR') {
+        try {
+          await convertVillaCurrency(this.prisma, this.fx, existing.id, expected);
+        } catch (e: any) {
+          this.logger.warn(`Villa ${name} : conversion en ${expected} reportée (${e?.message})`);
+        }
+      }
       return { villaId: existing.id, created: false };
     }
 

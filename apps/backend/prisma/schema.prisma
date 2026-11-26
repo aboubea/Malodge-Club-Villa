@@ -283,6 +283,10 @@ model Order {
   reservationId  String?
   clientId       String
   providerId     String?
+  /// Set when the amounts were converted (e.g. villa moved from EUR to MAD): original currency, rate and day
+  originalCurrency String?
+  fxRate           Float?
+  fxDate           DateTime?
   villaId        String?
   /// Employee who sold the extra (earns a commission)
   sellerId       String?

@@ -75,6 +75,24 @@ async function bootstrap() {
   );
 
   await app.init();
+  nestApp = app;
+
+  // Schema fixes and default data run once per deployment (the first cold start
+  // records it); later cold starts skip ~60 database round trips.
+  const PrismaServiceV = _require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService;
+  const prismaV = app.get(PrismaServiceV);
+  const version = process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || '';
+  let upToDate = false;
+  if (version) {
+    try {
+      const row = await prismaV.appSetting.findUnique({ where: { key: 'bootstrap.version' } });
+      upToDate = row?.value === version;
+    } catch { /* table missing: run everything */ }
+  }
+  if (upToDate) {
+    isInitialized = true;
+    return;
+  }
 
   try {
     const authService = app.get(AuthService);
@@ -149,6 +167,9 @@ async function bootstrap() {
       `ALTER TABLE "Reservation" ALTER COLUMN "checkIn" DROP NOT NULL`,
       `ALTER TABLE "Reservation" ALTER COLUMN "checkOut" DROP NOT NULL`,
       `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "currency" TEXT`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "originalCurrency" TEXT`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "fxRate" DOUBLE PRECISION`,
+      `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "fxDate" TIMESTAMP(3)`,
       // One spelling per country: Lodgify's "Morocco" is the app's "Maroc".
       `UPDATE "Villa" SET "country" = 'Maroc' WHERE lower(trim("country")) IN ('morocco', 'ma', 'maroc') AND "country" <> 'Maroc'`,
       `UPDATE "User" SET "countries" = ARRAY(SELECT DISTINCT CASE WHEN lower(trim(c)) IN ('morocco', 'ma', 'maroc') THEN 'Maroc' ELSE c END FROM unnest("countries") AS c) WHERE EXISTS (SELECT 1 FROM unnest("countries") AS c WHERE lower(trim(c)) IN ('morocco', 'ma') OR c = 'maroc')`,
@@ -216,7 +237,41 @@ async function bootstrap() {
     `);
   } catch { /* non-fatal — table may already exist */ }
 
+  if (version) {
+    try {
+      await prismaV.appSetting.upsert({ where: { key: 'bootstrap.version' }, update: { value: version }, create: { key: 'bootstrap.version', value: version } });
+    } catch { /* non-fatal: done again at the next cold start */ }
+  }
+
   isInitialized = true;
+}
+
+/** One bootstrap per instance, shared by the requests that arrive while it runs. */
+let booting: Promise<void> | null = null;
+let nestApp: any = null;
+
+/** Database round-trip time and regions, to spot a function far from its database. */
+async function dbTiming() {
+  if (!nestApp || !_require) return null;
+  try {
+    const distBase = path.join(process.cwd(), 'apps', 'backend', 'dist');
+    const prisma = nestApp.get(_require(path.join(distBase, 'prisma', 'prisma.service')).PrismaService);
+    const times: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const t = Date.now();
+      await prisma.$queryRawUnsafe('SELECT 1');
+      times.push(Date.now() - t);
+    }
+    let host = '';
+    try {
+      host = new URL(process.env.DATABASE_URL || '').hostname;
+    } catch { /* ignore */ }
+    // Only the region part of the host is shown (e.g. "eu-central-1"), never the address.
+    const dbRegion = host.match(/(?:aws|gcp|azure)?[.-]?((?:us|eu|ap|sa|ca|me|af)-[a-z]+-\d)/)?.[1] ?? null;
+    return { dbRoundTripMs: times, functionRegion: process.env.VERCEL_REGION ?? null, dbRegion, pooled: host.includes('-pooler') };
+  } catch (e: any) {
+    return { error: e?.message ?? String(e) };
+  }
 }
 
 export default async function handler(req: any, res: any) {
@@ -231,7 +286,7 @@ export default async function handler(req: any, res: any) {
   const url: string = req.url || '';
 
   // Health check — always responds even if bootstrap failed
-  if (url === '/api/health' || url === '/health') {
+  if (/^\/(api\/)?health(\?|$)/.test(url)) {
     let distExists = false;
     try {
       if (_require) {
@@ -248,6 +303,7 @@ export default async function handler(req: any, res: any) {
       bootstrapError,
       cwd: process.cwd(),
       distExists,
+      ...(url.includes('timing') || req.url?.includes('timing') ? { timing: await dbTiming() } : {}),
     });
     return;
   }
@@ -259,12 +315,15 @@ export default async function handler(req: any, res: any) {
 
   if (!isInitialized) {
     bootstrapError = null;
-    try {
-      await bootstrap();
-    } catch (err: any) {
-      bootstrapError = err?.message ?? String(err);
-      console.error('[bootstrap]', bootstrapError);
-    }
+    booting ??= bootstrap()
+      .catch((err: any) => {
+        bootstrapError = err?.message ?? String(err);
+        console.error('[bootstrap]', bootstrapError);
+      })
+      .finally(() => {
+        booting = null;
+      });
+    await booting;
   }
 
   if (bootstrapError) {

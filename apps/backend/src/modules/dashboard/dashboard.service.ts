@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FxService } from '../fx/fx.service';
 import { DEFAULT_CURRENCY, orderCurrency, serviceDateBetween, totalsByCurrency } from '../../common/money';
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fx: FxService,
+  ) {}
 
   async getSummary() {
     const now = new Date();
@@ -69,7 +73,17 @@ export class DashboardService {
         return { currency, amount, previous, change: previous > 0 ? Math.round(((amount - previous) / previous) * 100) : 0 };
       })
       .sort((a, b) => b.amount - a.amount);
-    const main = revenueByCurrency[0];
+    // Headline figure: every currency converted to dirhams at today's rate (amounts stay
+    // stored in their own currency; the per-currency figures are listed beside it).
+    const q = await this.fx.quote();
+    const inMad = (list: { currency: string; amount: number }[]) =>
+      list.reduce((sum, t) => sum + t.amount * (this.fx.rateOf(q, t.currency, 'MAD') ?? 0), 0);
+    const allConvertible = revenueByCurrency.every((r) => this.fx.rateOf(q, r.currency, 'MAD') != null);
+    const madNow = inMad(thisMonth);
+    const madBefore = inMad(lastMonth);
+    const main = allConvertible
+      ? { currency: 'MAD', amount: madNow, change: madBefore > 0 ? Math.round(((madNow - madBefore) / madBefore) * 100) : 0 }
+      : revenueByCurrency[0];
     const totalRevenue = main?.amount ?? 0;
     const revenueChange = main?.change ?? 0;
 
@@ -82,6 +96,9 @@ export class DashboardService {
         totalRevenue,
         /** Currency of totalRevenue; the others are in revenueByCurrency. */
         revenueCurrency: main?.currency ?? DEFAULT_CURRENCY,
+        /** True when totalRevenue adds every currency converted to MAD. */
+        revenueConverted: allConvertible && revenueByCurrency.some((r) => r.currency !== 'MAD'),
+        fx: q ? { rate: this.fx.rateOf(q, 'EUR', 'MAD'), date: q.date, source: q.source, stale: !!q.stale } : null,
         revenueByCurrency,
         revenueChange: Math.round(revenueChange),
         activeReservations,

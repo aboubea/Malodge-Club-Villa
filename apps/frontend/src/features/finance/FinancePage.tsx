@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FxNote } from '../../lib/fx';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { TrendingUp, Sparkles, DollarSign, BarChart3, Download, FileText, Table } from 'lucide-react';
@@ -26,13 +27,13 @@ async function fetchDashboard(period: Period, currency?: string) {
   return res.data?.data ?? res.data;
 }
 
-async function fetchProviderPayouts(month: number, year: number) {
-  const res = await apiClient.get(`/finance/provider-payouts?month=${month}&year=${year}`);
+async function fetchProviderPayouts(month: number, year: number, currency?: string) {
+  const res = await apiClient.get(`/finance/provider-payouts?month=${month}&year=${year}${currency ? `&currency=${currency}` : ''}`);
   return res.data?.data ?? res.data ?? [];
 }
 
-async function fetchOwnerPayouts(month: number, year: number) {
-  const res = await apiClient.get(`/finance/owner-payouts?month=${month}&year=${year}`);
+async function fetchOwnerPayouts(month: number, year: number, currency?: string) {
+  const res = await apiClient.get(`/finance/owner-payouts?month=${month}&year=${year}${currency ? `&currency=${currency}` : ''}`);
   return res.data?.data ?? res.data ?? [];
 }
 
@@ -110,19 +111,19 @@ export function FinancePage() {
   const currencies: { currency: string; amount: number }[] = dashboard?.currencies ?? [];
 
   const { data: providerPayouts = [], isLoading: loadingProviders } = useQuery({
-    queryKey: ['provider-payouts', currentMonth, currentYear],
-    queryFn: () => fetchProviderPayouts(currentMonth, currentYear),
+    queryKey: ['provider-payouts', currentMonth, currentYear, askedCurrency],
+    queryFn: () => fetchProviderPayouts(currentMonth, currentYear, askedCurrency),
   });
 
   const { data: ownerPayouts = [], isLoading: loadingOwners } = useQuery({
-    queryKey: ['owner-payouts', currentMonth, currentYear],
-    queryFn: () => fetchOwnerPayouts(currentMonth, currentYear),
+    queryKey: ['owner-payouts', currentMonth, currentYear, askedCurrency],
+    queryFn: () => fetchOwnerPayouts(currentMonth, currentYear, askedCurrency),
   });
 
   async function handleExport(format: 'pdf' | 'excel' | 'csv') {
     setIsExporting(format);
     try {
-      const response = await apiClient.get(`/finance/export?period=${period}&format=${format}&currency=${currency}`, {
+      const response = await apiClient.get(`/finance/export?period=${period}&format=${format}${askedCurrency ? `&currency=${askedCurrency}` : ''}`, {
         responseType: 'blob',
       });
       const ext = format === 'excel' ? 'xlsx' : format;
@@ -231,16 +232,26 @@ export function FinancePage() {
           ))}
         </div>
         {/* Currency selector: shown when the period has money in several currencies */}
-        {currencies.length > 1 && (
+        {(currencies.length > 1 || currencies.some((c) => c.currency !== 'MAD')) && (
           <div className="flex items-center gap-1 bg-surface border border-line rounded-lg p-1" role="group" aria-label="Devise">
+            <button
+              onClick={() => setAskedCurrency(undefined)}
+              title="Toutes les devises converties en dirhams au taux du jour"
+              className={[
+                'px-3 py-1.5 text-xs rounded-md transition-all duration-150',
+                !askedCurrency ? 'bg-primary text-on-primary font-medium' : 'text-muted hover:text-ink',
+              ].join(' ')}
+            >
+              Tout en MAD
+            </button>
             {currencies.map((c) => (
               <button
                 key={c.currency}
                 onClick={() => setAskedCurrency(c.currency)}
-                title={`Montants en ${c.currency}, sans conversion`}
+                title={`Seulement les montants en ${c.currency}, sans conversion`}
                 className={[
                   'px-3 py-1.5 text-xs rounded-md transition-all duration-150',
-                  currency === c.currency ? 'bg-primary text-on-primary font-medium' : 'text-muted hover:text-ink',
+                  askedCurrency === c.currency ? 'bg-primary text-on-primary font-medium' : 'text-muted hover:text-ink',
                 ].join(' ')}
               >
                 {c.currency}
@@ -248,6 +259,7 @@ export function FinancePage() {
             ))}
           </div>
         )}
+        {!askedCurrency && <FxNote className="text-[12px] text-muted self-center" />}
         {/* Export buttons */}
         <Button
           variant="secondary"

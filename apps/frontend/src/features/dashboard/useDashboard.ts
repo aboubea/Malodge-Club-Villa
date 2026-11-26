@@ -6,6 +6,8 @@ export interface DashboardKpis {
   /** Currency of totalRevenue; other currencies are listed apart (never added). */
   revenueCurrency?: string;
   revenueByCurrency?: { currency: string; amount: number; previous: number; change: number }[];
+  /** True when totalRevenue adds every currency converted to MAD at today's rate. */
+  revenueConverted?: boolean;
   revenueChange: number;
   activeReservations: number;
   pendingOrders: number;

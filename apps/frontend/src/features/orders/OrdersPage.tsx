@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MadEquivalent } from '../../lib/fx';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -248,6 +249,7 @@ export function OrdersPage() {
                         <>
                           <td className="px-4 py-3 text-sm font-normal text-accent">
                             {formatCurrency(order.totalAmount, order.currency)}
+                            <MadEquivalent amount={order.totalAmount} currency={order.currency} className="block text-[11px] text-muted" />
                           </td>
                           <td className="px-4 py-3">
                             <OrderStatusBadge status={order.status} />
@@ -270,6 +272,7 @@ export function OrdersPage() {
                         <>
                           <td className="px-4 py-3 text-sm font-normal text-accent">
                             {formatCurrency(order.totalAmount, order.currency)}
+                            <MadEquivalent amount={order.totalAmount} currency={order.currency} className="block text-[11px] text-muted" />
                           </td>
                           <td className="px-4 py-3">
                             <OrderStatusBadge status={order.status} />

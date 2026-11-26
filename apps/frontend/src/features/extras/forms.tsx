@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { fxRate, useFx } from '../../lib/fx';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
@@ -84,19 +85,26 @@ export function ExtraFormModal({
   const currency = villa?.currency ?? 'MAD';
 
   const catalogue = useMemo(() => {
-    const items = (options?.catalogue ?? []).filter((c) => !villa || c.currency === villa.currency);
+    // Every catalogue item, whatever its currency: one priced in euros is converted to the villa's currency when picked.
+    const items = options?.catalogue ?? [];
     const byCat = new Map<string, typeof items>();
     for (const i of items) byCat.set(i.category, [...(byCat.get(i.category) ?? []), i]);
     return [...byCat.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [options?.catalogue, villa]);
 
+  const { data: fx } = useFx();
+  const [convertedFrom, setConvertedFrom] = useState<string | null>(null);
   const pickService = (id: string) => {
     const item = options?.catalogue.find((c) => c.id === id);
+    // A price in another currency (euros) is converted at today's rate into the villa's currency.
+    const r = item ? fxRate(fx, item.currency, currency) : 1;
+    const conv = (v: number | null | undefined) => (v == null || r == null ? null : String(Math.round(v * r * 100) / 100));
+    setConvertedFrom(item && item.currency !== currency && r != null ? `${item.currency} → ${currency} au taux du ${fx?.date ?? 'jour'} (1 ${item.currency} = ${r.toFixed(4)} ${currency})` : null);
     setForm((f) => ({
       ...f,
       serviceId: id,
-      unitPrice: item?.proposedPrice != null ? String(item.proposedPrice) : f.unitPrice,
-      unitCost: item?.unitCost != null ? String(item.unitCost) : f.unitCost,
+      unitPrice: conv(item?.proposedPrice) ?? f.unitPrice,
+      unitCost: conv(item?.unitCost) ?? f.unitCost,
       providerId: f.providerId || item?.defaultProvider?.id || '',
     }));
   };
@@ -195,7 +203,7 @@ export function ExtraFormModal({
                   {items.map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}
-                      {i.proposedPrice != null ? ` — ${formatMoney(i.proposedPrice, i.currency)}` : ''}
+                      {i.proposedPrice != null ? ` — ${formatMoney(i.proposedPrice, i.currency)}${i.currency !== currency ? ' (converti)' : ''}` : ''}
                     </option>
                   ))}
                 </optgroup>
@@ -227,6 +235,7 @@ export function ExtraFormModal({
           <Field label={`Achat / unité (${currency})`}>
             <TextInput inputMode="decimal" value={form.unitCost} onChange={(e) => set('unitCost', e.target.value)} placeholder="—" />
           </Field>
+          {convertedFrom && <p className="col-span-3 -mt-2 text-[12px] text-muted">Prix du catalogue converti : {convertedFrom}.</p>}
         </div>
 
         <Field label="Prestataire">

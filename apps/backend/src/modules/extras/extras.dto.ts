@@ -12,6 +12,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Matches } from 'class-validator';
 
 const ORDER_STATUSES = ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
 const SETTLEMENT_KINDS = [
@@ -144,3 +145,7 @@ export class UpsertCatalogueItemDto {
 }
 
 export { CURRENCY };
+
+export class ConvertCurrencyDto {
+  @IsString() @Matches(/^[A-Za-z]{3}$/) to!: string;
+}

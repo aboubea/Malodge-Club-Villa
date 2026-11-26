@@ -219,6 +219,13 @@ export function OrderDetailPage() {
                   <p className="text-sm text-ink">{formatDateLong(order.scheduledAt)}</p>
                 </div>
               )}
+              {order.originalCurrency && order.fxRate && (
+                <p className="mt-3 text-[12.5px] text-muted">
+                  Montants convertis de {order.originalCurrency} en {order.currency} au taux du {formatDateLong(order.fxDate)} (1 {order.originalCurrency} ={' '}
+                  {Number(order.fxRate).toLocaleString('fr-FR', { maximumFractionDigits: 4 })} {order.currency}) : soit{' '}
+                  {formatCurrency(order.totalAmount / order.fxRate, order.originalCurrency)} à l’origine.
+                </p>
+              )}
             </CardContent>
           </Card>
 
