@@ -15,6 +15,7 @@ import { UserDto, Role } from '@malodge/shared';
 import { ROLES_LABELS } from '../../lib/constants';
 import { UserForm } from './UserForm';
 import { MergePeopleModal, PeopleDuplicatesBanner, PickPersonModal, type PeoplePair, type PersonRef } from './PeopleMerge';
+import { DeleteUserModal, EmptyClientsBanner } from './DeleteUser';
 
 const ROLE_FILTER_OPTIONS = [
   { label: 'Tous', value: '' },
@@ -59,12 +60,15 @@ export function UsersPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/users/${id}`),
+  // Deleting: the server says first whether the person can go (no history) or must be merged / switched off.
+  const [deleting, setDeleting] = useState<UserDto | null>(null);
+  const deactivate = useMutation({
+    mutationFn: (id: string) => apiClient.patch(`/users/${id}`, { isActive: false }),
     onSuccess: () => {
-      toast.success('Utilisateur supprimé');
+      toast.success('Fiche désactivée');
       qc.invalidateQueries({ queryKey: ['users'] });
     },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Désactivation impossible'),
   });
 
   // (Re)send the e-mail that lets the user choose their password; says why if it did not leave.
@@ -176,6 +180,7 @@ export function UsersPage() {
       </PageHeader>
 
       <PeopleDuplicatesBanner onPick={setMergePair} />
+      <EmptyClientsBanner />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -205,7 +210,7 @@ export function UsersPage() {
         data={users}
         loading={isLoading}
         onEdit={(row) => { setEditingUser(row); setSlideOpen(true); }}
-        onDelete={(row) => { if (confirm(`Supprimer ${row.firstName} ${row.lastName} ?`)) deleteMutation.mutate(row.id); }}
+        onDelete={(row) => setDeleting(row)}
         emptyMessage="Aucun utilisateur trouvé"
         pagination={meta ? { page, totalPages: meta.totalPages, onPageChange: setPage } : undefined}
       />
@@ -228,6 +233,12 @@ export function UsersPage() {
         }}
       />
       <MergePeopleModal pair={mergePair} onClose={() => setMergePair(null)} />
+      <DeleteUserModal
+        user={deleting}
+        onClose={() => setDeleting(null)}
+        onMerge={(u) => setMergeFrom(u)}
+        onDeactivate={(id) => deactivate.mutate(id)}
+      />
     </div>
   );
 }

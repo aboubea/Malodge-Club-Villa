@@ -9,6 +9,11 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 export const NAME_ALIASES_KEY = 'extras.nameAliases';
+/**
+ * E-mail addresses of merged duplicates → the record kept, so that a later Lodgify
+ * booking with the old address (or a Lodgify read) never brings the duplicate back.
+ */
+export const EMAIL_ALIASES_KEY = 'people.emailAliases';
 const MERGEABLE = ['CLIENT', 'PROVIDER', 'OWNER', 'EMPLOYEE'] as const;
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -69,6 +74,8 @@ export async function duplicatePeople(prisma: PrismaClient) {
     const [keep, drop] = weight(a) >= weight(b) ? [a, b] : [b, a];
     return {
       role: keep.role,
+      // Exactly the same name (accents, case and spaces aside): can be merged all at once.
+      identical: norm(keep.name) === norm(drop.name),
       keep: { id: keep.id, name: keep.name, stays: keep._count.reservations, extras: keep._count.orders, settlements: keep._count.settlements },
       drop: { id: drop.id, name: drop.name, stays: drop._count.reservations, extras: drop._count.orders, settlements: drop._count.settlements },
     };
@@ -83,6 +90,15 @@ export async function mergePeoplePreview(prisma: PrismaClient, sourceId: string,
     throw new BadRequestException('Seuls les clients, prestataires, propriétaires et salariés se fusionnent.');
   }
   if (s.role !== t.role) throw new BadRequestException('Les deux fiches n’ont pas le même rôle.');
+  // Owners: one statement per month; two validated statements of the same month can't become one.
+  const [sStatements, tStatements] = await Promise.all([
+    prisma.ownerStatement.findMany({ where: { ownerId: s.id }, select: { month: true, status: true } }),
+    prisma.ownerStatement.findMany({ where: { ownerId: t.id }, select: { month: true, status: true } }),
+  ]);
+  const clash = sStatements.filter((x) => x.status !== 'DRAFT' && tStatements.some((y) => y.month === x.month && y.status !== 'DRAFT')).map((x) => x.month);
+  if (clash.length) {
+    throw new BadRequestException(`Les deux fiches ont chacune un relevé validé pour ${clash.join(', ')} : remettez l’un des deux en brouillon (Relevés) avant de fusionner.`);
+  }
   // Stays of the duplicate at a villa where the person kept already has a stay (not two Lodgify bookings).
   const stayPairs = s.reservations
     .filter((r) => !r.logifyId)
@@ -176,6 +192,18 @@ export async function mergePeople(prisma: PrismaClient, sourceId: string, target
       await tx.aiQuery.updateMany({ where: { userId: s.id }, data: { userId: t.id } });
       await tx.auditLog.updateMany({ where: { userId: s.id }, data: { userId: t.id } });
       await tx.calendarEvent.updateMany({ where: { createdBy: s.id }, data: { createdBy: t.id } });
+      await tx.commissionRule.updateMany({ where: { personId: s.id }, data: { personId: t.id } });
+      // Owner statements: one per month (a draft gives way to a validated one; drafts are recalculated).
+      const kept = await tx.ownerStatement.findMany({ where: { ownerId: t.id }, select: { id: true, month: true, status: true } });
+      for (const st of await tx.ownerStatement.findMany({ where: { ownerId: s.id }, select: { id: true, month: true, status: true } })) {
+        const other = kept.find((k) => k.month === st.month);
+        if (other && st.status === 'DRAFT') {
+          await tx.ownerStatement.delete({ where: { id: st.id } });
+          continue;
+        }
+        if (other) await tx.ownerStatement.delete({ where: { id: other.id } });
+        await tx.ownerStatement.update({ where: { id: st.id }, data: { ownerId: t.id } });
+      }
       const convs = (await tx.conversationParticipant.findMany({ where: { userId: t.id }, select: { conversationId: true } })).map((x) => x.conversationId);
       await tx.conversationParticipant.updateMany({ where: { userId: s.id, conversationId: { notIn: convs.length ? convs : ['__none__'] } }, data: { userId: t.id } });
       await tx.conversationParticipant.deleteMany({ where: { userId: s.id } });
@@ -198,6 +226,14 @@ export async function mergePeople(prisma: PrismaClient, sourceId: string, target
       await tx.passwordResetToken.deleteMany({ where: { userId: s.id } });
       await tx.user.delete({ where: { id: s.id } });
 
+      /* The duplicate's address keeps pointing to the record kept (Lodgify reads). */
+      const mailRow = await tx.appSetting.findUnique({ where: { key: EMAIL_ALIASES_KEY } });
+      const mails = Object.fromEntries(
+        Object.entries((mailRow?.value as Record<string, string>) ?? {}).map(([k, v]) => [k, v === s.id ? t.id : v]),
+      );
+      if (!preview.takesEmail) mails[s.email.toLowerCase()] = t.id;
+      await tx.appSetting.upsert({ where: { key: EMAIL_ALIASES_KEY }, update: { value: mails }, create: { key: EMAIL_ALIASES_KEY, value: mails } });
+
       /* The old name keeps pointing to the record kept (extras file). */
       aliases[norm(fullName(s))] = fullName(t);
       const row = await tx.appSetting.findUnique({ where: { key: NAME_ALIASES_KEY } });
@@ -208,6 +244,37 @@ export async function mergePeople(prisma: PrismaClient, sourceId: string, target
     { maxWait: 10_000, timeout: 25_000 },
   );
   return { merged: preview.source.name, into: preview.target.name, ...preview.moves, mergedStays: (preview as any).mergedStays ?? 0 };
+}
+
+/**
+ * Merges, role by role, the records with exactly the same name into the one with the
+ * most history (a real e-mail first). Stays are never merged here: each stays apart.
+ */
+export async function mergeIdenticalPeople(prisma: PrismaClient) {
+  const people = await prisma.user.findMany({
+    where: { role: { in: [...MERGEABLE] as any } },
+    select: { id: true, firstName: true, lastName: true, role: true, email: true, createdAt: true, _count: { select: { reservations: true, orders: true, settlements: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  const groups = new Map<string, typeof people>();
+  for (const p of people) {
+    const k = `${p.role}|${norm(fullName(p))}`;
+    if (norm(fullName(p))) groups.set(k, [...(groups.get(k) ?? []), p]);
+  }
+  const weight = (p: (typeof people)[number]) => p._count.reservations + p._count.orders + p._count.settlements + (placeholder(p.email) ? 0 : 100);
+  let merged = 0;
+  const names: string[] = [];
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const keep = group.reduce((a, b) => (weight(b) > weight(a) ? b : a));
+    for (const p of group) {
+      if (p.id === keep.id) continue;
+      await mergePeople(prisma, p.id, keep.id, { mergeStays: false });
+      merged++;
+    }
+    names.push(fullName(keep));
+  }
+  return { merged, people: names };
 }
 
 /** Names of the extras file rewritten to the records they were merged into. */

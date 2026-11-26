@@ -7,6 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from '@malodge/shared';
 import * as bcrypt from 'bcrypt';
+import { deleteEmptyClients, deleteUser, deletionCheck, emptyClients } from './user-delete';
 
 @Injectable()
 export class UsersService {
@@ -152,9 +153,21 @@ export class UsersService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    await this.prisma.user.delete({ where: { id } });
-    return { message: 'User deleted successfully' };
+  /** Whether the person can be deleted, and what keeps them otherwise. */
+  deletionCheck(id: string, me: { id: string; role: string }) {
+    return deletionCheck(this.prisma as any, id, me);
+  }
+
+  /** Only a person without history is deleted (never a stay, extra, payment or statement). */
+  remove(id: string, me: { id: string; role: string }) {
+    return deleteUser(this.prisma as any, id, me);
+  }
+
+  emptyClients() {
+    return emptyClients(this.prisma as any);
+  }
+
+  deleteEmptyClients() {
+    return deleteEmptyClients(this.prisma as any);
   }
 }

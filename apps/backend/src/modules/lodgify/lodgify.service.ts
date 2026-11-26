@@ -7,6 +7,11 @@ import { canonicalCountry } from '../../common/geo';
 import { FxService } from '../fx/fx.service';
 import { convertVillaCurrency } from '../fx/convert-villa';
 import { MonitoringService } from '../monitoring/monitoring.service';
+import { EMAIL_ALIASES_KEY } from '../extras/people-merge';
+import { deleteEmptyClients } from '../users/user-delete';
+
+/** A person's name compared without accents, case, punctuation or extra spaces. */
+const personKey = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Number of guests of a Lodgify booking, whatever the API version. */
 export function bookingGuests(r: any): number | null {
@@ -809,6 +814,63 @@ export class LodgifyService {
     return { query: q, readAt: this.bookingCache?.at ? new Date(this.bookingCache.at).toISOString() : null, total: bookings.length, results };
   }
 
+  /**
+   * The client of a new booking: the person with this e-mail, or the record it was
+   * merged into; without e-mail, the client of the same name who has none either
+   * (an owner's own stays, a guest coming back), unless their phones differ.
+   * Otherwise a new record. Local copy only.
+   */
+  private async guestFor(b: { id: string; guestName: string; guestEmail: string | null; guestPhone: string | null }, aliases: Record<string, string>): Promise<string> {
+    const email = b.guestEmail?.trim() || null;
+    if (email) {
+      const byEmail = await this.prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true } });
+      if (byEmail) return byEmail.id;
+      const alias = aliases[email.toLowerCase()];
+      if (alias && (await this.prisma.user.findUnique({ where: { id: alias }, select: { id: true } }))) return alias;
+    } else {
+      const [first = ''] = b.guestName.split(/\s+/);
+      const digits = (p: string | null | undefined) => (p ?? '').replace(/\D/g, '').slice(-9);
+      const same = (await this.prisma.user.findMany({
+        where: { role: 'CLIENT', firstName: { equals: first, mode: 'insensitive' }, OR: [{ email: { endsWith: '.local' } }, { email: { endsWith: '.invalid' } }] },
+        select: { id: true, firstName: true, lastName: true, phone: true },
+        orderBy: { createdAt: 'asc' },
+      })).filter((u) => personKey(`${u.firstName} ${u.lastName === 'Lodgify' ? '' : u.lastName}`) === personKey(b.guestName));
+      const phone = digits(b.guestPhone);
+      const match = same.find((u) => phone && digits(u.phone) === phone) ?? same.find((u) => !phone || !digits(u.phone));
+      if (match) return match.id;
+    }
+    const [firstName = 'Client', ...lastParts] = b.guestName.split(/\s+/);
+    const created = await this.prisma.user.create({
+      data: {
+        email: email || `lodgify-guest-${b.id}@malodge.local`,
+        password: '$2b$12$placeholder',
+        firstName,
+        lastName: lastParts.join(' ') || 'Lodgify',
+        role: 'CLIENT',
+        isActive: true,
+        // A guest without e-mail is a record, not an account.
+        canLogin: !!email,
+        phone: b.guestPhone || null,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  /** The client of a booking already copied gets what Lodgify now knows (e-mail, phone) when they had none. */
+  private async completeGuest(clientId: string, b: { guestEmail: string | null; guestPhone: string | null }): Promise<string> {
+    const u = await this.prisma.user.findUnique({ where: { id: clientId }, select: { email: true, phone: true } });
+    if (!u) return clientId;
+    const data: { email?: string; canLogin?: boolean; phone?: string } = {};
+    const email = b.guestEmail?.trim();
+    if (email && /\.(local|invalid)$/i.test(u.email) && !(await this.prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true } }))) {
+      Object.assign(data, { email, canLogin: true });
+    }
+    if (!u.phone && b.guestPhone) data.phone = b.guestPhone;
+    if (Object.keys(data).length) await this.prisma.user.update({ where: { id: clientId }, data });
+    return clientId;
+  }
+
   /** Copies bookings into the app (local copy only, Lodgify is never written to). */
   private async copyBookings(bookings: NonNullable<ReturnType<LodgifyService['mapBooking']>>[]) {
     // Local copy only: villas and clients looked up once, bookings upserted by their Lodgify id.
@@ -818,13 +880,20 @@ export class LodgifyService {
     let skipped = 0;
     const errors: string[] = [];
     const unknown = new Set<string>();
+    const copied = new Map(
+      (await this.prisma.reservation.findMany({ where: { logifyId: { in: bookings.map((b) => b.id) } }, select: { logifyId: true, clientId: true } })).map((r) => [r.logifyId!, r.clientId]),
+    );
+    const aliasRow = await this.prisma.appSetting.findUnique({ where: { key: EMAIL_ALIASES_KEY } });
+    const emailAliases = (aliasRow?.value as Record<string, string>) ?? {};
 
     // Enquiries are not stays: never copied, and copies made earlier are removed when nothing hangs on them.
     const enquiryIds = bookings.filter((b) => b.enquiry).map((b) => b.id);
     if (enquiryIds.length) {
-      await this.prisma.reservation.deleteMany({
-        where: { logifyId: { in: enquiryIds }, orders: { none: {} }, settlements: { none: {} }, conversations: { none: {} }, calendarEvents: { none: {} } },
-      });
+      const removable = { logifyId: { in: enquiryIds }, orders: { none: {} }, settlements: { none: {} }, conversations: { none: {} }, calendarEvents: { none: {} } };
+      const clients = (await this.prisma.reservation.findMany({ where: removable, select: { clientId: true } })).map((r) => r.clientId);
+      await this.prisma.reservation.deleteMany({ where: removable });
+      // Their client records go too when nothing else is left on them (never a person with history).
+      await deleteEmptyClients(this.prisma as any, [...new Set(clients)]);
     }
     bookings = bookings.filter((b) => !b.enquiry);
 
@@ -840,28 +909,12 @@ export class LodgifyService {
           errors.push(`Réservation ${b.id} : dates absentes dans Lodgify`);
           continue;
         }
-        const placeholder = !b.guestEmail;
-        const guestEmail = b.guestEmail || `lodgify-guest-${b.id}@malodge.local`;
-        let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
-        if (!client) {
-          const [firstName = 'Client', ...lastParts] = b.guestName.split(/\s+/);
-          client = await this.prisma.user.create({
-            data: {
-              email: guestEmail,
-              password: '$2b$12$placeholder',
-              firstName,
-              lastName: lastParts.join(' ') || 'Lodgify',
-              role: 'CLIENT',
-              isActive: true,
-              // A guest without e-mail is a record, not an account.
-              canLogin: !placeholder,
-              phone: b.guestPhone || null,
-            },
-          });
-        }
+        // A booking already copied keeps its client: a merge made in the app is never undone.
+        const kept = copied.get(b.id);
+        const clientId = kept ? await this.completeGuest(kept, b) : await this.guestFor(b, emailAliases);
         const data = {
           villaId,
-          clientId: client.id,
+          clientId,
           checkIn: b.checkIn,
           checkOut: b.checkOut,
           guests: b.guests,

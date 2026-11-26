@@ -188,6 +188,13 @@ export class ExtrasController {
     return this.extras.peopleDuplicates();
   }
 
+  @Post('people/merge-identical')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Merge the records of the same role with exactly the same name (stays kept apart)' })
+  mergeIdenticalPeople() {
+    return this.extras.mergeIdenticalPeople();
+  }
+
   @Get('people/:id/merge-preview')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'What merging this person into another moves' })

@@ -41,6 +41,27 @@ export class UsersController {
     });
   }
 
+  @Get('empty-clients')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Client records without any history nor access (left empty)' })
+  emptyClients() {
+    return this.usersService.emptyClients();
+  }
+
+  @Post('empty-clients/delete')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Delete the client records left empty' })
+  deleteEmptyClients() {
+    return this.usersService.deleteEmptyClients();
+  }
+
+  @Get(':id/delete-check')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Whether the user can be deleted, and what keeps them otherwise' })
+  deletionCheck(@Param('id') id: string, @CurrentUser() me: { id: string; role: string }) {
+    return this.usersService.deletionCheck(id, me);
+  }
+
   @Get(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get user by ID' })
@@ -72,7 +93,7 @@ export class UsersController {
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete user' })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() me: { id: string; role: string }) {
+    return this.usersService.remove(id, me);
   }
 }

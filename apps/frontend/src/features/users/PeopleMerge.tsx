@@ -22,6 +22,7 @@ const ROLE_LABEL: Record<string, string> = { CLIENT: 'Client', PROVIDER: 'Presta
 
 interface Duplicate {
   role: string;
+  identical: boolean;
   keep: PersonRef & { stays: number; extras: number; settlements: number };
   drop: PersonRef & { stays: number; extras: number; settlements: number };
 }
@@ -174,8 +175,22 @@ export function MergePeopleModal({ pair, onClose }: { pair: PeoplePair | null; o
 
 /** Banner of people that look keyed twice, with a one-click merge. */
 export function PeopleDuplicatesBanner({ onPick }: { onPick: (pair: PeoplePair) => void }) {
+  const qc = useQueryClient();
   const { data = [] } = usePeopleDuplicates(true);
   const [open, setOpen] = useState(false);
+  // Records with exactly the same name: merged all at once (each stay kept apart).
+  const identical = data.filter((d) => d.identical);
+  const mergeAll = useMutation({
+    mutationFn: async () => {
+      const r = await apiClient.post('/extras/people/merge-identical', {}, { timeout: 120_000 });
+      return (r.data?.data ?? r.data) as { merged: number; people: string[] };
+    },
+    onSuccess: (d) => {
+      toast.success(`${d.merged} fiche${d.merged > 1 ? 's' : ''} en double fusionnée${d.merged > 1 ? 's' : ''} (${d.people.length} personne${d.people.length > 1 ? 's' : ''})`);
+      for (const k of [['users'], ['extras'], ['reservations'], ['people-duplicates'], ['coherence']]) qc.invalidateQueries({ queryKey: k });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Fusion impossible'),
+  });
   if (!data.length) return null;
   const shown = open ? data : data.slice(0, 4);
   return (
@@ -185,9 +200,23 @@ export function PeopleDuplicatesBanner({ onPick }: { onPick: (pair: PeoplePair) 
           <Users size={15} className="text-accent" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-bold text-ink">
-            {data.length} doublon{data.length > 1 ? 's' : ''} probable{data.length > 1 ? 's' : ''} (même nom à une faute près)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[14px] font-bold text-ink">
+              {data.length} doublon{data.length > 1 ? 's' : ''} probable{data.length > 1 ? 's' : ''} (même nom à une faute près)
+            </p>
+            {identical.length > 0 && (
+              <Button
+                size="sm"
+                icon={<Merge size={13} />}
+                loading={mergeAll.isPending}
+                onClick={() => {
+                  if (confirm('Fusionner toutes les fiches qui portent exactement le même nom ? Chaque fiche garde ses séjours, extras et règlements, regroupés sur une seule personne.')) mergeAll.mutate();
+                }}
+              >
+                Fusionner les noms identiques
+              </Button>
+            )}
+          </div>
           <div className="mt-3 space-y-1.5">
             {shown.map((d) => (
               <div key={`${d.drop.id}-${d.keep.id}`} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2">
