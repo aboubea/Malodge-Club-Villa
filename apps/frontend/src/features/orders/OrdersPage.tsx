@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { cn } from '../../lib/utils';
+import { segItem, segOff, segOn, segTrack } from '../../components/ui/segmented';
+import { activityKind } from '../calendar/agendaIcons';
 import { MadEquivalent } from '../../lib/fx';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -94,8 +97,8 @@ export function OrdersPage() {
   return (
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
-        title={isClient ? 'Mes commandes' : 'Commandes'}
-        description={isClient ? 'Historique de vos commandes de services' : 'Gestion et validation des commandes de services'}
+        title={isClient ? 'Mes demandes' : 'Commandes'}
+        description={isClient ? 'Les extras demandés pendant vos séjours' : 'Gestion et validation des commandes de services'}
       >
         {!isClient && (
           <Button icon={<Plus size={14} />} onClick={() => navigate('/commandes/new')}>
@@ -105,17 +108,12 @@ export function OrdersPage() {
       </PageHeader>
 
       {/* Status filter tabs */}
-      <div className="flex items-center gap-1 border-b border-line overflow-x-auto scrollbar-none">
+      <div className={segTrack}>
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-            className={[
-              'px-4 py-3 text-[13.5px] whitespace-nowrap transition-colors duration-150 border-b-2 -mb-px',
-              statusFilter === tab.value
-                ? 'text-ink border-accent font-medium'
-                : 'text-muted border-transparent hover:text-ink',
-            ].join(' ')}
+            className={cn(segItem, statusFilter === tab.value ? segOn : segOff)}
           >
             {tab.label}
           </button>
@@ -124,8 +122,8 @@ export function OrdersPage() {
 
       {/* Search + country filter — staff only */}
       {!isClient && (
-        <div className="space-y-2">
-          <div className="relative max-w-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-sm">
             <Input
               placeholder="Rechercher client, villa, service…"
               value={search}
@@ -134,29 +132,56 @@ export function OrdersPage() {
             />
           </div>
           {countries.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => { setCountryFilter(''); setPage(1); }}
-                className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!countryFilter ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
-              >
-                Tous les pays
-              </button>
+            <select
+              value={countryFilter}
+              onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
+              aria-label="Pays"
+              className="h-10 px-4 rounded-full border border-line-strong bg-surface text-[14px] font-medium text-ink"
+            >
+              <option value="">Tous les pays</option>
               {countries.map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => { setCountryFilter(c.name); setPage(1); }}
-                  className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${countryFilter === c.name ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
-                >
+                <option key={c.code} value={c.name}>
                   {c.flag} {c.name}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           )}
         </div>
       )}
 
+      {/* Phones: one card per order */}
+      <div className="md:hidden rounded-2xl bg-surface border border-line/80 divide-y divide-line/70 overflow-hidden">
+        {!isLoading && orders.length === 0 && <p className="px-4 py-10 text-center text-[14px] text-muted">{isClient ? 'Aucune demande pour le moment.' : 'Aucune commande trouvée.'}</p>}
+        {orders.map((order: any) => {
+          const first = order.items?.[0];
+          const k = activityKind(first?.service?.name ?? first?.label, first?.service?.category?.name);
+          return (
+            <button key={order.id} type="button" onClick={() => navigate(`/commandes/${order.id}`)} className="w-full flex items-start gap-3 px-4 py-3 text-left active:bg-surface-2">
+              <span className={cn('w-10 h-10 rounded-xl border flex items-center justify-center shrink-0', k.tone)}>
+                <k.icon size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[15px] font-semibold text-ink truncate">
+                    {order.items?.length ? order.items.map((it: any) => it.service?.name ?? it.label).join(', ') : 'Commande'}
+                  </span>
+                  <span className="text-[15px] font-semibold text-ink shrink-0 tabular">{formatCurrency(order.totalAmount, order.currency)}</span>
+                </span>
+                <span className="block text-[13px] text-muted truncate">
+                  {!isClient && order.client ? `${order.client.firstName} ${order.client.lastName} · ` : ''}
+                  {order.reservation?.villa?.name ?? '—'} · {formatDate(order.scheduledAt ?? order.createdAt)}
+                </span>
+                <span className="mt-1.5 inline-flex">
+                  <OrderStatusBadge status={order.status} />
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Table */}
-      <Card>
+      <Card className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

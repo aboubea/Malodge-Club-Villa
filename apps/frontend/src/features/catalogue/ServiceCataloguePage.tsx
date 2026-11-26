@@ -248,10 +248,11 @@ export function ServiceCataloguePage() {
             </div>
           )}
         </div>
-        <div className="flex gap-2 flex-wrap">
+        {/* Categories in one row that scrolls sideways (Airbnb) */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${!selectedCategory ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
+            className={`shrink-0 inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border whitespace-nowrap transition-colors ${!selectedCategory ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
           >
             Tous
           </button>
@@ -259,7 +260,7 @@ export function ServiceCataloguePage() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id === selectedCategory ? '' : cat.id)}
-              className={`inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border transition-colors ${selectedCategory === cat.id ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
+              className={`shrink-0 inline-flex items-center h-9 px-4 rounded-full text-[13.5px] font-semibold border whitespace-nowrap transition-colors ${selectedCategory === cat.id ? 'border-ink bg-ink text-surface' : 'border-line-strong bg-surface text-ink hover:border-ink/50'}`}
             >
               {cat.icon && <span className="mr-1">{cat.icon}</span>}{cat.name}
             </button>

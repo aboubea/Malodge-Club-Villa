@@ -10,7 +10,8 @@ export function SectionTabs() {
   const group = groupOf(pathname, role);
   if (!group || group.pages.length < 2) return null;
   return (
-    <nav aria-label={group.label} className="-mt-1 mb-6 inline-flex max-w-full items-center gap-0.5 p-1 rounded-full bg-surface-2 overflow-x-auto scrollbar-none">
+    // Clients have these pages as their tabs at the bottom on phones.
+    <nav aria-label={group.label} className={cn('-mt-1 mb-6 max-w-full items-center gap-0.5 p-1 rounded-full bg-surface-2 overflow-x-auto scrollbar-none', role === 'CLIENT' ? 'hidden lg:inline-flex' : 'inline-flex')}>
       {group.pages.map((p) =>
         p.disabled ? (
           <span key={p.path} title={p.disabled} aria-disabled="true" className="h-8 px-4 rounded-full inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted/60 cursor-not-allowed whitespace-nowrap">

@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, LayoutGrid, LogOut, Moon, Plus, Sun } from 'lucide-react';
+import { ChevronRight, Home, Inbox, LayoutGrid, LogOut, MessageCircle, Moon, Plus, Sparkles, Sun, Wallet } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -76,12 +76,33 @@ export function MobileTabBar() {
     </NavLink>
   );
 
+  // Clients: their own pages as the tabs, like an app (séjour, services, demandes, messages, compte).
+  const CLIENT_TABS = [
+    { path: '/mes-sejours', label: 'Séjour', icon: Home },
+    { path: '/catalogue', label: 'Services', icon: Sparkles },
+    { path: '/commandes', label: 'Demandes', icon: Inbox },
+    { path: '/messages', label: 'Messages', icon: MessageCircle },
+    { path: '/mon-compte', label: 'Compte', icon: Wallet },
+  ];
+  const isClient = role === 'CLIENT';
+
   if (searchOpen) return null;
   return (
     <>
       <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-surface/90 backdrop-blur-xl border-t border-line/70 pb-[env(safe-area-inset-bottom)]" aria-label="Navigation">
         <div className="flex items-stretch max-w-xl mx-auto">
-          {staff ? (
+          {isClient ? (
+            CLIENT_TABS.map((t) => {
+              const on = pathname === t.path || pathname.startsWith(`${t.path}/`);
+              return (
+                <NavLink key={t.path} to={t.path} className={cn('relative flex-1 h-14 flex flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold', on ? 'text-accent' : 'text-muted')}>
+                  <t.icon size={23} strokeWidth={on ? 2.2 : 1.8} />
+                  {t.label}
+                  {t.path === '/messages' && unread > 0 && <span className="absolute top-2 right-[calc(50%-18px)] w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface" />}
+                </NavLink>
+              );
+            })
+          ) : staff ? (
             <>
               {pinned.slice(0, 2).map(tab)}
               <div className="flex-1 flex items-center justify-center">
@@ -99,7 +120,7 @@ export function MobileTabBar() {
           ) : (
             pinned.map(tab)
           )}
-          {rest.length > 0 && (
+          {!isClient && rest.length > 0 && (
             <button
               type="button"
               onClick={() => setMoreOpen(true)}
