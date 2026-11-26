@@ -21,6 +21,7 @@ import {
   X,
   LogOut,
   Wallet,
+  ShieldCheck,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
@@ -95,6 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 const BOTTOM_NAV: NavDef[] = [
   { path: '/utilisateurs', label: 'Utilisateurs', icon: UserCog, roles: ADMIN_UP },
+  { path: '/controle', label: 'Contrôle des données', icon: ShieldCheck, roles: ADMIN_UP },
   { path: '/parametres', label: 'Paramètres', icon: Settings, roles: STAFF },
 ];
 

@@ -115,14 +115,24 @@ export function SettingsPage() {
     onError: () => toast.error('Erreur lors de la sauvegarde'),
   });
   const syncLodgifyMutation = useMutation({
-    mutationFn: () => apiClient.post('/lodgify/sync/all'),
+    // Two requests (listings, then bookings): each stays within the server's time limit.
+    mutationFn: async () => {
+      const unwrap = (r: any) => r.data?.data ?? r.data;
+      const properties = unwrap(await apiClient.post('/lodgify/sync/properties', {}, { timeout: 60_000 }));
+      const reservations = unwrap(await apiClient.post('/lodgify/sync/reservations', {}, { timeout: 60_000 }));
+      return { data: { properties, reservations } };
+    },
     onSuccess: (res) => {
-      const d = res.data?.data ?? res.data;
+      const d = res.data as any;
+      if (d?.reservations?.unknownProperties?.length) {
+        toast(`Réservations ignorées : logement(s) Lodgify pas encore dans l’appli (${d.reservations.unknownProperties.join(', ')}).`, { duration: 9000 });
+      }
       toast.success(`Sync OK : ${d?.properties?.synced ?? 0} propriétés, ${d?.reservations?.synced ?? 0} réservations`);
       if (d?.properties?.incomplete) {
         toast(`${d.properties.incomplete} logement(s) sans chambres ou voyageurs renseignés dans Lodgify : à compléter sur la fiche villa.`, { duration: 7000 });
       }
       qc.invalidateQueries({ queryKey: ['villas'] });
+      qc.invalidateQueries({ queryKey: ['reservations'] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Erreur sync Lodgify'),
   });

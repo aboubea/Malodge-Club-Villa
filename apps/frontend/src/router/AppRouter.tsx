@@ -11,6 +11,7 @@ import { VillasPage } from '../features/villas/VillasPage';
 import { VillaDetailPage } from '../features/villas/VillaDetailPage';
 import { ServicesPage } from '../features/services/ServicesPage';
 import { UsersPage } from '../features/users/UsersPage';
+import { CoherencePage } from '../features/coherence/CoherencePage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { OrdersPage } from '../features/orders/OrdersPage';
 import { OrderDetailPage } from '../features/orders/OrderDetailPage';
@@ -80,6 +81,7 @@ export function AppRouter() {
                 <Route path="/concierge-ia" element={<RoleGuard roles={ALL_ROLES}><AiConciergePage /></RoleGuard>} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/utilisateurs" element={<RoleGuard roles={ADMIN_UP}><UsersPage /></RoleGuard>} />
+                <Route path="/controle" element={<RoleGuard roles={ADMIN_UP}><CoherencePage /></RoleGuard>} />
                 <Route path="/parametres" element={<RoleGuard roles={STAFF}><SettingsPage /></RoleGuard>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

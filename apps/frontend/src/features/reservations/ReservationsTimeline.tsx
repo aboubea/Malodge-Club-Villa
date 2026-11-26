@@ -166,6 +166,27 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
   })();
 
   const width = days.length * COL;
+
+  // An empty period says so, and points to the nearest stays before and after it.
+  const empty = !loadingStays && visible.length === 0;
+  const { data: around } = useQuery({
+    queryKey: ['reservations', 'around', from, to, country],
+    enabled: empty,
+    queryFn: async () => {
+      const get = async (a: string, b: string) => {
+        const params = new URLSearchParams({ from: a, to: b });
+        if (country) params.set('country', country);
+        const res = await apiClient.get(`/reservations?${params}`);
+        const d = res.data?.data ?? res.data;
+        return ((d?.data ?? d) as TimelineStay[]).filter((x) => x.status !== 'CANCELLED' && x.checkIn && x.checkOut);
+      };
+      const [before, after] = await Promise.all([get('2000-01-01', iso(days[0] - DAY)), get(iso(days[days.length - 1] + DAY), '2100-01-01')]);
+      const last = before.sort((x, y) => +new Date(y.checkOut!) - +new Date(x.checkOut!))[0] ?? null;
+      const next = after.sort((x, y) => +new Date(x.checkIn!) - +new Date(y.checkIn!))[0] ?? null;
+      return { last, next };
+    },
+  });
+  const jumpTo = (s: TimelineStay) => setStart(utcDay(new Date(s.checkIn!)) - 3 * DAY);
   const loading = loadingVillas || loadingStays;
 
   return (
@@ -209,6 +230,25 @@ export function ReservationsTimeline({ country, onEdit }: { country?: string; on
           </label>
         </div>
       </div>
+
+      {empty && (
+        <div className="rounded-2xl bg-surface-2/60 px-4 py-3 text-[13px] text-ink-soft flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span>
+            Aucun séjour du {formatDay(iso(days[0]))} au {formatDay(iso(days[days.length - 1]))}.
+          </span>
+          {around?.last && (
+            <button type="button" onClick={() => jumpTo(around.last!)} className="font-semibold text-accent hover:underline">
+              ← Dernier : {guestName(around.last)}, {formatDay(around.last.checkIn)} → {formatDay(around.last.checkOut)}
+            </button>
+          )}
+          {around?.next && (
+            <button type="button" onClick={() => jumpTo(around.next!)} className="font-semibold text-accent hover:underline">
+              Prochain : {guestName(around.next)}, {formatDay(around.next.checkIn)} →
+            </button>
+          )}
+          {around && !around.last && !around.next && <span>Aucun séjour daté dans l’appli.</span>}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">

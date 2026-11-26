@@ -212,6 +212,13 @@ export class ExtrasController {
     return this.extras.importWorkbook(file.buffer, { dryRun: dryRun !== 'false', fileName: file.originalname });
   }
 
+  @Get('coherence')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Data coherence report (read-only)' })
+  coherence(@CurrentUser() actor: Actor) {
+    return this.extras.coherence(actor);
+  }
+
   @Post('import/check-dates')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Compare the app dates with the extras spreadsheet; `apply` (JSON list of ids) puts the file dates back' })

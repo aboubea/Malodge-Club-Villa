@@ -18,6 +18,7 @@ import {
 import { ImportAlreadyDoneError, VILLA_ALIASES_KEY, importExtrasWorkbook, undoImport } from './extras-import';
 import { villaCandidates } from './villa-match';
 import { checkImportDates } from './extras-dates-check';
+import { coherenceReport } from './extras-coherence';
 import { cleanupCatalogue } from './catalogue-cleanup';
 import {
   CreatePersonDto,
@@ -954,6 +955,12 @@ export class ExtrasService {
       }
       throw new BadRequestException(e instanceof Error ? e.message : 'Import impossible');
     }
+  }
+
+  /** Read-only report of what does not add up across villas, stays, extras, payments and Lodgify. */
+  async coherence(actor: Actor) {
+    const { lines } = await this.listExtras({ stays: 'all' } as ExtraFiltersDto, actor);
+    return coherenceReport(this.prisma as any, lines as any);
   }
 
   async checkImportDates(buffer: Buffer, apply: string[]) {

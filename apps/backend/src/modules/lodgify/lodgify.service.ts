@@ -126,52 +126,90 @@ export class LodgifyService {
     throw new Error(`Aucun endpoint Lodgify ne répond:\n${errors.join('\n')}`);
   }
 
+  /**
+   * Bookings read from Lodgify (GET only), page after page: the same source for
+   * the "Lodgify" tab and for the sync, so both always agree.
+   */
+  private async fetchBookings(apiKey: string, maxPages = 8): Promise<any[]> {
+    const SIZE = 50;
+    const all: any[] = [];
+    const seen = new Set<string>();
+    try {
+      for (let page = 1; page <= maxPages; page++) {
+        const data = await this.lodgifyGetAny(`/v2/reservations/bookings?page=${page}&size=${SIZE}&includeCount=true`, apiKey);
+        const items = this.itemsOf(data);
+        const fresh = items.filter((b) => b?.id != null && !seen.has(String(b.id)));
+        fresh.forEach((b) => seen.add(String(b.id)));
+        all.push(...fresh);
+        if (items.length < SIZE || fresh.length === 0) break;
+      }
+      if (all.length) return all;
+    } catch (e: any) {
+      this.logger.warn(`Lodgify: réservations paginées indisponibles (${e?.message}), essai des autres endpoints`);
+    }
+    const from = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+    const to = new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10);
+    const data = await this.lodgifyProbe([
+      `/v2/reservations/bookings?dateFrom=${from}&dateTo=${to}`,
+      `/v2/reservations/bookings`,
+      `/v1/reservation/booking`,
+      `/v1/reservation?dateFrom=${from}&dateTo=${to}`,
+      `/rental-api/v2/reservations/bookings`,
+    ], apiKey);
+    return this.itemsOf(data);
+  }
+
+  /** A Lodgify booking in the app's terms (null for a calendar block, which is not a stay). */
+  private mapBooking(r: any) {
+    const status = String(r.status ?? '').toLowerCase().replace(/[^a-z]/g, '');
+    if (['unavailable', 'blocked', 'closed', 'ownerblock', 'block'].includes(status)) return null;
+    const day = (v: any) => {
+      if (!v) return null;
+      const m = String(v).match(/^(\d{4}-\d{2}-\d{2})/);
+      const d = m ? new Date(`${m[1]}T00:00:00.000Z`) : new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const checkIn = day(r.arrival ?? r.arrival_date ?? r.date_arrival ?? r.check_in);
+    const checkOut = day(r.departure ?? r.departure_date ?? r.date_departure ?? r.check_out);
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+    let appStatus: 'PENDING' | 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' =
+      ['declined', 'cancelled', 'canceled', 'deleted', 'rejected'].includes(status)
+        ? 'CANCELLED'
+        : ['booked', 'confirmed', 'checkin', 'checkout', 'paid'].includes(status)
+          ? 'CONFIRMED'
+          : 'PENDING';
+    // A confirmed stay under way or over is shown as such.
+    if (appStatus === 'CONFIRMED' && checkIn && checkOut) {
+      if (checkOut < today) appStatus = 'COMPLETED';
+      else if (checkIn <= today) appStatus = 'ACTIVE';
+    }
+    const currency = r.currency_code ?? r.currency;
+    return {
+      id: String(r.id),
+      propertyId: String(r.property_id ?? r.propertyId ?? r.property?.id ?? ''),
+      propertyName: r.property_name ?? r.property?.name ?? null,
+      guestName: (r.guest?.name ?? r.requester_name ?? '').trim() || 'Voyageur Lodgify',
+      guestEmail: r.guest?.email ?? null,
+      guestPhone: r.guest?.phone ?? null,
+      checkIn,
+      checkOut,
+      guests: bookingGuests(r) ?? 1,
+      totalAmount: parseFloat(r.total_amount ?? r.amount ?? r.price ?? 0) || 0,
+      currency: typeof currency === 'string' && /^[a-z]{3}$/i.test(currency) ? currency.toUpperCase() : null,
+      lodgifyStatus: r.status ?? 'unknown',
+      status: appStatus,
+      notes: r.notes ?? null,
+    };
+  }
+
   async listReservations(): Promise<any[]> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
-
-    const from = new Date();
-    from.setDate(from.getDate() - 90);
-    const to = new Date();
-    to.setDate(to.getDate() + 365);
-
-    const fromStr = from.toISOString().split('T')[0];
-    const toStr = to.toISOString().split('T')[0];
-
-    this.logger.log(`Lodgify: clé longueur=${apiKey.length}, début=${apiKey.slice(0, 4)}…`);
-
-    const data = await this.lodgifyProbe([
-      // endpoint documenté officiel Lodgify
-      `/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/v2/reservations/bookings`,
-      // variantes avec paramètres alternatifs
-      `/v2/reservations/bookings?checkInStart=${fromStr}&checkInEnd=${toStr}`,
-      `/v2/reservations/bookings?arrival_date_min=${fromStr}&arrival_date_max=${toStr}`,
-      // v1 reservation (pas booking)
-      `/v1/reservation/booking`,
-      `/v1/reservation?dateFrom=${fromStr}&dateTo=${toStr}`,
-      // rental-api (gateway Lodgify)
-      `/rental-api/v2/reservations/bookings?dateFrom=${fromStr}&dateTo=${toStr}`,
-      `/rental-api/v2/reservations/bookings`,
-    ], apiKey);
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.data ?? []);
-
-    return items.map((r) => ({
-      id: String(r.id),
-      propertyId: String(r.property_id),
-      propertyName: r.property_name ?? r.property?.name ?? null,
-      guestName: r.guest?.name ?? r.requester_name ?? 'Inconnu',
-      guestEmail: r.guest?.email ?? null,
-      guestPhone: r.guest?.phone ?? null,
-      checkIn: r.arrival_date ?? r.arrival ?? r.check_in,
-      checkOut: r.departure_date ?? r.departure ?? r.check_out,
-      guests: bookingGuests(r) ?? 1,
-      totalAmount: parseFloat(r.total_amount ?? r.price ?? 0),
-      currency: r.currency_code ?? r.currency ?? null,
-      status: r.status ?? 'unknown',
-      source: 'lodgify',
-      notes: r.notes ?? null,
-    }));
+    const items = await this.fetchBookings(apiKey);
+    return items
+      .map((r) => this.mapBooking(r))
+      .filter(Boolean)
+      .map((b) => ({ ...b!, checkIn: b!.checkIn?.toISOString() ?? null, checkOut: b!.checkOut?.toISOString() ?? null, status: b!.lodgifyStatus, source: 'lodgify' }));
   }
 
   /* ─────────────────────────────── Properties ─────────────────────────────── */
@@ -474,105 +512,75 @@ export class LodgifyService {
     return { synced, errors, incomplete };
   }
 
-  async syncReservations(): Promise<{ synced: number; skipped: number; errors: string[] }> {
+  async syncReservations(): Promise<{ synced: number; skipped: number; errors: string[]; unknownProperties: string[] }> {
     const apiKey = await this.getApiKey();
     if (!apiKey) throw new Error('Lodgify API key not configured');
 
-    let synced = 0;
-    let skipped = 0;
-    const errors: string[] = [];
-
+    let bookings: any[];
     try {
-      const from = new Date();
-      from.setDate(from.getDate() - 90);
-      const to = new Date();
-      to.setDate(to.getDate() + 365);
-
-      const fromStr = from.toISOString().split('T')[0];
-      const toStr = to.toISOString().split('T')[0];
-
-      const data = await this.lodgifyProbe([
-        `/v2/reservations?dateFrom=${fromStr}&dateTo=${toStr}&includeRecords=true`,
-        `/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}&includeGuest=true&resultsPerPage=200`,
-        `/rental-api/v1/reservations?dateFrom=${fromStr}&dateTo=${toStr}`,
-        `/rental-api/v1/booking?checkInStart=${fromStr}&checkInEnd=${toStr}`,
-      ], apiKey);
-      const reservations: any[] = Array.isArray(data) ? data : (data.items ?? []);
-
-      for (const res of reservations) {
-        try {
-          const lodgifyId = String(res.id);
-
-          const villa = await this.prisma.villa.findFirst({
-            where: { logifyId: String(res.property_id) },
-          });
-          if (!villa) {
-            skipped++;
-            continue;
-          }
-
-          const guestEmail = res.guest?.email || `lodgify-guest-${res.id}@malodge.local`;
-          let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
-          if (!client) {
-            const [firstName = 'Guest', ...lastParts] = (res.guest?.name || 'Guest Lodgify').split(' ');
-            const hashedPw = '$2b$12$placeholder';
-            client = await this.prisma.user.create({
-              data: {
-                email: guestEmail,
-                password: hashedPw,
-                firstName,
-                lastName: lastParts.join(' ') || 'Lodgify',
-                role: 'CLIENT',
-                isActive: true,
-                phone: res.guest?.phone || null,
-              },
-            });
-          }
-
-          const statusMap: Record<string, string> = {
-            booked: 'CONFIRMED',
-            confirmed: 'CONFIRMED',
-            check_in: 'ACTIVE',
-            check_out: 'COMPLETED',
-            cancelled: 'CANCELLED',
-            pending: 'PENDING',
-          };
-
-          const checkInDate = new Date(res.arrival_date || res.arrival || res.check_in);
-          const checkOutDate = new Date(res.departure_date || res.departure || res.check_out);
-          if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-            errors.push(`Reservation ${res.id}: invalid dates`);
-            continue;
-          }
-
-          const resData = {
-            villaId: villa.id,
-            clientId: client.id,
-            checkIn: checkInDate,
-            checkOut: checkOutDate,
-            guests: bookingGuests(res) ?? 1,
-            totalAmount: parseFloat(res.total_amount ?? res.price ?? 0),
-            // The booking's own currency (a Moroccan villa can be rented in euros).
-            currency: typeof (res.currency_code ?? res.currency) === 'string' ? String(res.currency_code ?? res.currency).toUpperCase() : null,
-            status: (statusMap[res.status?.toLowerCase()] || 'PENDING') as any,
-            source: 'lodgify',
-            notes: res.notes ?? null,
-          };
-
-          await this.prisma.reservation.upsert({
-            where: { logifyId: lodgifyId },
-            update: resData,
-            create: { ...resData, logifyId: lodgifyId },
-          });
-          synced++;
-        } catch (e: any) {
-          errors.push(`Reservation ${res.id}: ${e?.message}`);
-        }
-      }
+      bookings = (await this.fetchBookings(apiKey)).map((r) => this.mapBooking(r)).filter(Boolean);
     } catch (e: any) {
       throw new Error(`Lodgify reservations sync failed: ${e?.message}`);
     }
 
-    return { synced, skipped, errors };
+    // Local copy only: villas and clients looked up once, bookings upserted by their Lodgify id.
+    const villas = await this.prisma.villa.findMany({ where: { logifyId: { not: null } }, select: { id: true, logifyId: true } });
+    const villaByListing = new Map(villas.map((v) => [v.logifyId!, v.id]));
+    let synced = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    const unknown = new Set<string>();
+
+    for (const b of bookings as NonNullable<ReturnType<LodgifyService['mapBooking']>>[]) {
+      try {
+        const villaId = villaByListing.get(b.propertyId);
+        if (!villaId) {
+          skipped++;
+          unknown.add(b.propertyName ? `${b.propertyName} (${b.propertyId})` : b.propertyId);
+          continue;
+        }
+        if (!b.checkIn || !b.checkOut) {
+          errors.push(`Réservation ${b.id} : dates absentes dans Lodgify`);
+          continue;
+        }
+        const placeholder = !b.guestEmail;
+        const guestEmail = b.guestEmail || `lodgify-guest-${b.id}@malodge.local`;
+        let client = await this.prisma.user.findUnique({ where: { email: guestEmail } });
+        if (!client) {
+          const [firstName = 'Voyageur', ...lastParts] = b.guestName.split(/\s+/);
+          client = await this.prisma.user.create({
+            data: {
+              email: guestEmail,
+              password: '$2b$12$placeholder',
+              firstName,
+              lastName: lastParts.join(' ') || 'Lodgify',
+              role: 'CLIENT',
+              isActive: true,
+              // A guest without e-mail is a record, not an account.
+              canLogin: !placeholder,
+              phone: b.guestPhone || null,
+            },
+          });
+        }
+        const data = {
+          villaId,
+          clientId: client.id,
+          checkIn: b.checkIn,
+          checkOut: b.checkOut,
+          guests: b.guests,
+          totalAmount: b.totalAmount,
+          currency: b.currency,
+          status: b.status as any,
+          source: 'lodgify',
+          notes: b.notes,
+        };
+        await this.prisma.reservation.upsert({ where: { logifyId: b.id }, update: data, create: { ...data, logifyId: b.id } });
+        synced++;
+      } catch (e: any) {
+        errors.push(`Réservation ${b.id} : ${e?.message}`);
+      }
+    }
+    if (unknown.size) this.logger.warn(`Lodgify: réservations ignorées, logements non synchronisés : ${[...unknown].join(', ')}`);
+    return { synced, skipped, errors, unknownProperties: [...unknown] };
   }
 }
