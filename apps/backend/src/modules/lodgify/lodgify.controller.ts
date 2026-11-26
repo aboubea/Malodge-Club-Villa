@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { LodgifyService } from './lodgify.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,9 +26,9 @@ export class LodgifyController {
 
   @Get('properties/raw')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Get first raw Lodgify property (debug field names)' })
-  getRawFirstProperty() {
-    return this.lodgifyService.getRawFirstProperty();
+  @ApiOperation({ summary: 'Raw Lodgify payloads of one property (first one, or ?id=) and the capacity read from them' })
+  getRawFirstProperty(@Query('id') id?: string) {
+    return this.lodgifyService.getRawFirstProperty(id);
   }
 
   @Get('properties')

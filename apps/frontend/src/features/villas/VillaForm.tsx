@@ -21,9 +21,10 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
     country: villa?.country || 'France',
     latitude: villa?.latitude || undefined,
     longitude: villa?.longitude || undefined,
-    maxGuests: villa?.maxGuests || 1,
-    bedrooms: villa?.bedrooms || 1,
-    bathrooms: villa?.bathrooms || 1,
+    // An existing villa keeps 0 ("non renseigné") until someone types a figure.
+    maxGuests: villa ? villa.maxGuests : 1,
+    bedrooms: villa ? villa.bedrooms : 1,
+    bathrooms: villa ? villa.bathrooms : 1,
     coverImage: villa?.coverImage || '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateVillaDto, string>>>({});
@@ -54,7 +55,10 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    mutation.mutate(form);
+    // An empty figure is left out rather than saved as 0 or 1.
+    const body = { ...form };
+    for (const k of ['maxGuests', 'bedrooms', 'bathrooms'] as const) if (!(Number(body[k]) > 0)) delete body[k];
+    mutation.mutate(body);
   };
 
   const set = (field: keyof CreateVillaDto) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -86,9 +90,9 @@ export function VillaForm({ villa, onSuccess }: VillaFormProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Input label="Voyageurs max" type="number" min="1" value={String(form.maxGuests || 1)} onChange={set('maxGuests')} />
-        <Input label="Chambres" type="number" min="1" value={String(form.bedrooms || 1)} onChange={set('bedrooms')} />
-        <Input label="Salles de bain" type="number" min="1" value={String(form.bathrooms || 1)} onChange={set('bathrooms')} />
+        <Input label="Voyageurs max" type="number" min="1" placeholder="—" value={form.maxGuests ? String(form.maxGuests) : ''} onChange={set('maxGuests')} />
+        <Input label="Chambres" type="number" min="1" placeholder="—" value={form.bedrooms ? String(form.bedrooms) : ''} onChange={set('bedrooms')} />
+        <Input label="Salles de bain" type="number" min="1" placeholder="—" value={form.bathrooms ? String(form.bathrooms) : ''} onChange={set('bathrooms')} />
       </div>
 
       <Input label="URL image principale" placeholder="https://..." value={form.coverImage || ''} onChange={set('coverImage')} />

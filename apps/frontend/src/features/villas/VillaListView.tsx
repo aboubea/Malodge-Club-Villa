@@ -22,6 +22,18 @@ function plural(n: number, one: string, many: string) {
   return `${n} ${n > 1 ? many : one}`;
 }
 
+/** Capacity line; 0 means Lodgify did not give the figure. */
+function capacityLine(v: VillaDto) {
+  const parts = [
+    v.bedrooms > 0 && plural(v.bedrooms, 'chambre', 'chambres'),
+    v.maxGuests > 0 && plural(v.maxGuests, 'voyageur', 'voyageurs'),
+    v.bathrooms > 0 && plural(v.bathrooms, 'sdb', 'sdb'),
+  ].filter(Boolean);
+  return parts.length ? parts.join(' • ') : 'Capacité non renseignée';
+}
+
+const orDash = (n: number) => (n > 0 ? n : '—');
+
 function VillaRow({
   villa,
   selected,
@@ -63,8 +75,7 @@ function VillaRow({
         </p>
         <p className="text-[15px] font-bold text-ink truncate mt-0.5">{villa.name}</p>
         <p className="text-[12.5px] text-muted mt-1 truncate">
-          {plural(villa.bedrooms, 'chambre', 'chambres')} • {plural(villa.maxGuests, 'voyageur', 'voyageurs')} •{' '}
-          {plural(villa.bathrooms, 'sdb', 'sdb')}
+          {capacityLine(villa)}
         </p>
         <div className="mt-auto pt-2 flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-soft">
@@ -179,9 +190,9 @@ function VillaPreview({
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 mt-5 border-y border-line">
-        <Stat icon={BedDouble} label="Chambres" value={villa.bedrooms} />
-        <Stat icon={Bath} label="Salles de bain" value={villa.bathrooms} />
-        <Stat icon={Users} label="Voyageurs" value={villa.maxGuests} />
+        <Stat icon={BedDouble} label="Chambres" value={orDash(villa.bedrooms)} />
+        <Stat icon={Bath} label="Salles de bain" value={orDash(villa.bathrooms)} />
+        <Stat icon={Users} label="Voyageurs" value={orDash(villa.maxGuests)} />
         <Stat icon={Sparkles} label="Équipements" value={amenities.length} />
       </div>
 

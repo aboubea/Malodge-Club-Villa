@@ -119,6 +119,10 @@ export function SettingsPage() {
     onSuccess: (res) => {
       const d = res.data?.data ?? res.data;
       toast.success(`Sync OK : ${d?.properties?.synced ?? 0} propriétés, ${d?.reservations?.synced ?? 0} réservations`);
+      if (d?.properties?.incomplete) {
+        toast(`${d.properties.incomplete} logement(s) sans chambres ou voyageurs renseignés dans Lodgify : à compléter sur la fiche villa.`, { duration: 7000 });
+      }
+      qc.invalidateQueries({ queryKey: ['villas'] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Erreur sync Lodgify'),
   });

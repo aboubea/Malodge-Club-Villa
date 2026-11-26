@@ -157,6 +157,14 @@ function LodgifyDetailModal({ p, onClose }: { p: any; onClose: () => void }) {
                     <span className="text-ink font-medium">{p.bathrooms}</span>
                   </div>
                 )}
+                {!p.maxGuests && !p.bedrooms && !p.bathrooms && (
+                  <p className="text-[12px] text-muted">Non renseignées dans Lodgify.</p>
+                )}
+                {Object.values(p.capacitySource ?? {}).includes('description') && (
+                  <p className="text-[11.5px] text-muted leading-snug">
+                    Certains chiffres sont lus dans le texte de l’annonce, faute de champ rempli dans Lodgify.
+                  </p>
+                )}
               </div>
 
               {p.lodgifyUrl && (
@@ -657,13 +665,13 @@ export function VillasPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Champs capacité / chambres</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Capacité retenue, sources et appels (lecture seule)</h3>
                 <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.occupancyFields, null, 2)}
                 </pre>
               </div>
               <div>
-                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Objet complet (1ère propriété)</h3>
+                <h3 className="text-[12.5px] font-semibold text-muted mb-2">Réponses Lodgify (liste, détail, types de chambre)</h3>
                 <pre className="text-xs font-mono text-ink-soft bg-surface rounded-lg border border-line p-3 overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(rawDebug.raw, null, 2)}
                 </pre>
