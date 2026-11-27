@@ -1,13 +1,20 @@
-import { useState, ReactNode } from 'react';
-import { ChevronUp, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { ReactNode, useMemo } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from './Button';
+import { CellValue, ColKind, ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from './tableControls';
 
 export interface Column<T> {
   key: string;
   header: string;
   render?: (row: T) => ReactNode;
+  /** The value sorted and filtered on (default: the row's field `key`). */
+  value?: (row: T) => CellValue;
+  kind?: ColKind;
+  /** Default true. */
   sortable?: boolean;
+  /** Default true. */
+  filterable?: boolean;
   width?: string;
   align?: 'left' | 'center' | 'right';
 }
@@ -20,6 +27,8 @@ interface DataTableProps<T extends { id: string }> {
   onDelete?: (row: T) => void;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
+  /** Keeps the sort and filters of this table for the session. */
+  tableId?: string;
   pagination?: {
     page: number;
     totalPages: number;
@@ -35,24 +44,30 @@ export function DataTable<T extends { id: string }>({
   onDelete,
   onRowClick,
   emptyMessage = 'Aucune donnée',
+  tableId = 'table',
   pagination,
 }: DataTableProps<T>) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-
-  const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
-  };
-
+  // Sort and filter on every column (its value, or the row's field of the same name).
+  const specs = useMemo<ColSpec<T>[]>(
+    () =>
+      columns.map((c) => ({
+        key: c.key,
+        label: c.header,
+        value: c.value ?? ((row: T) => (row as Record<string, unknown>)[c.key] as CellValue),
+        kind: c.kind,
+        align: c.align === 'right' ? 'right' : 'left',
+        sortable: c.sortable !== false,
+        filterable: c.filterable !== false,
+      })),
+    [columns],
+  );
+  const ctl = useTableControls(tableId, data, specs);
+  const rows = ctl.rows;
   const showActions = onEdit || onDelete;
 
   return (
     <div className="flex flex-col gap-3">
+      <TableFilterSummary ctl={ctl} />
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-card">
         <table className="w-full text-sm">
           <thead>
@@ -64,19 +79,10 @@ export function DataTable<T extends { id: string }>({
                     'px-5 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap',
                     col.align === 'center' && 'text-center',
                     col.align === 'right' && 'text-right',
-                    col.sortable && 'cursor-pointer hover:text-ink transition-colors select-none',
                     col.width && `w-[${col.width}]`,
                   )}
-                  onClick={() => col.sortable && handleSort(col.key)}
                 >
-                  <span className="inline-flex items-center gap-1">
-                    {col.header}
-                    {col.sortable && sortKey === col.key && (
-                      sortDir === 'asc'
-                        ? <ChevronUp size={12} />
-                        : <ChevronDown size={12} />
-                    )}
-                  </span>
+                  <ColumnHeader ctl={ctl} col={col.key} />
                 </th>
               ))}
               {showActions && (
@@ -102,17 +108,17 @@ export function DataTable<T extends { id: string }>({
                   )}
                 </tr>
               ))
-            ) : data.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length + (showActions ? 1 : 0)}
                   className="px-5 py-16 text-center text-muted"
                 >
-                  {emptyMessage}
+                  {data.length && ctl.activeCount ? 'Aucune ligne ne correspond aux filtres.' : emptyMessage}
                 </td>
               </tr>
             ) : (
-              data.map((row) => (
+              rows.map((row) => (
                 <tr
                   key={row.id}
                   className={cn(

@@ -52,7 +52,8 @@ export function UsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['users', { page, search, role }],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), limit: '15' });
+      // The whole list: sorting and filtering by column cover everyone, not one page.
+      const params = new URLSearchParams({ page: '1', limit: '1000' });
       if (search) params.set('search', search);
       if (role) params.set('role', role);
       const res = await apiClient.get(`/users?${params}`);
@@ -87,6 +88,7 @@ export function UsersPage() {
     {
       key: 'user',
       header: 'Utilisateur',
+      value: (row) => `${row.firstName} ${row.lastName}`.trim(),
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar firstName={row.firstName} lastName={row.lastName} src={row.avatar} size="sm" />
@@ -121,6 +123,7 @@ export function UsersPage() {
     {
       key: 'role',
       header: 'Rôle',
+      value: (row) => ROLES_LABELS[row.role] || row.role,
       render: (row) => (
         <Badge variant={ROLE_BADGE_MAP[row.role] || 'default'}>
           {ROLES_LABELS[row.role] || row.role}
@@ -130,6 +133,7 @@ export function UsersPage() {
     {
       key: 'status',
       header: 'Statut',
+      value: (row) => (row.isActive ? 'Actif' : 'Inactif'),
       render: (row) => (
         <Badge variant={row.isActive ? 'active' : 'inactive'}>
           {row.isActive ? 'Actif' : 'Inactif'}
@@ -139,6 +143,7 @@ export function UsersPage() {
     {
       key: 'countries',
       header: 'Pays',
+      value: (row) => ((row as any).countries?.length ? (row as any).countries.join(', ') : 'Global'),
       render: (row) => {
         const countries: string[] = (row as any).countries || [];
         if (countries.length === 0) return <span className="text-[11px] text-muted italic">Global</span>;
@@ -154,6 +159,8 @@ export function UsersPage() {
     {
       key: 'lastLoginAt',
       header: 'Dernière connexion',
+      kind: 'date',
+      value: (row) => row.lastLoginAt ?? null,
       render: (row) => (
         <span className="text-xs text-muted">
           {row.lastLoginAt ? formatDate(row.lastLoginAt) : 'Jamais'}
@@ -163,7 +170,8 @@ export function UsersPage() {
     {
       key: 'createdAt',
       header: 'Créé le',
-      sortable: true,
+      kind: 'date',
+      value: (row) => row.createdAt,
       render: (row) => <span className="text-xs text-muted">{formatDate(row.createdAt)}</span>,
     },
   ];
@@ -212,7 +220,7 @@ export function UsersPage() {
         onEdit={(row) => { setEditingUser(row); setSlideOpen(true); }}
         onDelete={(row) => setDeleting(row)}
         emptyMessage="Aucun utilisateur trouvé"
-        pagination={meta ? { page, totalPages: meta.totalPages, onPageChange: setPage } : undefined}
+        tableId="users"
       />
 
       <Modal

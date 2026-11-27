@@ -65,7 +65,8 @@ export function ProvidersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['providers', { page, search }],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), limit: '15' });
+      // The whole list: sorting and filtering by column cover every provider.
+      const params = new URLSearchParams({ page: '1', limit: '1000' });
       if (search) params.set('search', search);
       const res = await apiClient.get(`/providers?${params}`);
       return res.data.data || res.data;
@@ -183,6 +184,7 @@ export function ProvidersPage() {
     {
       key: 'user',
       header: 'Prestataire',
+      value: (row) => `${row.user.firstName} ${row.user.lastName}`.trim(),
       render: (row) => (
         <div className="flex items-center gap-3">
           <Avatar firstName={row.user.firstName} lastName={row.user.lastName} src={row.user.avatar} size="sm" />
@@ -196,6 +198,7 @@ export function ProvidersPage() {
     {
       key: 'company',
       header: 'Société',
+      value: (row) => row.companyName || 'Individuel',
       render: (row) => (
         <div className="flex items-center gap-2">
           {row.companyName ? (
@@ -212,6 +215,7 @@ export function ProvidersPage() {
     {
       key: 'categories',
       header: 'Spécialités',
+      value: (row) => row.categories.map((c) => c.category.name).join(', ') || 'Aucune',
       render: (row) => (
         <div className="flex flex-wrap gap-1">
           {row.categories.length === 0 ? (
@@ -232,6 +236,7 @@ export function ProvidersPage() {
     {
       key: 'status',
       header: 'Statut',
+      value: (row) => (row.isActive ? 'Actif' : 'Inactif'),
       render: (row) => (
         <div className="flex items-center gap-2">
           <Badge variant={row.isActive ? 'active' : 'inactive'}>
@@ -250,6 +255,8 @@ export function ProvidersPage() {
     {
       key: 'createdAt',
       header: 'Ajouté le',
+      kind: 'date',
+      value: (row) => row.createdAt,
       render: (row) => <span className="text-xs text-muted">{formatDate(row.createdAt)}</span>,
     },
   ];
@@ -284,7 +291,7 @@ export function ProvidersPage() {
         onEdit={openEdit}
         onRowClick={(row) => setDetailProvider(row)}
         emptyMessage="Aucun prestataire trouvé"
-        pagination={meta ? { page, totalPages: meta.totalPages, onPageChange: setPage } : undefined}
+        tableId="providers"
       />
 
       {/* Provider Detail Popup */}

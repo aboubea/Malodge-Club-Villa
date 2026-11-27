@@ -10,7 +10,37 @@ import { ExtraFilters, ExtraLine, Options, STATUS_BADGE, STATUS_LABELS, Totals, 
 import { ExtraFormModal } from './forms';
 import { EmptyState, IssueTag, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { formatMoney } from '../../lib/utils';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 import { displayCurrency, toDisplay } from '../../lib/display';
+
+/** The totals of the lines shown (same rules as the server): the column filters update them, as in the Excel file. */
+function totalsOf(lines: ExtraLine[]): Totals[] {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const map = new Map<string, Totals & { billedNoCost: number; noCostCount: number; marginBilled: number; netMissing: number }>();
+  for (const l of lines) {
+    let t = map.get(l.currency);
+    if (!t) {
+      t = { currency: l.currency, count: 0, incomplete: 0, billed: 0, cost: 0, margin: 0, ownerShare: 0, sellerShare: 0, net: 0, billedNoCost: 0, noCostCount: 0, marginBilled: 0, netMissing: 0 };
+      map.set(l.currency, t);
+    }
+    t.count += 1;
+    if (l.cancelled) continue;
+    if (l.issue) t.incomplete += 1;
+    t.billed += l.total ?? 0;
+    t.cost += l.cost ?? 0;
+    t.margin += l.margin ?? 0;
+    t.ownerShare += l.ownerShare ?? 0;
+    t.sellerShare += l.sellerShare ?? 0;
+    t.net += l.net ?? 0;
+    if (l.total != null && l.cost == null) {
+      t.billedNoCost += l.total;
+      t.noCostCount += 1;
+    }
+    if (l.margin != null) t.marginBilled += l.total ?? 0;
+    if (l.margin != null && l.net == null) t.netMissing += 1;
+  }
+  return [...map.values()].map((t) => ({ ...t, billed: r2(t.billed), cost: r2(t.cost), margin: r2(t.margin), ownerShare: r2(t.ownerShare), sellerShare: r2(t.sellerShare), net: r2(t.net) }));
+}
 
 /** Totals of several currencies as one, in the display currency (null when a rate is missing). */
 function mergeTotals(list: Totals[]): (Totals & { currency: string }) | null {
@@ -33,6 +63,23 @@ function mergeTotals(list: Totals[]): (Totals & { currency: string }) | null {
   // Already converted: shown as is.
   return out;
 }
+
+/** What each column sorts and filters on. Owner and seller: their name (filter) — the amounts sort through Net. */
+const LINE_COLS: ColSpec<ExtraLine>[] = [
+  { key: 'date', label: 'Date', kind: 'date', value: (l) => l.date },
+  { key: 'stay', label: 'Client / séjour', value: (l) => l.stay?.label },
+  { key: 'villa', label: 'Villa', value: (l) => l.villa?.name },
+  { key: 'label', label: 'Prestation', value: (l) => l.label },
+  { key: 'provider', label: 'Prestataire', value: (l) => l.provider?.name },
+  { key: 'qty', label: 'Qté', kind: 'number', align: 'right', value: (l) => l.quantity },
+  { key: 'total', label: 'Total client', kind: 'number', align: 'right', value: (l) => l.total },
+  { key: 'cost', label: 'Coût', kind: 'number', align: 'right', value: (l) => l.cost },
+  { key: 'margin', label: 'Marge', kind: 'number', align: 'right', value: (l) => l.margin },
+  { key: 'owner', label: 'Propriétaire', align: 'right', value: (l) => l.owner?.name },
+  { key: 'seller', label: 'Salarié', align: 'right', value: (l) => l.seller?.name },
+  { key: 'net', label: 'Net Malodge', kind: 'number', align: 'right', value: (l) => l.net },
+  { key: 'status', label: 'Statut', value: (l) => STATUS_LABELS[l.status] },
+];
 
 export function LinesTab({ options }: { options: Options | undefined }) {
   const [params, setParams] = useSearchParams();
@@ -65,7 +112,11 @@ export function LinesTab({ options }: { options: Options | undefined }) {
   const [editing, setEditing] = useState<ExtraLine | null>(null);
   const del = useExtrasMutation(api.deleteExtra, 'Extra supprimé');
 
-  const lines = data?.lines ?? [];
+  const all = data?.lines ?? [];
+  // Sort and filter at the top of the columns (as in the Excel file); the totals follow what is shown.
+  const ctl = useTableControls<ExtraLine>('extras-lines', all, LINE_COLS);
+  const lines = ctl.rows;
+  const totals = ctl.activeCount ? totalsOf(lines) : data?.totals ?? [];
 
   return (
     <div className="space-y-5">
@@ -158,7 +209,7 @@ export function LinesTab({ options }: { options: Options | undefined }) {
 
       {/* Totals: one row, in the display currency (each currency converted at today's rate). */}
       {(() => {
-        const t = mergeTotals(data?.totals ?? []);
+        const t = mergeTotals(totals);
         if (!t) return null;
         // Below each card, what it leaves out: so that Billed − Cost = Margin reads right.
         const notes: Record<string, string | null> = {
@@ -189,19 +240,20 @@ export function LinesTab({ options }: { options: Options | undefined }) {
       })()}
       <p className="text-[12.5px] text-muted -mt-2">
         {lines.length} extra{lines.length > 1 ? 's' : ''} affiché{lines.length > 1 ? 's' : ''}
-        {data?.totals[0]?.incomplete ? `, dont ${data.totals.reduce((s, t) => s + t.incomplete, 0)} à compléter (montants partiels)` : ''}
+        {totals[0]?.incomplete ? `, dont ${totals.reduce((s, t) => s + t.incomplete, 0)} à compléter (montants partiels)` : ''}
         {lines.some((l) => l.warning) ? ` — ${lines.filter((l) => l.warning).length} date(s) hors séjour à vérifier` : ''}.
       </p>
 
       {/* Table */}
       {isLoading ? (
         <Skeleton className="h-72 rounded-2xl" />
-      ) : lines.length === 0 ? (
+      ) : all.length === 0 ? (
         <div className="rounded-2xl border border-line bg-surface">
           <EmptyState title="Aucun extra pour ces filtres" hint="Modifiez les filtres ou ajoutez un extra." />
         </div>
       ) : (
         <>
+        <TableFilterSummary ctl={ctl} noun="extra" />
         {/* Phones: one card per extra, tap to edit */}
         <div className="md:hidden rounded-2xl bg-surface border border-line/80 divide-y divide-line/70 overflow-hidden">
           {lines.map((l) => {
@@ -233,17 +285,17 @@ export function LinesTab({ options }: { options: Options | undefined }) {
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr>
-                <th className={th}>Date</th>
-                <th className={th}>Client / séjour</th>
-                <th className={th}>Prestation</th>
-                <th className={cn(th, 'text-right')}>Qté</th>
-                <th className={cn(th, 'text-right')}>Total client</th>
-                <th className={cn(th, 'text-right')}>Coût</th>
-                <th className={cn(th, 'text-right')}>Marge</th>
-                <th className={cn(th, 'text-right')}>Propriétaire</th>
-                <th className={cn(th, 'text-right')}>Salarié</th>
-                <th className={cn(th, 'text-right')}>Net Malodge</th>
-                <th className={th}>Statut</th>
+                <th className={th}><ColumnHeader ctl={ctl} col="date" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="stay" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="label" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="qty" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="total" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="cost" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="margin" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="owner" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="seller" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="net" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="status" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
