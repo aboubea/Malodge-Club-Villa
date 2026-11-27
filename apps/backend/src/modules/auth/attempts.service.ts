@@ -13,14 +13,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 export const LIMITS = {
   login: { windowMs: 15 * 60_000, perEmail: 5, perIp: 20 },
   reset: { windowMs: 60 * 60_000, perEmail: 3, perIp: 10 },
-  signup: { windowMs: 60 * 60_000, perIp: 5 },
 };
 
 export const ACTIONS = {
   loginFailed: 'LOGIN_FAILED',
   loginSucceeded: 'LOGIN_SUCCESS',
   reset: 'PASSWORD_RESET_REQUEST',
-  signup: 'SIGNUP',
 } as const;
 
 export interface Client {
@@ -102,12 +100,6 @@ export class AttemptsService {
     if (byEmail.length >= perEmail || byIp.length >= perIp) return false;
     await this.record(ACTIONS.reset, email, client);
     return true;
-  }
-
-  async assertSignupAllowed(email: string, client: Client) {
-    const { windowMs, perIp } = LIMITS.signup;
-    if (client.ip) this.check(await this.times(ACTIONS.signup, { ipAddress: client.ip }, new Date(Date.now() - windowMs)), perIp, windowMs, 'Trop de créations de compte depuis cette adresse.');
-    await this.record(ACTIONS.signup, email, client);
   }
 
   /** Login failures of the last 24 h and accounts locked right now (for the health panel). */

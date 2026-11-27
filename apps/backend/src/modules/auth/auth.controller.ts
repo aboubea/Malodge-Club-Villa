@@ -2,7 +2,6 @@ import { Controller, Post, Body, Get, HttpCode, HttpStatus, Req } from '@nestjs/
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -12,16 +11,10 @@ import { AllowRestrictedRoles } from '../../common/decorators/roles.decorator';
 import { clientOf } from './attempts.service';
 
 @ApiTags('Auth')
+/** No public sign-up: accounts are created by the team and opened by invitation (Utilisateurs). */
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-
-  @Public()
-  @Post('register')
-  @ApiOperation({ summary: 'Create a new CLIENT account' })
-  register(@Body() dto: RegisterDto, @Req() req: any) {
-    return this.authService.register(dto, clientOf(req));
-  }
 
   @Public()
   @Post('login')

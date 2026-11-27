@@ -34,16 +34,7 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout
-      aside={
-        <>
-          Pas encore de compte ?{' '}
-          <Link to="/inscription" className="font-medium text-accent hover:text-accent-hover transition-colors">
-            Créer un compte
-          </Link>
-        </>
-      }
-    >
+    <AuthLayout aside="Accès sur invitation : votre conciergerie vous envoie le lien pour choisir votre mot de passe.">
       <AuthHeading title="Bon retour parmi nous" subtitle="Connectez-vous à votre espace Malodge pour gérer vos villas et vos séjours." />
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>

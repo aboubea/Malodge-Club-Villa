@@ -9,7 +9,6 @@ import { AI_CONCIERGE_ENABLED } from '../lib/features';
 // Each page is loaded when first opened: the first screen downloads far less code.
 const ForgotPasswordPage = lazy(() => import('../features/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import('../features/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
-const RegisterPage = lazy(() => import('../features/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const VillasPage = lazy(() => import('../features/villas/VillasPage').then((m) => ({ default: m.VillasPage })));
 const VillaDetailPage = lazy(() => import('../features/villas/VillaDetailPage').then((m) => ({ default: m.VillaDetailPage })));
@@ -73,7 +72,8 @@ export function AppRouter() {
     <Suspense fallback={<PageFallback />}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/inscription" element={<RegisterPage />} />
+      {/* No sign-up: accounts are opened by invitation only. */}
+      <Route path="/inscription" element={<Navigate to="/login" replace />} />
       <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
       <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
       <Route path="/confirmer" element={<ProviderConfirmPage />} />
