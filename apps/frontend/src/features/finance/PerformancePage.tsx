@@ -8,6 +8,7 @@ import { cn, formatMoney } from '../../lib/utils';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { activityKind } from '../calendar/agendaIcons';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 
 type Kind = 'month' | 'quarter' | 'year';
 interface Metrics {
@@ -116,60 +117,92 @@ function OccupancyBar({ value }: { value: number | null }) {
 const th = 'px-3 py-2.5 text-left text-[11.5px] font-semibold uppercase tracking-wide text-muted whitespace-nowrap';
 const td = 'px-3 py-2.5 text-[13px] text-ink tabular whitespace-nowrap';
 
-function GroupTable({ title, rows, icon }: { title: string; rows: { key: string; name: string; sub?: string | null; current: Group; previous: Group }[]; icon?: (name: string, sub?: string | null) => React.ElementType }) {
+/** Sort and filter values: amounts in whole dirhams and rates in %, as shown. */
+const whole = (n: number | null | undefined) => (n == null ? null : Math.round(n));
+const percent = (n: number | null | undefined) => (n == null ? null : Math.round(n * 1000) / 10);
+/** Change vs last year in %, as the Delta shows it (none when last year had nothing). */
+const change = (cur: number, prev: number) => (prev === 0 ? (cur === 0 ? 0 : null) : Math.round(((cur - prev) / Math.abs(prev)) * 100));
+
+type House = Report['houses'][number];
+const HOUSE_COLS: ColSpec<House>[] = [
+  { key: 'villa', label: 'Villa', value: (h) => h.name },
+  { key: 'occupancy', label: 'Occupation', kind: 'number', value: (h) => percent(h.current.occupancy) },
+  { key: 'nights', label: 'Nuits', kind: 'number', align: 'right', value: (h) => h.current.nightsSold },
+  { key: 'adr', label: 'Prix moyen', kind: 'number', align: 'right', value: (h) => whole(h.current.adr) },
+  { key: 'revpar', label: 'RevPAR', kind: 'number', align: 'right', value: (h) => whole(h.current.revpar) },
+  { key: 'accommodation', label: 'CA hébergement', kind: 'number', align: 'right', value: (h) => whole(h.current.accommodationRevenue) },
+  { key: 'extras', label: 'Extras', kind: 'number', align: 'right', value: (h) => whole(h.current.extrasRevenue) },
+  { key: 'extrasPerStay', label: 'Extras / séjour', kind: 'number', align: 'right', value: (h) => whole(h.current.extrasPerStay) },
+  { key: 'margin', label: 'Marge extras', kind: 'number', align: 'right', value: (h) => whole(h.current.extrasMargin) },
+];
+
+type GroupRow = { key: string; name: string; sub?: string | null; current: Group; previous: Group };
+const GROUP_COLS: ColSpec<GroupRow>[] = [
+  { key: 'name', label: 'Nom', value: (r) => r.name },
+  { key: 'count', label: 'Nb', kind: 'number', align: 'right', value: (r) => r.current.count },
+  { key: 'revenue', label: 'CA', kind: 'number', align: 'right', value: (r) => whole(r.current.revenue) },
+  { key: 'margin', label: 'Marge', kind: 'number', align: 'right', value: (r) => whole(r.current.margin) },
+  { key: 'change', label: 'vs N-1', kind: 'number', align: 'right', value: (r) => change(r.current.revenue, r.previous.revenue) },
+];
+
+function GroupTable({ tableId, title, rows, icon }: { tableId: string; title: string; rows: GroupRow[]; icon?: (name: string, sub?: string | null) => React.ElementType }) {
   const [all, setAll] = useState(false);
-  const shown = all ? rows : rows.slice(0, 10);
+  const ctl = useTableControls<GroupRow>(tableId, rows, GROUP_COLS);
+  const shown = all ? ctl.rows : ctl.rows.slice(0, 10);
   return (
     <section className="rounded-2xl border border-line bg-surface overflow-hidden">
       <h2 className="px-4 pt-4 pb-2 text-[15px] font-bold text-ink">{title}</h2>
       {rows.length === 0 ? (
         <p className="px-4 pb-4 text-[13px] text-muted">Aucun extra réalisé sur la période.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b border-line">
-              <tr>
-                <th className={th}>Nom</th>
-                <th className={cn(th, 'text-right')}>Nb</th>
-                <th className={cn(th, 'text-right')}>CA</th>
-                <th className={cn(th, 'text-right')}>Marge</th>
-                <th className={cn(th, 'text-right')}>vs N-1</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {shown.map((r) => {
-                const Icon = icon?.(r.name, r.sub);
-                const rate = r.current.revenue ? r.current.margin / r.current.revenue : null;
-                return (
-                  <tr key={r.key}>
-                    <td className="px-3 py-2.5 text-[13px] text-ink max-w-[260px]">
-                      <span className="flex items-center gap-2 min-w-0">
-                        {Icon && <Icon size={14} className="shrink-0 text-muted" />}
-                        <span className="truncate" title={r.name}>
-                          {r.name}
+        <>
+          <TableFilterSummary ctl={ctl} className="px-4 pb-2" />
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-line">
+                <tr>
+                  <th className={th}><ColumnHeader ctl={ctl} col="name" /></th>
+                  <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="count" /></th>
+                  <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="revenue" /></th>
+                  <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="margin" /></th>
+                  <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="change" /></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {shown.map((r) => {
+                  const Icon = icon?.(r.name, r.sub);
+                  const rate = r.current.revenue ? r.current.margin / r.current.revenue : null;
+                  return (
+                    <tr key={r.key}>
+                      <td className="px-3 py-2.5 text-[13px] text-ink max-w-[260px]">
+                        <span className="flex items-center gap-2 min-w-0">
+                          {Icon && <Icon size={14} className="shrink-0 text-muted" />}
+                          <span className="truncate" title={r.name}>
+                            {r.name}
+                          </span>
                         </span>
-                      </span>
-                    </td>
-                    <td className={cn(td, 'text-right')}>{r.current.count}</td>
-                    <td className={cn(td, 'text-right')}>{mad(r.current.revenue)}</td>
-                    <td className={cn(td, 'text-right')}>
-                      {mad(r.current.margin)}
-                      {!r.current.costKnown && <span title="Coût prestataire en partie inconnu : estimé (prix − commission)"> *</span>}
-                      {rate != null && <span className="block text-[11px] text-muted">{pct(rate)}</span>}
-                    </td>
-                    <td className={cn(td, 'text-right')}>
-                      <Delta cur={r.current.revenue} prev={r.previous.revenue} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className={cn(td, 'text-right')}>{r.current.count}</td>
+                      <td className={cn(td, 'text-right')}>{mad(r.current.revenue)}</td>
+                      <td className={cn(td, 'text-right')}>
+                        {mad(r.current.margin)}
+                        {!r.current.costKnown && <span title="Coût prestataire en partie inconnu : estimé (prix − commission)"> *</span>}
+                        {rate != null && <span className="block text-[11px] text-muted">{pct(rate)}</span>}
+                      </td>
+                      <td className={cn(td, 'text-right')}>
+                        <Delta cur={r.current.revenue} prev={r.previous.revenue} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
-      {rows.length > 10 && (
+      {ctl.rows.length > 10 && (
         <button type="button" onClick={() => setAll((a) => !a)} className="px-4 py-3 text-[12.5px] font-semibold text-accent hover:underline">
-          {all ? 'Voir moins' : `Voir les ${rows.length - 10} autres`}
+          {all ? 'Voir moins' : `Voir les ${ctl.rows.length - 10} autres`}
         </button>
       )}
     </section>
@@ -191,6 +224,10 @@ export function PerformancePage() {
   const atToday = useMemo(() => shift(date, kind, 1) > iso(new Date()), [date, kind]);
   const c = data?.totals.current;
   const p = data?.totals.previous;
+  // Sort and filter at the top of the columns (as in Excel), one state per table.
+  const houseCtl = useTableControls<House>('performance-villas', data?.houses ?? [], HOUSE_COLS);
+  const activityRows = useMemo<GroupRow[]>(() => (data?.activities ?? []).map((a) => ({ key: a.key, name: a.name, sub: a.category, current: a.current, previous: a.previous })), [data]);
+  const providerRows = useMemo<GroupRow[]>(() => (data?.providers ?? []).map((x) => ({ key: x.id, name: x.name, current: x.current, previous: x.previous })), [data]);
 
   return (
     <div className="space-y-5 max-w-[1400px]">
@@ -255,23 +292,24 @@ export function PerformancePage() {
 
           <section className="rounded-2xl border border-line bg-surface overflow-hidden">
             <h2 className="px-4 pt-4 pb-2 text-[15px] font-bold text-ink">Par villa</h2>
+            <TableFilterSummary ctl={houseCtl} noun="villa" className="px-4 pb-2" />
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px]">
                 <thead className="border-b border-line">
                   <tr>
-                    <th className={th}>Villa</th>
-                    <th className={th}>Occupation</th>
-                    <th className={cn(th, 'text-right')}>Nuits</th>
-                    <th className={cn(th, 'text-right')}>Prix moyen</th>
-                    <th className={cn(th, 'text-right')}>RevPAR</th>
-                    <th className={cn(th, 'text-right')}>CA hébergement</th>
-                    <th className={cn(th, 'text-right')}>Extras</th>
-                    <th className={cn(th, 'text-right')}>Extras / séjour</th>
-                    <th className={cn(th, 'text-right')}>Marge extras</th>
+                    <th className={th}><ColumnHeader ctl={houseCtl} col="villa" /></th>
+                    <th className={th}><ColumnHeader ctl={houseCtl} col="occupancy" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="nights" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="adr" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="revpar" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="accommodation" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="extras" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="extrasPerStay" /></th>
+                    <th className={cn(th, 'text-right')}><ColumnHeader ctl={houseCtl} col="margin" /></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {data.houses.map((h) => (
+                  {houseCtl.rows.map((h) => (
                     <tr key={h.id} className="hover:bg-surface-2/40">
                       <td className="px-3 py-2.5 text-[13px] max-w-[240px]">
                         <Link to={`/villas/${h.id}`} className="font-semibold text-ink hover:underline truncate block" title={h.name}>
@@ -327,12 +365,8 @@ export function PerformancePage() {
           </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
-            <GroupTable
-              title="Marge par activité"
-              rows={data.activities.map((a) => ({ key: a.key, name: a.name, sub: a.category, current: a.current, previous: a.previous }))}
-              icon={(name, sub) => activityKind(name, sub).icon}
-            />
-            <GroupTable title="Marge par prestataire" rows={data.providers.map((x) => ({ key: x.id, name: x.name, current: x.current, previous: x.previous }))} />
+            <GroupTable tableId="performance-activities" title="Marge par activité" rows={activityRows} icon={(name, sub) => activityKind(name, sub).icon} />
+            <GroupTable tableId="performance-providers" title="Marge par prestataire" rows={providerRows} />
           </div>
 
           <p className="text-[12px] text-muted">
