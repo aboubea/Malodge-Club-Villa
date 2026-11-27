@@ -142,8 +142,21 @@ export class StatementsService {
     return { month, prepared, alreadySent: skippedSent };
   }
 
+  /**
+   * A draft is never frozen: it follows today's data (the villa's rate changed after
+   * it was prepared, a stay or an extra corrected…). Only a sent statement stays as
+   * the owner received it.
+   */
+  private async refreshDrafts(where: { month?: string; id?: string }) {
+    const drafts = await this.prisma.ownerStatement.findMany({ where: { ...where, status: 'DRAFT' }, select: { ownerId: true, month: true } });
+    if (!drafts.length) return;
+    const lines = await this.extras.loadLines();
+    for (const d of drafts) await this.save(d.ownerId, d.month, await this.compute(d.ownerId, d.month, lines));
+  }
+
   async list(month: string) {
     this.assertMonth(month);
+    await this.refreshDrafts({ month });
     const rows = await this.prisma.ownerStatement.findMany({
       where: { month },
       include: { owner: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } } },
@@ -181,9 +194,13 @@ export class StatementsService {
 
   /** The PDF; an owner can only read their own statements that were sent. */
   async pdf(id: string, viewer: { id: string; role: string }) {
-    const st = await this.get(id);
+    let st = await this.get(id);
     const staff = ['SUPER_ADMIN', 'ADMIN'].includes(viewer.role);
     if (!staff && !(viewer.role === 'OWNER' && viewer.id === st.ownerId && st.status === 'SENT')) throw new ForbiddenException();
+    if (st.status === 'DRAFT') {
+      await this.refreshDrafts({ id });
+      st = await this.get(id);
+    }
     const data = st.data as unknown as StatementData;
     return { buffer: await statementPdf(data, await this.settings?.companyName()), filename: `releve-${st.month}-${data.owner.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf` };
   }
@@ -222,6 +239,8 @@ export class StatementsService {
   /** Marks a statement handed over another way (WhatsApp, in person). */
   async markSent(id: string, actorId: string, how: string) {
     await this.get(id);
+    // Frozen as it is today, the way it is handed over.
+    await this.refreshDrafts({ id });
     await this.prisma.ownerStatement.update({ where: { id }, data: { status: 'SENT', sentAt: new Date(), sentTo: how.slice(0, 100), sentById: actorId } });
     return { sent: true };
   }

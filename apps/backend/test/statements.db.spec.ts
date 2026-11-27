@@ -80,6 +80,14 @@ describe('owner statement', () => {
     const [draft] = await statements.list('2026-11');
     expect(draft).toMatchObject({ status: 'DRAFT', owner: { name: 'Paul Proprio', email: 'proprio@malodge-test.fr' } });
 
+    // The house's rate changed after the draft was prepared: the draft follows (no stale 25 %).
+    const house = await prisma.villa.findFirstOrThrow({ where: { slug: 'v58' } });
+    await prisma.villa.update({ where: { id: house.id }, data: { managementFeeRate: 0.15 } });
+    const [updated] = await statements.list('2026-11');
+    expect(updated.totals.fee).toBe(Math.round(updated.totals.gross * 0.15 * 100) / 100);
+    expect((await prisma.ownerStatement.findUniqueOrThrow({ where: { id: draft.id } })).data).toMatchObject({ houses: [{ feeRate: 0.15 }] });
+    await prisma.villa.update({ where: { id: house.id }, data: { managementFeeRate: 0.25 } });
+
     const { buffer } = await statements.pdf(draft.id, { id: adminId, role: 'ADMIN' });
     expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
 
