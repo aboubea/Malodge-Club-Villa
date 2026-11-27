@@ -1,4 +1,5 @@
 import type { StatementData } from './statement';
+import { brandHeader, DocCompany, pageFooters, PDF, plain } from '../../common/pdf-brand';
 
 /** "12 345,67" with plain spaces (the PDF's built-in font has no narrow no-break space). */
 export function amount(n: number | null | undefined, currency?: string) {
@@ -9,39 +10,18 @@ export function amount(n: number | null | undefined, currency?: string) {
   return currency ? `${sign}${body} ${currency === 'EUR' ? '€' : currency}` : `${sign}${body}`;
 }
 
-/** The built-in PDF font has no narrow or no-break space (French number formatting): plain spaces. */
-const plain = (t: string) => t.replace(/[\u202f\u00a0\u2009]/g, ' ');
 const frDate = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—');
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/* The app's colours (light theme). */
-const INK = '#1D1D1F';
-const BODY = '#424245';
-const MUTED = '#6E6E73';
-const ACCENT = '#B2502C';
-const ARCH = '#A84A28';
-const LINE = '#E5E5EA';
-const SOFT = '#F5F5F7';
-const PEACH = '#FAEEE6';
+const { ink: INK, body: BODY, muted: MUTED, accent: ACCENT, line: LINE, soft: SOFT, peach: PEACH } = PDF;
 
 /** The company signing the statement (Paramètres › Général), or its name only. */
-export type StatementCompany = { name: string; supportEmail?: string; phone?: string; website?: string };
+export type StatementCompany = DocCompany;
 
 interface Column {
   title: string;
   width: number;
   align?: 'left' | 'right';
-}
-
-/** The MALODGE CLUB symbol (riad arch, sun over the pool), drawn as vectors at `size` points. */
-function logoMark(doc: any, x: number, y: number, size: number) {
-  doc.save();
-  doc.translate(x, y).scale(size / 32);
-  doc.path('M4.5 30V14.5C4.5 8 9.6 3.4 16 1.6 22.4 3.4 27.5 8 27.5 14.5V30ZM9.6 30V17.4c0-3.8 2.7-6.6 6.4-7.9 3.7 1.3 6.4 4.1 6.4 7.9V30Z').fill(ARCH, 'even-odd');
-  doc.path('M12 22.6a4 4 0 0 1 8 0Z').fill(INK);
-  doc.rect(9.6, 24.3, 12.8, 1.7).fill(INK);
-  doc.roundedRect(12, 27.4, 8, 1.7, 0.85).fill(INK);
-  doc.restore();
 }
 
 /** The owner's statement as a PDF (A4, in French), signed with the company's name and contacts. */
@@ -63,14 +43,7 @@ export async function statementPdf(s: StatementData, company?: StatementCompany 
   const t = s.totals;
 
   /* ── Header: logo, company contacts ── */
-  logoMark(doc, left, 44, 30);
-  doc.font('Helvetica-Bold').fontSize(14.5).fillColor(INK).text('MALODGE', left + 40, 47, { characterSpacing: 2.4, lineBreak: false });
-  doc.font('Helvetica-Bold').fontSize(7.2).fillColor(ARCH).text('CLUB', left + 40.5, 65.5, { characterSpacing: 4.6, lineBreak: false });
-  const contacts = [co.supportEmail, co.phone, co.website?.replace(/^https?:\/\//, '')].filter(Boolean) as string[];
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(INK).text(co.name, left, 46, { width, align: 'right', lineBreak: false });
-  doc.font('Helvetica').fontSize(8).fillColor(MUTED);
-  (contacts.length ? contacts : ['Conciergerie de luxe']).forEach((c, i) => doc.text(c, left, 58 + i * 10.5, { width, align: 'right', lineBreak: false }));
-  doc.moveTo(left, 96).lineTo(left + width, 96).strokeColor(LINE).lineWidth(0.8).stroke();
+  brandHeader(doc, co, left, width);
 
   /* ── Title ── */
   doc.font('Helvetica-Bold').fontSize(8).fillColor(ACCENT).text('RELEVÉ PROPRIÉTAIRE', left, 118, { characterSpacing: 1.4 });
@@ -280,17 +253,7 @@ export async function statementPdf(s: StatementData, company?: StatementCompany 
   });
 
   /* ── Footer of every page ── */
-  const range = doc.bufferedPageRange();
-  for (let i = range.start; i < range.start + range.count; i++) {
-    doc.switchToPage(i);
-    // Writing in the bottom margin would otherwise open a new page.
-    doc.page.margins.bottom = 0;
-    const fy = doc.page.height - 44;
-    doc.moveTo(left, fy - 8).lineTo(left + width, fy - 8).strokeColor(LINE).lineWidth(0.5).stroke();
-    doc.font('Helvetica').fontSize(7.5).fillColor(MUTED);
-    doc.text(`${co.name}  ·  Relevé ${s.monthLabel}  ·  ${s.owner.name}`, left, fy, { width: width - 60, lineBreak: false });
-    doc.text(`${i + 1} / ${range.count}`, left, fy, { width, align: 'right', lineBreak: false });
-  }
+  pageFooters(doc, `${co.name}  ·  Relevé ${s.monthLabel}  ·  ${s.owner.name}`, left, width);
 
   doc.end();
   return done;

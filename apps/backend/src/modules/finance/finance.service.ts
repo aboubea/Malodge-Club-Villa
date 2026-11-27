@@ -6,6 +6,7 @@ import { DEFAULT_CURRENCY, VillaCurrencies, orderCurrency, pickCurrency, provide
 import { change, chartBuckets, financeRange, FinancePeriod, financeReport, House, OrderIn, previousRange, rangeLabel, StayIn } from './report';
 import { houseLabel } from '../../common/villa-name';
 import { SettingsService } from '../settings/settings.service';
+import { brandHeader, DocCompany, pageFooters, PDF, plain } from '../../common/pdf-brand';
 
 type Period = FinancePeriod;
 
@@ -417,56 +418,106 @@ export class FinanceService {
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
+  /** Who signs the exports: the company of Paramètres › Général once set (name and contacts). */
+  private async companyForDocs(): Promise<DocCompany> {
+    const c = await this.settings?.getCompany();
+    return c?.saved ? { name: c.name, supportEmail: c.supportEmail, phone: c.phone, website: c.website } : { name: c?.name ?? 'Malodge Club Villa' };
+  }
+
   private async generatePdf(data: Awaited<ReturnType<FinanceService['getDashboard']>>): Promise<Buffer> {
     const pdfkit: any = await import('pdfkit');
     const PDFDocument = pdfkit.default ?? pdfkit; // CommonJS module: no default export once compiled
     const x = this.exportSections(data);
-    const company = await this.companyName();
-    const fmt = (n: number | null) => (n == null ? '—' : `${n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).replace(/ /g, ' ')} ${data.currency}`);
+    const company = await this.companyForDocs();
+    const money = (n: number | null) =>
+      n == null ? '—' : plain(`${n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${data.currency === 'EUR' ? '€' : data.currency}`);
+    const t = data.totals;
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true, info: { Title: x.title, Author: company.name } });
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const left = 50;
-      const width = doc.page.width - 100;
+      const left = 48;
+      const width = doc.page.width - 96;
+      const bottom = doc.page.height - 70;
       const ensure = (h: number) => {
-        if (doc.y + h > doc.page.height - 60) doc.addPage();
+        if (doc.y + h > bottom) doc.addPage();
       };
-      /** One table: fixed columns, the first one wide, the others right-aligned. */
-      const table = (title: string, header: string[], rows: (string | number | null)[][], cols: number[], moneyCols: number[]) => {
-        ensure(60);
-        doc.moveDown(0.8).fontSize(12.5).fillColor('#B2593A').text(title, left);
-        doc.moveDown(0.3);
+
+      /* Header and title */
+      const top = brandHeader(doc, company, left, width);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(PDF.accent).text('EXPORT FINANCES', left, top + 4, { characterSpacing: 1.4 });
+      doc.font('Helvetica-Bold').fontSize(22).fillColor(PDF.ink).text(plain(data.range.label.charAt(0).toUpperCase() + data.range.label.slice(1)), left, top + 18, { width });
+      doc.font('Helvetica').fontSize(9.5).fillColor(PDF.muted).text(plain(`${x.note}  ·  édité le ${new Date().toLocaleDateString('fr-FR')}`), left, doc.y + 2, { width });
+
+      /* Key figures */
+      const cardsTop = doc.y + 16;
+      const gap = 10;
+      const cw = (width - 2 * gap) / 3;
+      const cards: [string, string, boolean][] = [
+        ['Chiffre d’affaires', money(t.revenue), true],
+        ['Hébergement', money(t.accommodation), false],
+        ['Extras réalisés', money(t.extras), false],
+      ];
+      cards.forEach(([label, value, strong], i) => {
+        const cx = left + i * (cw + gap);
+        doc.roundedRect(cx, cardsTop, cw, 62, 12).fill(strong ? PDF.accent : PDF.soft);
+        doc.font('Helvetica').fontSize(8.5).fillColor(strong ? '#FFFFFF' : PDF.muted).text(label, cx + 14, cardsTop + 13, { width: cw - 28, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(15).fillColor(strong ? '#FFFFFF' : PDF.ink).text(value, cx + 14, cardsTop + 31, { width: cw - 28, lineBreak: false });
+      });
+      doc.y = cardsTop + 62 + 10;
+      doc.x = left;
+
+      /** A section title and its table: header band, thin separators, numbers on the right, a total row. */
+      const table = (title: string, header: string[], rows: (string | number | null)[][], cols: number[], moneyCols: number[], totalRow?: (string | number | null)[], accentCol = cols.length - 1) => {
+        ensure(90);
+        const y0 = doc.y + 14;
+        doc.roundedRect(left, y0 + 1, 3, 13, 1.5).fill(PDF.accent);
+        doc.font('Helvetica-Bold').fontSize(12.5).fillColor(PDF.ink).text(title, left + 11, y0, { width: width - 11 });
+        doc.y += 8;
         const xs = cols.reduce<number[]>((a, w, i) => [...a, i ? a[i - 1] + cols[i - 1] : left], []);
-        const line = (cells: (string | number | null)[], bold = false) => {
-          ensure(18);
+        const rowH = 20;
+        const cellText = (c: string | number | null, i: number) => (typeof c === 'number' || c == null ? (moneyCols.includes(i) ? money(c as number | null) : String(c ?? '')) : plain(c));
+        const head = () => {
           const y = doc.y;
-          cells.forEach((c, i) => {
-            const text = typeof c === 'number' || c == null ? (moneyCols.includes(i) ? fmt(c as number | null) : String(c ?? '')) : c;
-            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5).fillColor(bold ? '#1C1D29' : '#333')
-              .text(text, xs[i], y, { width: cols[i] - 6, align: i ? 'right' : 'left', lineBreak: false, ellipsis: true });
-          });
-          doc.y = y + 15;
-          doc.x = left;
+          doc.roundedRect(left, y, width, rowH, 6).fill(PDF.soft);
+          header.forEach((h, i) =>
+            doc.font('Helvetica-Bold').fontSize(7.2).fillColor(PDF.muted).text(h.toUpperCase(), xs[i] + 6, y + 7, { width: cols[i] - 12, align: i ? 'right' : 'left', lineBreak: false, characterSpacing: 0.4 }),
+          );
+          doc.y = y + rowH + 2;
         };
-        line(header, true);
-        doc.moveTo(left, doc.y - 2).lineTo(left + width, doc.y - 2).strokeColor('#DDD').stroke();
+        head();
+        const line = (cells: (string | number | null)[], total = false) => {
+          if (doc.y + rowH > bottom) {
+            doc.addPage();
+            head();
+          }
+          const y = doc.y;
+          if (total) doc.moveTo(left, y).lineTo(left + width, y).strokeColor(PDF.ink).lineWidth(0.6).stroke();
+          cells.forEach((c, i) => {
+            // Sub-lines of the summary ("dont …") are indented as in the screen.
+            const indent = i === 0 && typeof c === 'string' ? (c.match(/^ */)?.[0].length ?? 0) * 5 : 0;
+            doc.font(total ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.8).fillColor(total ? (i === accentCol ? PDF.accent : PDF.ink) : indent ? PDF.muted : PDF.body)
+              .text(cellText(typeof c === 'string' ? c.trim() : c, i), xs[i] + 6 + indent, y + 6, { width: cols[i] - 12 - indent, align: i ? 'right' : 'left', lineBreak: false, ellipsis: true, height: 11 });
+          });
+          if (!total) doc.moveTo(left + 8, y + rowH).lineTo(left + width - 8, y + rowH).strokeColor(PDF.line).lineWidth(0.5).stroke();
+          doc.y = y + rowH;
+        };
         rows.forEach((r) => line(r));
+        if (totalRow) line(totalRow, true);
+        doc.x = left;
       };
 
-      doc.font('Helvetica-Bold').fontSize(20).fillColor('#1C1D29').text(company, left);
-      doc.font('Helvetica').fontSize(13).fillColor('#333').text(x.title, left);
-      doc.fontSize(9).fillColor('#777').text(`${x.note} · édité le ${new Date().toLocaleDateString('fr-FR')}`, left);
-
-      table('Résumé', ['Indicateur', 'Montant'], x.summary.map(([k, v]) => [k, ['Nuits', 'Séjours', 'Extras réalisés (nombre)'].includes(k) ? String(v) : v]), [360, width - 360], [1]);
       // Counts are not amounts.
-      table('Par villa', ['Villa', 'Hébergement', 'Extras', 'Total', 'Nuits'], [...x.houses.map((h) => h.slice(0, 5) as (string | number)[]), ['Total', data.totals.accommodation, data.totals.extras, data.totals.revenue, data.totals.nights]], [175, 95, 85, 95, width - 450], [1, 2, 3]);
-      if (x.activities.length) table('Extras par activité', ['Activité', 'Nombre', 'CA', 'Marge'], x.activities.slice(0, 30).map((a) => [a[0], a[2], a[3], a[4]]), [215, 60, 110, width - 385], [2, 3]);
-      if (x.providers.length) table('Dû aux prestataires', ['Prestataire', 'Extras', 'Montant'], x.providers, [255, 60, width - 315], [2]);
+      table('Résumé', ['Indicateur', 'Montant'], x.summary.map(([k, v]) => [k, ['Nuits', 'Séjours', 'Extras réalisés (nombre)'].includes(k) ? String(v) : v]), [width - 140, 140], [1]);
+      table('Par villa', ['Villa', 'Hébergement', 'Extras', 'Total', 'Nuits'], x.houses.map((h) => h.slice(0, 5) as (string | number)[]), [width - 330, 95, 85, 95, 55], [1, 2, 3], ['Total', t.accommodation, t.extras, t.revenue, t.nights], 3);
+      if (x.activities.length) table('Extras par activité', ['Activité', 'Nombre', 'CA', 'Marge'], x.activities.slice(0, 30).map((a) => [a[0], a[2], a[3], a[4]]), [width - 275, 60, 110, 105], [2, 3]);
+      if (x.providers.length) table('Dû aux prestataires', ['Prestataire', 'Extras', 'Montant'], x.providers, [width - 190, 60, 130], [2]);
+
+      pageFooters(doc, `${company.name}  ·  ${x.title}`, left, width);
       doc.end();
     });
   }
