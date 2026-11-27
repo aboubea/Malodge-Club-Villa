@@ -95,7 +95,7 @@ describe('owner statement', () => {
     await expect(statements.pdf(draft.id, { id: ownerId, role: 'OWNER' })).rejects.toThrow();
 
     await statements.send(draft.id, adminId);
-    expect(mail.sendOwnerStatement).toHaveBeenCalledWith('proprio@malodge-test.fr', 'Paul', 'novembre 2026', expect.any(Buffer), expect.stringMatching(/^releve-2026-11-paul-proprio\.pdf$/));
+    expect(mail.sendOwnerStatement).toHaveBeenCalledWith('proprio@malodge-test.fr', 'Paul', 'novembre 2026', expect.any(Buffer), expect.stringMatching(/^releve-2026-11-paul-proprio\.pdf$/), expect.objectContaining({ due: '5 200 MAD', houses: ['Villa 58'] }));
     await expect(statements.recompute(draft.id)).rejects.toThrow(/déjà été envoyé/);
     await expect(statements.prepareMonth('2026-11')).resolves.toMatchObject({ prepared: 0, alreadySent: 1 });
 

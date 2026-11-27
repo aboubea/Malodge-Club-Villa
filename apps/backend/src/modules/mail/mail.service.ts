@@ -10,6 +10,16 @@ export interface MailResult {
   error?: string;
 }
 
+export interface CompanyInfo {
+  name: string;
+  supportEmail?: string;
+  phone?: string;
+  website?: string;
+}
+
+/** Key figures shown in a soft box (label, value, highlighted). */
+export type Fact = [string, string, boolean?];
+
 export interface Attachment {
   filename: string;
   content: Buffer;
@@ -17,6 +27,11 @@ export interface Attachment {
 
 const esc = (s: string | null | undefined) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+/** The app's colours (light theme): terracotta accent, Apple greys. */
+const C = { canvas: '#F5F5F7', ink: '#1D1D1F', soft2: '#424245', muted: '#6E6E73', line: '#E5E5EA', soft: '#F5F5F7', accent: '#B2502C' };
+/** Replaced by the company's footer when the e-mail leaves. */
+const FOOTER_SLOT = '<!--company-footer-->';
 
 /**
  * E-mails sent through Resend. Every send is awaited and its outcome checked:
@@ -28,8 +43,8 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   /** Called when an e-mail does not leave (set by the incident journal). */
   onFailure?: (what: string, error: string) => void;
-  /** The company's name once set in Paramètres (set by the settings): signs every e-mail. */
-  brand?: () => Promise<string | null>;
+  /** The company's details once set in Paramètres (set by the settings): sign every e-mail and fill its footer. */
+  company?: () => Promise<CompanyInfo | null>;
   private readonly apiKey: string;
   private readonly from: string;
   readonly appUrl: string;
@@ -86,9 +101,10 @@ export class MailService {
       return { sent: false, error: 'RESEND_API_KEY absente dans les variables d’environnement du serveur' };
     }
     if (!to || /\.(invalid|local)$/i.test(to)) return { sent: false, error: 'Pas d’adresse e-mail réelle pour ce destinataire' };
-    const name = (await this.brand?.().catch(() => null)) ?? null;
+    const info = (await this.company?.().catch(() => null)) ?? null;
+    const name = info?.name ?? null;
     subject = withCompanyName(subject, name);
-    html = withCompanyName(html, name);
+    html = withCompanyName(html.replace(FOOTER_SLOT, this.footer(info)), name);
     // The sender's display name too, unless MAIL_FROM gives its own.
     const from = name ? this.from.replace(/^Malodge Club </, `${name} <`) : this.from;
     try {
@@ -133,6 +149,7 @@ export class MailService {
         `<p>Bonjour ${esc(firstName)},</p><p>Nous avons reçu une demande de réinitialisation du mot de passe de votre compte. Ce lien est valable <b>1 heure</b>.</p>`,
         { label: 'Choisir un nouveau mot de passe', url },
         'Si vous n’êtes pas à l’origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.',
+        { preheader: 'Votre lien pour choisir un nouveau mot de passe (valable 1 heure).' },
       ),
       'E-mail de réinitialisation',
     );
@@ -175,6 +192,8 @@ export class MailService {
         'Votre accès à Malodge Club',
         `<p>Bonjour ${esc(firstName)},</p><p>${invitedBy ? `${esc(invitedBy)} vous a ouvert` : 'Un accès vous a été ouvert'} un compte sur l’application Malodge Club. Choisissez votre mot de passe pour vous connecter. Ce lien est valable <b>7 jours</b>.</p><p>Votre identifiant : <b>${esc(to)}</b></p>`,
         { label: 'Choisir mon mot de passe', url },
+        undefined,
+        { preheader: 'Choisissez votre mot de passe pour accéder à votre espace.' },
       ),
       'Invitation',
     );
@@ -194,14 +213,34 @@ export class MailService {
     return this.deliver(to, subject, this.layout(title, lines.map((l) => `<p>${esc(l)}</p>`).join(''), cta), 'Message client');
   }
 
-  /** Monthly statement of an owner, as a PDF attachment. */
-  sendOwnerStatement(to: string, firstName: string, monthLabel: string, pdf: Buffer, filename: string) {
+  /** Monthly statement of an owner, as a PDF attachment, with the month's key figures. */
+  sendOwnerStatement(
+    to: string,
+    firstName: string,
+    monthLabel: string,
+    pdf: Buffer,
+    filename: string,
+    summary?: { nights: number; due: string; paid: string; remaining: string; houses: string[] },
+  ) {
     return this.deliver(
       to,
       `Votre relevé de ${monthLabel} — Malodge Club`,
       this.layout(
         `Votre relevé de ${monthLabel}`,
-        `<p>Bonjour ${esc(firstName)},</p><p>Vous trouverez ci-joint le relevé de ${esc(monthLabel)} pour vos villas : nuits louées, chiffre d’affaires, commission de gestion, votre part sur les extras et les versements du mois.</p><p>Une question ? Répondez simplement à cet e-mail.</p>`,
+        `<p>Bonjour ${esc(firstName)},</p><p>Voici le relevé de ${esc(monthLabel)}${summary?.houses.length ? ` pour <b>${esc(summary.houses.join(', '))}</b>` : ' pour vos villas'} : nuits louées, chiffre d’affaires, commission de gestion, votre part sur les extras et les versements du mois. Le détail est dans le PDF joint.</p>`,
+        undefined,
+        'Une question sur ce relevé ? Répondez simplement à cet e-mail.',
+        {
+          preheader: summary ? `Reste à verser : ${summary.remaining} · ${summary.nights} nuit(s) louée(s)` : `Votre relevé de ${monthLabel}`,
+          facts: summary
+            ? [
+                ['Nuits louées', String(summary.nights)],
+                ['Total dû pour le mois', summary.due],
+                ['Déjà versé', summary.paid],
+                ['Reste à verser', summary.remaining, true],
+              ]
+            : undefined,
+        },
       ),
       'Relevé propriétaire',
       [{ filename, content: pdf }],
@@ -210,13 +249,12 @@ export class MailService {
 
   /** Incident alert to an administrator: a few labelled lines and a link to the check page. */
   sendAlert(to: string, subject: string, lines: [string, string][]) {
-    const rows = lines
-      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#6B6E80;vertical-align:top;">${esc(k)}</td><td style="padding:4px 0;">${esc(v)}</td></tr>`)
-      .join('');
     return this.deliver(
       to,
       `[Malodge] ${subject}`,
-      this.layout('Incident sur l’application', `<table style="border-collapse:collapse;font-size:14px;">${rows}</table>`, { label: 'Voir le contrôle des données', url: `${this.appUrl}/controle` }),
+      this.layout('Incident sur l’application', `<p>${esc(subject)}</p>`, { label: 'Voir le contrôle des données', url: `${this.appUrl}/controle` }, undefined, {
+        facts: lines.map(([k, v]) => [k, v] as Fact),
+      }),
       'Alerte incident',
     );
   }
@@ -233,26 +271,60 @@ export class MailService {
     );
   }
 
-  // ─── Layout (MALODGE CLUB, light) ────────────────────────────────────────────
+  // ─── Layout (MALODGE CLUB, light, the app's look) ───────────────────────────
 
-  private layout(title: string, body: string, cta?: { label: string; url: string }, footnote?: string) {
+  /** Company name and contacts, from Paramètres › Général (filled in when the e-mail leaves). */
+  private footer(info: CompanyInfo | null) {
+    const name = info?.name || 'Malodge Club';
+    const link = (href: string, text: string) => `<a href="${esc(href)}" style="color:${C.muted};text-decoration:none;">${esc(text)}</a>`;
+    const contacts = [
+      info?.supportEmail ? link(`mailto:${info.supportEmail}`, info.supportEmail) : null,
+      info?.phone ? link(`tel:${info.phone.replace(/[^+\d]/g, '')}`, info.phone) : null,
+      info?.website ? link(info.website, info.website.replace(/^https?:\/\//, '')) : null,
+    ].filter(Boolean);
+    return `<p style="margin:0 0 4px;font-size:13px;font-weight:600;color:${C.ink};">${esc(name)}</p>
+      <p style="margin:0;font-size:12px;line-height:1.6;color:${C.muted};">Conciergerie de luxe${contacts.length ? `<br/>${contacts.join(' &nbsp;·&nbsp; ')}` : ''}</p>`;
+  }
+
+  private layout(title: string, body: string, cta?: { label: string; url: string }, footnote?: string, extra: { preheader?: string; facts?: Fact[] } = {}) {
+    const logo = `${this.appUrl}/brand/malodge-club-logo.png`;
+    const facts = extra.facts?.length
+      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 4px;background:${C.soft};border-radius:16px;">
+          ${extra.facts
+            .map(
+              ([k, v, strong], i) => `<tr><td style="padding:${i ? 6 : 16}px 0 ${i === extra.facts!.length - 1 ? 16 : 6}px 20px;font-size:14px;color:${strong ? C.ink : C.soft2};${strong ? 'font-weight:700;' : ''}">${esc(k)}</td>
+              <td align="right" style="padding:${i ? 6 : 16}px 20px ${i === extra.facts!.length - 1 ? 16 : 6}px 0;font-size:${strong ? 16 : 14}px;font-weight:${strong ? 800 : 600};color:${strong ? C.accent : C.ink};white-space:nowrap;">${esc(v)}</td></tr>`,
+            )
+            .join('')}
+        </table>`
+      : '';
+    const button = cta
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px 0 0;"><tr><td style="border-radius:999px;background:${C.accent};">
+          <a href="${esc(cta.url)}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:999px;">${esc(cta.label)}</a>
+        </td></tr></table>
+        <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:${C.muted};">Le bouton ne s’ouvre pas ? Copiez ce lien :<br/><a href="${esc(cta.url)}" style="color:${C.accent};word-break:break-all;">${esc(cta.url)}</a></p>`
+      : '';
+    // Paragraphs of the body in the house style (the templates write plain <p>).
+    const styled = body.replace(/<p>/g, `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${C.soft2};">`).replace(/<b>/g, `<b style="color:${C.ink};">`);
     return `<!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${esc(title)}</title></head>
-<body style="margin:0;padding:0;background:#F7F7F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1C1D29;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F9;padding:32px 16px;"><tr><td align="center">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-      <tr><td style="padding-bottom:24px;">
-        <span style="font-size:17px;font-weight:800;letter-spacing:3px;color:#1C1D29;">MALODGE</span><br/>
-        <span style="font-size:10px;font-weight:700;letter-spacing:6px;color:#B2593A;">CLUB</span>
+<html lang="fr"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light only" /><meta name="supported-color-schemes" content="light" /><title>${esc(title)}</title>
+<style>@media (max-width:480px){.mc-card{padding:28px 22px 26px !important;border-radius:20px !important}.mc-title{font-size:22px !important}}</style></head>
+<body style="margin:0;padding:0;background:${C.canvas};font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Inter,Helvetica,Arial,sans-serif;color:${C.ink};-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${esc(extra.preheader ?? title)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.canvas};"><tr><td align="center" style="padding:36px 16px 40px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+      <tr><td style="padding:0 6px 22px;">
+        <img src="${esc(logo)}" width="150" height="35" alt="MALODGE CLUB" style="display:block;border:0;outline:none;width:150px;height:auto;font-size:16px;font-weight:800;letter-spacing:3px;color:${C.ink};" />
       </td></tr>
-      <tr><td style="background:#FFFFFF;border:1px solid #E9E9EE;border-radius:18px;padding:32px;font-size:14px;line-height:1.6;color:#4C4E5E;">
-        <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1C1D29;">${esc(title)}</h1>
-        ${body}
-        ${cta ? `<p style="margin:28px 0 8px;"><a href="${esc(cta.url)}" style="display:inline-block;background:#1F2130;color:#FFFFFF;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px;">${esc(cta.label)}</a></p>
-        <p style="margin:0;font-size:12px;color:#707282;">Ou copiez ce lien : <a href="${esc(cta.url)}" style="color:#B2593A;word-break:break-all;">${esc(cta.url)}</a></p>` : ''}
-        ${footnote ? `<p style="margin:24px 0 0;font-size:12px;color:#707282;">${esc(footnote)}</p>` : ''}
+      <tr><td class="mc-card" style="background:#FFFFFF;border:1px solid ${C.line};border-radius:24px;padding:40px 40px 36px;">
+        <h1 class="mc-title" style="margin:0 0 18px;font-size:24px;line-height:1.25;font-weight:700;letter-spacing:-0.3px;color:${C.ink};">${esc(title)}</h1>
+        ${styled}
+        ${facts}
+        ${button}
+        ${footnote ? `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid ${C.line};font-size:13px;line-height:1.55;color:${C.muted};">${esc(footnote)}</p>` : ''}
       </td></tr>
-      <tr><td style="padding-top:18px;font-size:11px;color:#707282;text-align:center;">Malodge Club · Conciergerie de luxe</td></tr>
+      <tr><td style="padding:24px 8px 0;">${FOOTER_SLOT}</td></tr>
     </table>
   </td></tr></table>
 </body></html>`;

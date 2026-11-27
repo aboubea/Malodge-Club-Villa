@@ -41,8 +41,11 @@ export class SettingsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // The e-mails are signed with the company's name once it has been set.
-    this.mail.brand = () => this.companyName();
+    // The e-mails are signed with the company's name and contacts once they have been set.
+    this.mail.company = async () => {
+      const c = await this.getCompany();
+      return c.saved ? { name: c.name, supportEmail: c.supportEmail, phone: c.phone, website: c.website } : null;
+    };
   }
 
   /* ───────────── Company (Paramètres › Général) ───────────── */

@@ -5,7 +5,7 @@ import { ExtrasService } from '../extras/extras.service';
 import { MailService } from '../mail/mail.service';
 import { DEFAULT_CURRENCY, reservationCurrency } from '../../common/money';
 import { buildStatement, monthRange, StatementData } from './statement';
-import { statementPdf } from './statement-pdf';
+import { amount, statementPdf } from './statement-pdf';
 import { houseLabel, listingLabel } from '../../common/villa-name';
 import { SettingsService } from '../settings/settings.service';
 
@@ -192,6 +192,12 @@ export class StatementsService {
     return (await this.list(st.month)).find((r) => r.id === id);
   }
 
+  /** Who signs the statement: the company of Paramètres › Général once set (name and contacts). */
+  private async companyForDocs() {
+    const c = await this.settings?.getCompany();
+    return c?.saved ? { name: c.name, supportEmail: c.supportEmail, phone: c.phone, website: c.website } : null;
+  }
+
   /** The PDF; an owner can only read their own statements that were sent. */
   async pdf(id: string, viewer: { id: string; role: string }) {
     let st = await this.get(id);
@@ -202,7 +208,7 @@ export class StatementsService {
       st = await this.get(id);
     }
     const data = st.data as unknown as StatementData;
-    return { buffer: await statementPdf(data, await this.settings?.companyName()), filename: `releve-${st.month}-${data.owner.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf` };
+    return { buffer: await statementPdf(data, await this.companyForDocs()), filename: `releve-${st.month}-${data.owner.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf` };
   }
 
   async send(id: string, actorId: string) {
@@ -211,7 +217,15 @@ export class StatementsService {
     if (!to) throw new BadRequestException('Ce propriétaire n’a pas d’adresse e-mail : téléchargez le PDF et envoyez-le par WhatsApp.');
     const data = st.data as unknown as StatementData;
     const { buffer, filename } = await this.pdf(id, { id: actorId, role: 'ADMIN' });
-    const res = await this.mail.sendOwnerStatement(to, st.owner.firstName, data.monthLabel, buffer, filename);
+    // The figures of the statement as it is sent (a draft follows today's data).
+    const fresh = (await this.get(id)).data as unknown as StatementData;
+    const res = await this.mail.sendOwnerStatement(to, st.owner.firstName, data.monthLabel, buffer, filename, {
+      nights: fresh.totals.nights,
+      due: amount(fresh.totals.due, 'MAD'),
+      paid: amount(fresh.totals.paid, 'MAD'),
+      remaining: amount(fresh.totals.remaining, 'MAD'),
+      houses: fresh.houses.map((h) => h.name),
+    });
     if (!res.sent) throw new BadRequestException(`Relevé non envoyé : ${res.error}`);
     await this.prisma.ownerStatement.update({ where: { id }, data: { status: 'SENT', sentAt: new Date(), sentTo: to, sentById: actorId } });
     return { sent: true, to };
