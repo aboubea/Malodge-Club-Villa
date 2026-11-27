@@ -11,8 +11,36 @@ import { SettlementFormModal } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, TextInput, td, th } from './ui';
 import { mergeInDisplay } from '../../lib/display';
 import { useUIStore } from '../../store/uiStore';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 
 const STATUS_VARIANT = { PENDING: 'pending', VALIDATED: 'success', CANCELLED: 'cancelled' } as const;
+
+/** What each column sorts and filters on: the value shown in it. */
+const SETTLEMENT_COLS: ColSpec<Settlement>[] = [
+  { key: 'date', label: 'Date', kind: 'date', value: (s) => s.date },
+  { key: 'person', label: 'Personne', value: (s) => s.stay?.label ?? s.person.name },
+  { key: 'kind', label: 'Opération', value: (s) => s.kindLabel },
+  { key: 'amount', label: 'Montant', kind: 'number', align: 'right', value: (s) => s.amount },
+  { key: 'method', label: 'Mode', value: (s) => (s.method ? METHOD_LABELS[s.method] : null) },
+  { key: 'status', label: 'Statut', value: (s) => SETTLEMENT_STATUS_LABELS[s.status] },
+  { key: 'treasury', label: 'Trésorerie', kind: 'number', align: 'right', value: (s) => (s.status === 'VALIDATED' ? s.treasury : null) },
+];
+
+type SettlementTotals = { currency: string; inflow: number; outflow: number; net: number; pending: number };
+
+/** The totals of the settlements shown (same rules as the server): the column filters update them. */
+function totalsOf(rows: Settlement[]): SettlementTotals[] {
+  const map = new Map<string, SettlementTotals>();
+  for (const s of rows) {
+    const t = map.get(s.currency) ?? { currency: s.currency, inflow: 0, outflow: 0, net: 0, pending: 0 };
+    if (s.status === 'PENDING') t.pending += 1;
+    if (s.treasury > 0) t.inflow += s.treasury;
+    if (s.treasury < 0) t.outflow += -s.treasury;
+    t.net += s.treasury;
+    map.set(s.currency, t);
+  }
+  return [...map.values()];
+}
 
 export function SettlementsTab({ options }: { options: Options | undefined }) {
   const { user } = useAuthStore();
@@ -42,6 +70,9 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
     if (!b.date) return -1;
     return order === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date);
   });
+  // Sort and filter at the top of the columns (as in the Excel file); the totals follow what is shown.
+  const ctl = useTableControls<Settlement>('extras-settlements', rows, SETTLEMENT_COLS);
+  const totals = ctl.activeCount ? totalsOf(ctl.rows) : data?.totals ?? [];
 
   const act = (s: Settlement, a: 'validate' | 'cancel' | 'reopen') => action.mutate({ id: s.id, action: a });
 
@@ -77,7 +108,7 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
         </Button>
       </div>
 
-      {mergeInDisplay(data?.totals ?? [], (t) => t.currency, ['inflow', 'outflow', 'net', 'pending'] as const).map(({ row: t, currency }) => (
+      {mergeInDisplay(totals, (t) => t.currency, ['inflow', 'outflow', 'net', 'pending'] as const).map(({ row: t, currency }) => (
         <div key={currency} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-2xl bg-surface border border-line px-4 py-3.5">
             <p className="text-[12px] text-muted">Encaissements validés</p>
@@ -101,22 +132,31 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
           <EmptyState title="Aucun règlement" hint="Les encaissements clients et les versements apparaîtront ici." />
         </div>
       ) : (
+        <>
+        <TableFilterSummary ctl={ctl} noun="règlement" />
         <TableCard>
           <table className="w-full min-w-[960px]">
             <thead>
               <tr>
-                <th className={th}>Date</th>
-                <th className={th}>Personne</th>
-                <th className={th}>Opération</th>
-                <th className={cn(th, 'text-right')}>Montant</th>
-                <th className={th}>Mode</th>
-                <th className={th}>Statut</th>
-                <th className={cn(th, 'text-right')}>Trésorerie</th>
+                <th className={th}><ColumnHeader ctl={ctl} col="date" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="person" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="kind" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="amount" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="method" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="status" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="treasury" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((s) => (
+              {ctl.rows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className={cn(td, 'text-center text-muted')}>
+                    Aucun règlement ne correspond aux filtres.
+                  </td>
+                </tr>
+              )}
+              {ctl.rows.map((s) => (
                 <tr key={s.id} className={cn('hover:bg-surface-2/50', s.status === 'CANCELLED' && 'opacity-55')}>
                   <td className={cn(td, 'whitespace-nowrap tabular text-ink-soft')}>{s.date ? formatDay(s.date) : <span className="text-warning font-semibold">Sans date</span>}</td>
                   <td className={td}>
@@ -168,6 +208,7 @@ export function SettlementsTab({ options }: { options: Options | undefined }) {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       <SettlementFormModal open={creating} onClose={() => setCreating(false)} options={options} />

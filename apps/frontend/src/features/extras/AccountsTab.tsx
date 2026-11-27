@@ -10,6 +10,7 @@ import { SettlementFormModal, SettlementPreset } from './forms';
 import { EmptyState, Money, Segmented, Select, TableCard, td, th } from './ui';
 import { mergeInDisplay } from '../../lib/display';
 import { useUIStore } from '../../store/uiStore';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 
 const PAY_KIND: Record<AccountRole, string> = {
   CLIENT: 'CLIENT_PAYMENT',
@@ -27,6 +28,16 @@ const DUE_LABEL: Record<AccountRole, string> = {
 
 const STATES: AccountState[] = ['Non réglé', 'Partiel', 'Réglé', 'Avance', 'Rien à régler', 'À compléter'];
 
+/** What each column sorts and filters on (the titles follow the category shown). */
+const accountCols = (role: AccountRole): ColSpec<Account>[] => [
+  { key: 'name', label: ROLE_LABELS[role].one, value: (a) => a.name },
+  { key: 'due', label: DUE_LABEL[role], kind: 'number', align: 'right', value: (a) => a.due },
+  { key: 'paid', label: role === 'CLIENT' ? 'Reçu net' : 'Versé net', kind: 'number', align: 'right', value: (a) => a.paid },
+  { key: 'balance', label: 'Solde', kind: 'number', align: 'right', value: (a) => a.balance },
+  { key: 'state', label: 'État', value: (a) => a.state },
+  { key: 'extras', label: 'Extras', kind: 'number', align: 'right', value: (a) => a.extrasCount },
+];
+
 export function AccountsTab({ options }: { options: Options | undefined }) {
   const [params, setParams] = useSearchParams();
   useUIStore((s) => s.currency); // totals follow the MAD / € switch
@@ -43,9 +54,13 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
     return [...list].sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : b.balance - a.balance));
   }, [data, state, stays, sort, role]);
 
+  // Sort and filter at the top of the columns (as in the Excel file); the totals follow what is shown.
+  const cols = useMemo(() => accountCols(role), [role]);
+  const ctl = useTableControls<Account>('extras-accounts', rows, cols);
+
   const totals = useMemo(() => {
     const map = new Map<string, { due: number; paid: number; balance: number }>();
-    for (const a of rows) {
+    for (const a of ctl.rows) {
       const t = map.get(a.currency) ?? { due: 0, paid: 0, balance: 0 };
       t.due += a.due;
       t.paid += a.paid;
@@ -53,13 +68,15 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
       map.set(a.currency, t);
     }
     return [...map.entries()];
-  }, [rows]);
+  }, [ctl.rows]);
 
   const setRole = (r: AccountRole) => {
     const next = new URLSearchParams(params);
     next.set('role', r);
     setParams(next, { replace: true });
     setState('');
+    // The names (and amounts) of another category: its column filters start empty, the sort stays.
+    for (const k of Object.keys(ctl.filters)) ctl.setFilter(k, null);
   };
 
   const detail = (a: Account) => {
@@ -135,21 +152,30 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
           <EmptyState title="Aucun compte" hint="Les comptes apparaissent dès qu’une personne ou un séjour a des extras." />
         </div>
       ) : (
+        <>
+        <TableFilterSummary ctl={ctl} noun="compte" />
         <TableCard>
           <table className="w-full min-w-[880px]">
             <thead>
               <tr>
-                <th className={th}>{ROLE_LABELS[role].one}</th>
-                <th className={cn(th, 'text-right')}>{DUE_LABEL[role]}</th>
-                <th className={cn(th, 'text-right')}>{role === 'CLIENT' ? 'Reçu net' : 'Versé net'}</th>
-                <th className={cn(th, 'text-right')}>Solde</th>
-                <th className={th}>État</th>
-                <th className={cn(th, 'text-right')}>Extras</th>
+                <th className={th}><ColumnHeader ctl={ctl} col="name" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="due" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="paid" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="balance" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="state" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="extras" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {rows.map((a) => (
+              {ctl.rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className={cn(td, 'text-center text-muted')}>
+                    Aucun compte ne correspond aux filtres.
+                  </td>
+                </tr>
+              )}
+              {ctl.rows.map((a) => (
                 <tr key={`${a.id}-${a.currency}`} className="hover:bg-surface-2/50">
                   <td className={td}>
                     <Link to={`/extras/saisie?${filterKey}=${a.id}&stays=all`} className="font-semibold hover:underline">
@@ -189,6 +215,7 @@ export function AccountsTab({ options }: { options: Options | undefined }) {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       <SettlementFormModal open={!!preset} onClose={() => setPreset(null)} options={options} preset={preset} />

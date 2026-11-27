@@ -8,8 +8,19 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { cn } from '../../lib/utils';
 import { CatalogueItem, Options, api, pct, useCatalogue, useExtrasMutation } from './api';
 import { EmptyState, Field, Money, Select, TableCard, TextInput, td, th } from './ui';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 
 const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(',', '.')));
+
+/** What each column sorts and filters on: the value shown in it. */
+const CATALOGUE_COLS: ColSpec<CatalogueItem>[] = [
+  { key: 'name', label: 'Prestation', value: (i) => i.name },
+  { key: 'unit', label: 'Unité', value: (i) => i.unit },
+  { key: 'unitCost', label: 'Coût unitaire', kind: 'number', align: 'right', value: (i) => i.unitCost },
+  { key: 'publicPrice', label: 'Prix public saisi', kind: 'number', align: 'right', value: (i) => i.publicPrice },
+  { key: 'proposedPrice', label: 'Prix proposé', kind: 'number', align: 'right', value: (i) => i.proposedPrice },
+  { key: 'provider', label: 'Prestataire par défaut', value: (i) => i.defaultProvider?.name },
+];
 
 function CatalogueItemModal({ item, open, onClose, options, markup }: { item: CatalogueItem | null; open: boolean; onClose: () => void; options: Options | undefined; markup: number }) {
   const [f, setF] = useState({ name: '', category: '', unit: '', unitCost: '', publicPrice: '', currency: 'MAD', defaultProviderId: '', isActive: true });
@@ -140,6 +151,8 @@ export function CatalogueTab({ options }: { options: Options | undefined }) {
   const items = (data?.items ?? []).filter(
     (i) => (!cat || i.category === cat) && (!q || i.name.toLowerCase().includes(q.toLowerCase())),
   );
+  // Sort and filter at the top of the columns (as in the Excel file).
+  const ctl = useTableControls<CatalogueItem>('extras-catalogue', items, CATALOGUE_COLS);
 
   return (
     <div className="space-y-5">
@@ -169,21 +182,30 @@ export function CatalogueTab({ options }: { options: Options | undefined }) {
           <EmptyState title="Aucune prestation" />
         </div>
       ) : (
+        <>
+        <TableFilterSummary ctl={ctl} noun="prestation" />
         <TableCard>
           <table className="w-full min-w-[920px]">
             <thead>
               <tr>
-                <th className={th}>Prestation</th>
-                <th className={th}>Unité</th>
-                <th className={cn(th, 'text-right')}>Coût unitaire</th>
-                <th className={cn(th, 'text-right')}>Prix public saisi</th>
-                <th className={cn(th, 'text-right')}>Prix proposé</th>
-                <th className={th}>Prestataire par défaut</th>
+                <th className={th}><ColumnHeader ctl={ctl} col="name" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="unit" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="unitCost" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="publicPrice" /></th>
+                <th className={cn(th, 'text-right')}><ColumnHeader ctl={ctl} col="proposedPrice" /></th>
+                <th className={th}><ColumnHeader ctl={ctl} col="provider" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {items.map((i) => (
+              {ctl.rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className={cn(td, 'text-center text-muted')}>
+                    Aucune prestation ne correspond aux filtres.
+                  </td>
+                </tr>
+              )}
+              {ctl.rows.map((i) => (
                 <tr key={i.id} className={cn('hover:bg-surface-2/50', !i.isActive && 'opacity-55')}>
                   <td className={td}>
                     <p className="font-semibold max-w-[380px] truncate" title={i.name}>
@@ -214,6 +236,7 @@ export function CatalogueTab({ options }: { options: Options | undefined }) {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       <CatalogueItemModal
