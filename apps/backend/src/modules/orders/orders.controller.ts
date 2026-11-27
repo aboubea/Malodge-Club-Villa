@@ -78,7 +78,8 @@ export class OrdersController {
   ) {
     return this.ordersService.findAll({
       page: page ? parseInt(page) : undefined,
-      limit: limit ? parseInt(limit) : undefined,
+      // The list is loaded whole for sorting and filtering by column (capped).
+      limit: limit ? Math.min(parseInt(limit) || 20, 1000) : undefined,
       status,
       villaId,
       clientId: user.role === Role.CLIENT ? user.id : clientId,

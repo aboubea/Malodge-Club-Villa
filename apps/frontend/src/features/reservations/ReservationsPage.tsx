@@ -13,6 +13,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Input } from '../../components/ui/Input';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate, displayEmail } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -49,6 +50,28 @@ interface Reservation {
   villa: { id: string; name: string; city: string; currency?: string };
   client: { id: string; firstName: string; lastName: string; email: string };
 }
+
+/** What each column of the list sorts and filters on (the loaded page only: the list is paginated by the server). */
+const RESERVATION_COLS: ColSpec<Reservation>[] = [
+  { key: 'client', label: 'Client', value: (r) => [r.client?.firstName, r.client?.lastName].filter(Boolean).join(' ') },
+  { key: 'villa', label: 'Villa', value: (r) => r.villa?.name },
+  { key: 'stay', label: 'Séjour', kind: 'date', value: (r) => r.checkIn },
+  { key: 'guests', label: 'Personnes', kind: 'number', value: (r) => r.guests },
+  { key: 'status', label: 'Statut', value: (r) => STATUS_CONFIG[r.status]?.label ?? r.status },
+  { key: 'amount', label: 'Montant', kind: 'number', value: (r) => r.totalAmount },
+];
+const LIST_HEADERS: [string, string?][] = [['Client', 'client'], ['Villa', 'villa'], ['Séjour', 'stay'], ['Personnes', 'guests'], ['Statut', 'status'], ['Montant', 'amount'], ['']];
+
+/** Same for the Lodgify bookings (all loaded at once). */
+const LODGIFY_COLS: ColSpec<any>[] = [
+  { key: 'client', label: 'Client', value: (r) => r.guestName },
+  { key: 'property', label: 'Propriété', value: (r) => r.propertyName ?? (r.propertyId != null ? `#${r.propertyId}` : null) },
+  { key: 'stay', label: 'Séjour', kind: 'date', value: (r) => r.checkIn },
+  { key: 'guests', label: 'Personnes', kind: 'number', value: (r) => r.guests },
+  { key: 'status', label: 'Statut', value: (r) => r.status },
+  { key: 'amount', label: 'Montant', kind: 'number', value: (r) => r.totalAmount },
+];
+const LODGIFY_HEADERS: [string, string][] = [['Client', 'client'], ['Propriété', 'property'], ['Séjour', 'stay'], ['Personnes', 'guests'], ['Statut', 'status'], ['Montant', 'amount']];
 
 type FormMode = 'create' | 'edit';
 
@@ -117,7 +140,8 @@ export function ReservationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['reservations', { page, status: statusFilter, country: countryFilter }],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), limit: '15' });
+      // The whole list (up to 1 000): sorting and filtering by column cover every stay.
+      const params = new URLSearchParams({ page: String(page), limit: '1000' });
       if (statusFilter) params.set('status', statusFilter);
       if (countryFilter) params.set('country', countryFilter);
       const res = await apiClient.get(`/reservations?${params}`);
@@ -165,6 +189,7 @@ export function ReservationsPage() {
     retry: false,
   });
   const lodgifyReservations: any[] = Array.isArray(lodgifyResData) ? lodgifyResData : [];
+  const lodgifyCtl = useTableControls<any>('reservations-lodgify', lodgifyReservations, LODGIFY_COLS);
 
   const createClientMutation = useMutation({
     mutationFn: (data: { firstName: string; lastName: string; email: string; phone?: string }) =>
@@ -196,6 +221,8 @@ export function ReservationsPage() {
 
   const reservations: Reservation[] = data?.data ?? data ?? [];
   const meta = data?.meta ?? { total: 0, page: 1, totalPages: 1 };
+  // Sort and filter at the top of the columns, over the bookings of the page shown.
+  const listCtl = useTableControls<Reservation>('reservations-list', reservations, RESERVATION_COLS);
 
   const villas: any[] = villasData?.data ?? villasData ?? [];
   const clients: any[] = clientsData?.data ?? clientsData ?? [];
@@ -318,14 +345,15 @@ export function ReservationsPage() {
       )}
 
       {/* Lodgify reservations table */}
+      {source === 'lodgify' && <TableFilterSummary ctl={lodgifyCtl} noun="réservation" />}
       {source === 'lodgify' && (
         <div className="rounded-xl border border-line overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line bg-surface">
-                  {['Client', 'Propriété', 'Séjour', 'Personnes', 'Statut', 'Montant'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">{h}</th>
+                  {LODGIFY_HEADERS.map(([h, key]) => (
+                    <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap"><ColumnHeader ctl={lodgifyCtl} col={key} /></th>
                   ))}
                 </tr>
               </thead>
@@ -352,7 +380,7 @@ export function ReservationsPage() {
                       </td>
                     </tr>
                   )
-                  : lodgifyReservations.map((r: any, idx: number) => (
+                  : lodgifyCtl.rows.map((r: any, idx: number) => (
                     <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
                       className="border-b border-line hover:bg-surface transition-colors">
                       <td className="px-4 py-3.5">
@@ -371,7 +399,6 @@ export function ReservationsPage() {
                       </td>
                       <td className="px-4 py-3.5 text-accent font-normal">
                         {formatCurrency(r.totalAmount, r.currency ?? r.villa?.currency ?? 'EUR')}
-                        <MadEquivalent amount={r.totalAmount} currency={r.currency ?? r.villa?.currency} className="block text-[11px] text-muted" />
                         <MadEquivalent amount={r.totalAmount} currency={r.currency ?? r.villa?.currency} className="block text-[11px] text-muted" />
                       </td>
                     </motion.tr>
@@ -446,15 +473,17 @@ export function ReservationsPage() {
         )}
       </div>
 
+      <TableFilterSummary ctl={listCtl} noun="réservation" />
+
       {/* Table */}
       <div className="rounded-xl border border-line overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-surface">
-                {['Client', 'Villa', 'Séjour', 'Personnes', 'Statut', 'Montant', ''].map((h) => (
+                {LIST_HEADERS.map(([h, key]) => (
                   <th key={h} className="px-4 py-3 text-left text-[12px] font-semibold text-muted whitespace-nowrap">
-                    {h}
+                    {key ? <ColumnHeader ctl={listCtl} col={key} /> : h}
                   </th>
                 ))}
               </tr>
@@ -471,7 +500,7 @@ export function ReservationsPage() {
                     </td>
                   </tr>
                 )
-                : reservations.map((r, idx) => {
+                : listCtl.rows.map((r, idx) => {
                   const sc = STATUS_CONFIG[r.status] ?? { label: r.status, variant: 'default' as const };
                   return (
                     <motion.tr

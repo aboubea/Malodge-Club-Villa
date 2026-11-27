@@ -14,6 +14,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Avatar } from '../../components/ui/Avatar';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { apiClient } from '../../lib/apiClient';
 import { formatCurrency, formatDate } from '../../lib/utils';
@@ -30,6 +31,28 @@ const STATUS_TABS: { label: string; value: StatusFilter }[] = [
   { label: 'En cours', value: OrderStatus.IN_PROGRESS },
   { label: 'Terminées', value: OrderStatus.COMPLETED },
   { label: 'Annulées', value: OrderStatus.CANCELLED },
+];
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  [OrderStatus.PENDING]: 'En attente',
+  [OrderStatus.CONFIRMED]: 'Confirmée',
+  [OrderStatus.IN_PROGRESS]: 'En cours',
+  [OrderStatus.COMPLETED]: 'Terminée',
+  [OrderStatus.CANCELLED]: 'Annulée',
+};
+
+const personName = (u: { firstName?: string; lastName?: string } | null | undefined) =>
+  u ? [u.firstName, u.lastName].filter(Boolean).join(' ') : null;
+
+/** What each column of the staff table sorts and filters on (the loaded page only: the list is paginated by the server). */
+const ORDER_COLS: ColSpec<any>[] = [
+  { key: 'client', label: 'Client', value: (o) => personName(o.client) },
+  { key: 'services', label: 'Services', value: (o) => (o.items?.length ? o.items.map((it: any) => it.service?.name ?? it.label).join(', ') : null) },
+  { key: 'villa', label: 'Villa', value: (o) => o.reservation?.villa?.name },
+  { key: 'amount', label: 'Montant', kind: 'number', value: (o) => o.totalAmount },
+  { key: 'status', label: 'Statut', value: (o) => ORDER_STATUS_LABELS[o.status] ?? o.status },
+  { key: 'provider', label: 'Prestataire', value: (o) => personName(o.provider?.user) },
+  { key: 'date', label: 'Date', kind: 'date', value: (o) => o.createdAt },
 ];
 
 async function fetchOrders(params: {
@@ -60,7 +83,8 @@ export function OrdersPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const limit = 20;
+  // The whole list (up to 1 000): sorting and filtering by column cover every order.
+  const limit = 1000;
 
   const { data: countriesData } = useCountries();
   const countries = countriesData ?? [];
@@ -89,10 +113,13 @@ export function OrdersPage() {
 
   const orders = data?.data ?? [];
   const meta = data?.meta;
+  // Staff: sort and filter at the top of the columns, over the orders of the page shown.
+  const ctl = useTableControls<any>('orders', orders, ORDER_COLS);
+  const rows: any[] = isClient ? orders : ctl.rows;
 
-  // Columns differ by role
-  const staffCols = ['#', 'Client', 'Services', 'Villa', 'Montant', 'Statut', 'Prestataire', 'Date', ''];
-  const clientCols = ['#', 'Services', 'Villa', 'Date', 'Montant', 'Statut', ''];
+  // Columns differ by role (key: the column's sort / filter, staff only)
+  const staffCols: [string, string?][] = [['#'], ['Client', 'client'], ['Services', 'services'], ['Villa', 'villa'], ['Montant', 'amount'], ['Statut', 'status'], ['Prestataire', 'provider'], ['Date', 'date'], ['']];
+  const clientCols: [string, string?][] = [['#'], ['Services'], ['Villa'], ['Date'], ['Montant'], ['Statut'], ['']];
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -149,10 +176,12 @@ export function OrdersPage() {
         </div>
       )}
 
+      {!isClient && <TableFilterSummary ctl={ctl} noun="commande" />}
+
       {/* Phones: one card per order */}
       <div className="md:hidden rounded-2xl bg-surface border border-line/80 divide-y divide-line/70 overflow-hidden">
         {!isLoading && orders.length === 0 && <p className="px-4 py-10 text-center text-[14px] text-muted">{isClient ? 'Aucune demande pour le moment.' : 'Aucune commande trouvée.'}</p>}
-        {orders.map((order: any) => {
+        {rows.map((order: any) => {
           const first = order.items?.[0];
           const k = activityKind(first?.service?.name ?? first?.label, first?.service?.category?.name);
           return (
@@ -186,12 +215,12 @@ export function OrdersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-line">
-                {(isClient ? clientCols : staffCols).map((col) => (
+                {(isClient ? clientCols : staffCols).map(([col, key]) => (
                   <th
                     key={col}
                     className="px-4 py-3 text-left text-[12.5px] font-semibold text-muted"
                   >
-                    {col}
+                    {key ? <ColumnHeader ctl={ctl} col={key} /> : col}
                   </th>
                 ))}
               </tr>
@@ -226,7 +255,7 @@ export function OrdersPage() {
                     </td>
                   </tr>
                 )
-                : orders.map((order: any, i: number) => (
+                : rows.map((order: any, i: number) => (
                     <motion.tr
                       key={order.id}
                       initial={{ opacity: 0, y: 8 }}

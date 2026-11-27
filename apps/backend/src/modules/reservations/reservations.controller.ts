@@ -31,7 +31,8 @@ export class ReservationsController {
     return this.reservationsService.findAll({
       page: page ? parseInt(page) : undefined,
       // The calendar needs every stay of the period at once.
-      limit: limit ? Math.min(parseInt(limit) || 20, calendar ? 1000 : 200) : calendar ? 1000 : undefined,
+      // The calendar and the list (sorted and filtered by column) load every stay at once (capped).
+      limit: limit ? Math.min(parseInt(limit) || 20, 1000) : calendar ? 1000 : undefined,
       from,
       to,
       undated: undated === 'true',

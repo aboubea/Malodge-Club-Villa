@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Archive, ArchiveRestore, Pencil, Plus } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { ColSpec, ColumnHeader, TableFilterSummary, useTableControls } from '../../components/ui/tableControls';
 import { useAuthStore } from '../../store/authStore';
 import { cn, formatDay } from '../../lib/utils';
 import { Person, Stay, VillaRef, api, pct, toDateInput, useExtrasMutation, useExtrasSettings } from './api';
@@ -14,6 +15,23 @@ import { CommissionsPanel } from './CommissionsPanel';
 import { useSearchParams } from 'react-router-dom';
 
 const ROLE_NAMES: Record<string, string> = { OWNER: 'Propriétaire', EMPLOYEE: 'Salarié', PROVIDER: 'Prestataire', CLIENT: 'Client' };
+
+/** What each column sorts and filters on. Commission: the rate in % (providers have none). */
+const PEOPLE_COLS: ColSpec<Person>[] = [
+  { key: 'name', label: 'Nom', value: (p) => p.name },
+  { key: 'role', label: 'Type', value: (p) => ROLE_NAMES[p.role] },
+  { key: 'rate', label: 'Commission', kind: 'number', value: (p) => (p.role === 'PROVIDER' || p.commissionRate == null ? null : Math.round(p.commissionRate * 1000) / 10) },
+  { key: 'villas', label: 'Villas', value: (p) => p.villas.map((v) => v.name).join(', ') },
+  { key: 'login', label: 'Accès appli', value: (p) => (p.canLogin ? 'Oui' : 'Fiche') },
+];
+
+const STAY_COLS: ColSpec<Stay>[] = [
+  { key: 'label', label: 'Client / séjour', value: (s) => s.label },
+  { key: 'villa', label: 'Villa', value: (s) => s.villa },
+  { key: 'checkIn', label: 'Arrivée', kind: 'date', value: (s) => s.checkIn },
+  { key: 'checkOut', label: 'Départ', kind: 'date', value: (s) => s.checkOut },
+  { key: 'archived', label: 'Suivi', value: (s) => (s.archived ? 'Archivé' : 'Actif') },
+];
 
 function PersonModal({
   person,
@@ -369,6 +387,20 @@ export function SettingsTab() {
   const saveStay = useExtrasMutation(api.saveStay);
   const saveMarkup = useExtrasMutation((m: number) => api.setMarkup(m), 'Majoration enregistrée — catalogue mis à jour');
 
+  // Sort and filter at the top of each table's columns (before the loading return: hooks run every time).
+  const people = data?.people ?? [];
+  const villaCols = useMemo<ColSpec<VillaRef>[]>(
+    () => [
+      { key: 'name', label: 'Villa / riad', value: (v) => v.name },
+      { key: 'owner', label: 'Propriétaire', value: (v) => (v.ownerId ? people.find((p) => p.id === v.ownerId)?.name : null) },
+      { key: 'currency', label: 'Devise des extras', value: (v) => v.currency },
+    ],
+    [people],
+  );
+  const peopleCtl = useTableControls<Person>('extras-settings-people', people, PEOPLE_COLS);
+  const staysCtl = useTableControls<Stay>('extras-settings-stays', data?.stays ?? [], STAY_COLS);
+  const villasCtl = useTableControls<VillaRef>('extras-settings-villas', data?.villas ?? [], villaCols);
+
   if (isLoading || !data) return <Skeleton className="h-72 rounded-2xl" />;
   const owners = data.people.filter((p) => p.role === 'OWNER');
 
@@ -401,20 +433,22 @@ export function SettingsTab() {
       {section === 'commissions' && <CommissionsPanel preset={{ villaId: params.get('villa') ?? undefined }} />}
 
       {section === 'people' && (
+        <>
+        <TableFilterSummary ctl={peopleCtl} noun="fiche" />
         <TableCard>
           <table className="w-full min-w-[760px]">
             <thead>
               <tr>
-                <th className={th}>Nom</th>
-                <th className={th}>Type</th>
-                <th className={th}>Commission</th>
-                <th className={th}>Villas</th>
-                <th className={th}>Accès appli</th>
+                <th className={th}><ColumnHeader ctl={peopleCtl} col="name" /></th>
+                <th className={th}><ColumnHeader ctl={peopleCtl} col="role" /></th>
+                <th className={th}><ColumnHeader ctl={peopleCtl} col="rate" /></th>
+                <th className={th}><ColumnHeader ctl={peopleCtl} col="villas" /></th>
+                <th className={th}><ColumnHeader ctl={peopleCtl} col="login" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.people.map((p) => (
+              {peopleCtl.rows.map((p) => (
                 <tr key={p.id} className="hover:bg-surface-2/50">
                   <td className={td}>
                     <p className="font-semibold">{p.name}</p>
@@ -447,23 +481,26 @@ export function SettingsTab() {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       {section === 'stays' && (
+        <>
+        <TableFilterSummary ctl={staysCtl} noun="séjour" />
         <TableCard>
           <table className="w-full min-w-[760px]">
             <thead>
               <tr>
-                <th className={th}>Client / séjour</th>
-                <th className={th}>Villa</th>
-                <th className={th}>Arrivée</th>
-                <th className={th}>Départ</th>
-                <th className={th}>Suivi</th>
+                <th className={th}><ColumnHeader ctl={staysCtl} col="label" /></th>
+                <th className={th}><ColumnHeader ctl={staysCtl} col="villa" /></th>
+                <th className={th}><ColumnHeader ctl={staysCtl} col="checkIn" /></th>
+                <th className={th}><ColumnHeader ctl={staysCtl} col="checkOut" /></th>
+                <th className={th}><ColumnHeader ctl={staysCtl} col="archived" /></th>
                 <th className={th} aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.stays.map((s) => (
+              {staysCtl.rows.map((s) => (
                 <tr key={s.id} className={cn('hover:bg-surface-2/50', s.archived && 'opacity-60')}>
                   <td className={td}>
                     <p className="font-semibold">{s.label}</p>
@@ -496,6 +533,7 @@ export function SettingsTab() {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
 
       {section === 'villas' && (
@@ -506,18 +544,19 @@ export function SettingsTab() {
               qu’une fiche par maison : séjours, extras, propriétaire et devise sont reportés sur la villa Lodgify.
             </div>
           )}
+          <TableFilterSummary ctl={villasCtl} noun="villa" />
           <TableCard>
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr>
-                  <th className={th}>Villa / riad</th>
-                  <th className={th}>Propriétaire</th>
-                  <th className={th}>Devise des extras</th>
+                  <th className={th}><ColumnHeader ctl={villasCtl} col="name" /></th>
+                  <th className={th}><ColumnHeader ctl={villasCtl} col="owner" /></th>
+                  <th className={th}><ColumnHeader ctl={villasCtl} col="currency" /></th>
                   <th className={th} aria-label="Actions" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {data.villas.map((v) => (
+                {villasCtl.rows.map((v) => (
                   <tr key={v.id}>
                     <td className={td}>
                       <p className="font-semibold">
